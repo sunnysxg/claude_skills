@@ -1,6 +1,6 @@
 # Session Log 模板
 
-写入 `/cpfs01/nfshome/xgsun/_sxg/LLM_session_log/[{project}]{YYMMDDHHMM}_{slug}.md` 时使用。
+写入 `~/_sxg/llm_session_log/{YYYYMMDDHHMM}_{project}_{slug}.md` 时使用。
 
 ## Frontmatter 标准（必须统一）
 
@@ -9,8 +9,8 @@
 | `session_title` | string | 双引号；5–12 字 |
 | `date` | date | `YYYY-MM-DD`，不加引号 |
 | `time` | string | 双引号；`"HH:MM"` 24h |
-| `project` | string | 项目根目录名；不加引号（纯字母数字下划线） |
-| `project_path` | string | 双引号；项目根绝对路径 |
+| `project` | string | 项目根目录名 snake_case 化；不加引号（纯小写字母数字下划线） |
+| `project_path` | string | 双引号；项目根绝对路径（本机实际路径） |
 | `summary` | string | 双引号；一行 |
 | `suggested_chat_title` | string | 双引号 |
 | `keywords` | list | YAML 列表，小写 tag |
@@ -23,8 +23,8 @@
 session_title: ""
 date: YYYY-MM-DD
 time: "HH:MM"
-project: ProjectDirName
-project_path: "/cpfs01/nfshome/xgsun/..."
+project: project_dir_name
+project_path: "/abs/path/on/this/machine"
 summary: ""
 suggested_chat_title: ""
 keywords: []
@@ -33,7 +33,8 @@ git_commits: []
 
 # Session: {session_title}
 
-> **Cursor 标题**：发送 **`/rename {suggested_chat_title}`**（或侧边栏 Rename）
+> **Chat 标题建议**：`{suggested_chat_title}`（Cursor 可发 `/rename {suggested_chat_title}`；
+> Claude Code 在侧边栏 UI 改名）
 
 ## 目标
 
@@ -65,16 +66,17 @@ git_commits: []
 
 ---
 
-## INDEX.md 表头（新建时用）
+## index.md 表头（新建时用）
 
-路径：`/cpfs01/nfshome/xgsun/_sxg/LLM_session_log/INDEX.md`
+路径：`~/_sxg/llm_session_log/index.md`
 
 ```markdown
 # Session Log Index
 
-全局 LLM session 归档，目录：`/cpfs01/nfshome/xgsun/_sxg/LLM_session_log/`。关 session 前用 `/session-log` 追加。
+全局 LLM session 归档（本机），目录：`~/_sxg/llm_session_log/`。关 session 前用
+`/session-log` 追加。
 
-按文件名排序即按「项目 → 时间」倒序（同项目内较新的在前）。
+文件名以 12 位时间戳开头，按文件名排序即按时间倒序。
 
 | 日期 | 项目 | Session | 摘要 | Chat 标题建议 |
 |------|------|---------|------|---------------|

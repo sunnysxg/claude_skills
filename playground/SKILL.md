@@ -12,11 +12,11 @@ description: >
 ## 执行步骤
 
 1. **建文件夹**
-   - 路径：`playground/YYMMDD-有意义的短名/`
-   - 日期取当天（YYMMDD 格式）
+   - 路径：`playground/{YYYYMMDD}_{有意义的短名}/`
+   - 日期取当天（YYYYMMDD，8 位）
    - 名称必须能看出具体做什么，不要用泛泛的词（"测试"、"对比"、"分析"）
-   - ❌ 不好：`260612-dsl对比`、`260612-因子分析`
-   - ✓ 好：`260612-tsrank_dslparser_vs_calculator`、`260613-factor_coldstart回填`
+   - ❌ 不好：`20260612_dsl对比`、`20260612_因子分析`
+   - ✓ 好：`20260612_tsrank_dslparser_vs_calculator`、`20260613_factor_coldstart回填`
 
 2. **写代码**
    - 语言：Python 3，直接用 pandas / numpy / matplotlib 等已装好的库

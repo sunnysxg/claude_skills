@@ -2,14 +2,17 @@
 name: session-search
 description: >
   检索已归档的历史 agent session 摘要（关键词、项目、时间、未竟事项）。
-  何时用：用户指向上次/最近 agent 工作（最近的 session、上次那个 chat、接着上次、哪次改过），
+  用户指向上次/最近的 agent 工作（最近的 session、上次那个 chat、接着上次、哪次改过），
   且 CLAUDE.md、README、_sxg/ 等项目文档不足以回答时，先查归档再答。
-  何时不用：仓库文档或源码能直接答的问题；与历史 session 无关的新任务；handoff 交接待办。
+  仓库文档或源码能直接回答的问题、与历史 session 无关的新任务、handoff 交接待办，不用本 skill。
 ---
 
 # Session Search — 检索历史 session 摘要
 
-续接**上次 agent 工作**或找「哪次 chat 做过 X」，但项目文档说不清时用。归档目录见 [references/archive-layout.md](references/archive-layout.md)。
+续接**上次 agent 工作**或找「哪次 chat 做过 X」，但项目文档说不清时用。归档目录与文件格式见
+[references/archive-layout.md](references/archive-layout.md)。
+
+归档按机器独立（`~` 各自解析），本 skill 只搜**本机**归档。
 
 ## 0. 何时用 / 何时不用（先判断再搜）
 
@@ -33,32 +36,33 @@ description: >
 | 维度 | 示例 | 用法 |
 |------|------|------|
 | 关键词 | mlflow、gitlab、lineage | grep 正文 + frontmatter |
-| 项目 | quantalpha、FactorInfra | 文件名 `[项目名]` 前缀或 `project:` 字段 |
-| 时间 | 上周、260629、6 月 | 文件名 `{YYMMDDHHMM}` 或 INDEX 日期列 |
+| 项目 | quantalpha、factor_infra | 文件名中的 `{project}` 段或 `project:` 字段 |
+| 时间 | 上周、260629、6 月 | 文件名时间戳前缀或 index 日期列 |
 | 意图 | 「上次」「最近」「哪次」 | 多命中时按时间新→旧；「最近/上次」默认取最新 1 条 |
 
 项目名不确定时：从 cwd / 用户 `@` 路径推断默认项目；隐式触发时**优先筛当前项目**，无命中再扩全局。
 
 ## 2. 检索顺序（先广后窄）
 
-**Step A — INDEX 快扫**
+**Step A — index 快扫**
 
-读 `/cpfs01/nfshome/xgsun/_sxg/LLM_session_log/INDEX.md`，按摘要 / Session 标题 / 项目列做第一轮匹配。
+读 `~/_sxg/llm_session_log/index.md`，按摘要 / Session 标题 / 项目列做第一轮匹配。
 
 **Step B — 文件名过滤**
 
 ```bash
-LOG=/cpfs01/nfshome/xgsun/_sxg/LLM_session_log
-ls "$LOG"/\[{project}\]*.md 2>/dev/null    # 若指定项目
+LOG=~/_sxg/llm_session_log
+ls "$LOG"/*_{project}_*.md 2>/dev/null       # 新格式，按项目筛
+ls "$LOG"/\[{project}\]*.md 2>/dev/null      # 旧格式（存量文件，主要在集群）
 ls "$LOG"/*.md
 ```
 
-文件名格式：`[{project}]{YYMMDDHHMM}_{slug}.md`
+文件名两代格式都可能存在，见 archive-layout.md；内容 grep 不受格式影响。
 
 **Step C — 内容 grep**
 
 ```bash
-rg -i -l '关键词1|关键词2' "$LOG" --glob '*.md' --glob '!INDEX.md'
+rg -i -l '关键词1|关键词2' "$LOG" --glob '*.md' --glob '!index.md' --glob '!INDEX.md'
 rg -i '关键词' "$LOG" --glob '*.md' -n -C 0
 ```
 
@@ -79,8 +83,8 @@ rg -i '关键词' "$LOG" --glob '*.md' -n -C 0
 
 ### 1. {session_title} — {date} {time}
 - **项目**：{project}
-- **文件**：`/cpfs01/nfshome/xgsun/_sxg/LLM_session_log/{filename}`
-- **Chat 标题建议**：`{suggested_chat_title}`（在 Cursor 历史里可搜此名）
+- **文件**：`~/_sxg/llm_session_log/{filename}`
+- **Chat 标题建议**：`{suggested_chat_title}`（在 chat 历史里可搜此名）
 - **匹配原因**：{为何命中，1 句}
 - **要点**：{2–4 条 bullet，来自摘要}
 
@@ -92,7 +96,7 @@ rg -i '关键词' "$LOG" --glob '*.md' -n -C 0
 
 规则：
 
-- 最多详述 **5** 条；更多只列 INDEX 一行
+- 最多详述 **5** 条；更多只列 index 一行
 - 给出**可点击的完整路径**
 - 若用户问「上次/最近」，默认只展开**最新 1 条**并简述其余
 - **隐式触发**时：先 1 句交代「查了 session 归档」，再答用户原问题；不必每次贴完整模板

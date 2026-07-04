@@ -2,14 +2,22 @@
 name: handoff
 description: >
   把剩余任务和必要上下文写成交接文档，供下个 session/agent 接手。
-  MUST trigger when the user says: "/handoff", "交接", "写交接", "context快满了",
-  "下个session继续", "留个文档", or when context is running low and work remains.
+  用户要求交接（/handoff、写交接、下个 session 继续），或 context 快满但工作未完成时使用。
 ---
 
-当前上下文快满了，不要继续写代码。把交接信息写入仓库根目录 HANDOFF.md：
+停止写代码，把交接信息写成自包含文档。
+
+**位置**：`~/_sxg/handoff/{project}.md`
+
+- `{project}` = 项目根目录名 snake_case 化（全小写，`-` → `_`）；目录不存在则创建
+- **例外**：若项目根已有 `HANDOFF.md`（旧约定，个别项目的外部流程依赖它），就地更新那份，不迁移
+
+内容：
+
 1. 原始目标 / 需求
 2. 已完成部分（带文件路径）
 3. 剩余工作，写成可执行的下一步
 4. 关键决策、约束、坑、未决问题
 5. 如何运行 / 验证
-写得自包含，让没有任何上下文的 agent 也能续上。写完停下并告诉我路径。
+
+写得自包含，让没有任何上下文的 agent 也能续上。写完停下并告诉用户路径。

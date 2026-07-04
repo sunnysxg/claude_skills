@@ -14,6 +14,17 @@
 
 记忆文件用 YAML frontmatter:`name`、`description`、`type`(user / feedback / project / reference)。
 
+## Cursor
+
+| 用途 | 路径 |
+|---|---|
+| 项目级指令 | 项目根 `AGENTS.md`（或 `CLAUDE.md`，Cursor 会兼容读取） |
+| 规则目录 | `.cursor/rules/*.mdc`（旧式 `.cursorrules` 已弃用） |
+| 斜杠命令 | `.cursor/commands/<name>.md` |
+
+Cursor 没有独立的「记忆文件 + 索引」机制（内置 Memories 由 IDE 自己管理，不在文件层）。
+同步时参照 Codex 的做法：跨会话项目事实写进项目根 markdown。
+
 ## OpenAI Codex
 
 | 用途 | 路径 |

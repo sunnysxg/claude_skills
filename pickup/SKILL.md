@@ -1,15 +1,18 @@
 ---
 name: pickup
 description: >
-  读取上一个 session 留下的 HANDOFF.md 并接手继续。
-  MUST trigger when the user says: "/pickup", "接手", "继续上次", "从哪里开始",
-  "上次做到哪了", or at the start of a new session when prior work exists.
+  读取上个 session 留下的交接文档并接手继续。
+  用户要求接手（/pickup、继续上次、上次做到哪了），或新 session 开始且存在先前工作时使用。
 ---
 
-## 上次的交接文档
+## 找交接文档
 
-读取当前工作目录下的 HANDOFF.md（`cat HANDOFF.md 2>/dev/null`）。
+依次查找，找到即用（两处都有时，用修改时间更新的那份）：
+
+1. 项目根 `HANDOFF.md`（旧约定）
+2. `~/_sxg/handoff/{project}.md`（`{project}` = 项目根目录名 snake_case 化，全小写、`-` → `_`）
 
 ## 你的任务
 
-基于上面的交接文档接手。先用三五句话复述你的理解和接下来的计划，等用户确认后再动手。如果文档缺失或不完整，先问用户。
+基于交接文档接手。先用三五句话复述你的理解和接下来的计划，等用户确认后再动手。
+如果文档缺失或不完整，先问用户。

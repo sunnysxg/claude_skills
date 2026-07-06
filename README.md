@@ -22,8 +22,11 @@
 ## 部署
 
 - 仓库 clone 到 `~/.claude/skills`（Claude Code 直接读取，OpenCode 也扫描该目录）。
-- [global/CLAUDE.md](global/CLAUDE.md) 是跨项目通用规则：Claude Code 部署到
-  `~/.claude/CLAUDE.md`；Cursor 读取项目根的 `CLAUDE.md`/`AGENTS.md`，通用内容同样来自这份。
+- [global/CLAUDE.md](global/CLAUDE.md) 是跨项目通用规则，单一事实源在本 repo。
+  各机器 `~/.claude/CLAUDE.md` 只放一行 `@skills/global/CLAUDE.md`（Claude Code 每个
+  session 无条件加载该文件并跟随 import），机器特有内容（conda、内网服务等）追加在
+  这行下面。Cursor 不解析 `@import`，用规则（如 read-context）显式 Read
+  `~/.claude/skills/global/CLAUDE.md` 与 `~/.claude/CLAUDE.md` 两个文件。
 - 归档目录 `~/_sxg/` 各机器独立，skill 首次写入时自动创建。
 
 ## Credits

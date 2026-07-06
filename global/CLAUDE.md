@@ -1,10 +1,79 @@
 # 全局规则（跨项目通用）
 
-- 全局归档根：`~/_sxg/`（每台机器各一份，不跨机共享）
-  - `~/_sxg/llm_session_log/` — session 摘要归档，索引在 `index.md`
-  - `~/_sxg/handoff/{project}.md` — 项目交接文档（个别老项目仍用项目根 `HANDOFF.md`）
-- agent 写文件时遵循 `~/.claude/skills/conventions.md`：
+所有机器、所有 agent（Claude Code / Cursor 等）通用。项目内若有更具体的 `CLAUDE.md`，
+以项目内为准，两者一并生效。机器特有内容（conda 环境、内网服务等）不写在这里，
+写在各机器 `~/.claude/CLAUDE.md` 的本机段落里。
+
+## 语言与沟通
+
+- **始终用简体中文**回复用户。
+- 写得像高质量技术文：准确、结构清晰、完整句子；回复篇幅与任务复杂度相称；
+  优先 plain language 解释改了什么、为什么，少堆术语。
+- 少用 bold 和 backtick 做装饰；面向用户的文本避免「§」。
+- 结尾不要套路式「say the word and I'll…」；有明确后续再问，没有就不硬塞。
+- 引用已有代码用 code citation 块（`startLine:endLine:filepath`）；opening fence 单独一行，
+  不要前缀列表符。
+- 引用路径、URL 用完整 markdown 链接，不省略前缀或中间段。
+- fenced code block 与 inline backtick 内按字面显示，不用 HTML 实体代替符号。
+- 复杂逻辑可用 mermaid（`/mmd-explain`）或 ascii 图说明；简单改动不必强行画图。
+
+## 编码
+
+1. **最小改动** — 用最简单正确的 diff；无关代码不动；问答/审查类任务尤其克制。
+2. **避免过度工程** — 不为一两行逻辑抽 helper；不为极不可能的边界堆 error handling。
+3. **匹配现有惯例** — 先读周边代码，对齐命名、类型、抽象、import、注释粒度；
+   无惯例时再跟语言/框架最佳实践。
+4. **注释** — 代码应自解释；只注释非显而易见的业务逻辑或深层技术细节。
+5. **测试** — 仅用户要求或能覆盖真实行为时再加；不要 trivial assert。
+
+## Commit 信息
+
+格式：首行 `[模块][Tag] 中文摘要`；空一行；正文 1～3 句（为什么改、影响什么）。全部用中文。
+默认不加 Co-authored-by；PR 标题可与 commit 首行相同。
+
+```
+[Calc][Feat] 启动时从 factorhub 同步 registry
+
+运行时导出 fields/operators 至 gitignore 的 artifacts/doc；
+移除 vendor 内嵌 CSV；支持 FACTORHUB_ROOT 覆盖。
+```
+
+- **模块**：标明改动所在子目录/域。各项目在自己的 `CLAUDE.md` 里定义前缀表，
+  没有定义时按该项目目录名自拟；`Repo` = 仓库级（git 结构、目录搬迁、README/CLAUDE），
+  `Doc` = 仅文档。
+- **Tag**：`Init` 首次导入（少用）｜`Feat` 新功能｜`Fix` 修 bug｜`Ref` 重构（对外行为不变）
+  ｜`Docs` 只改文档｜`Chore` 合并、gitignore、杂项维护。
+- 摘要一行说完意图；正文写原因与范围，不写空话。
+
+## 格式化
+
+### 数学公式
+
+面向阅读的 Markdown 里默认用 `$...$`（行内）与 `$$...$$`（独立/多行）；
+不用 `\( \)` `\[ \]`，除非用户明确指定其他形式。
+
+### 图表文字
+
+生成图片/图表时，标题、标签、图例等**所有图内文字用英文**（matplotlib / seaborn
+默认无中文字体，易乱码）。Jupyter 的 Markdown 和代码注释可用中文，图内文字仍须英文。
+
+时间轴：x 轴为时间时先确认 dtype（`YYYYMMDDHHMM`、`YYYYMMDD` 或 `datetime64`），
+转 `datetime` 再画，勿把 int、Unix 秒或字符串原样当横坐标：
+
+```python
+# ❌ ax.plot(df["di"], y)
+# ✅ ax.plot(pd.to_datetime(df["di"].astype(str).str.zfill(12), format="%Y%m%d%H%M"), y)
+```
+
+## Agent skills 与归档
+
+- Skills 仓库：`~/.claude/skills`（`git@github.com:sunnysxg/claude_skills.git`）
+- 命名与路径规范：`~/.claude/skills/conventions.md`——agent 写文件时遵循：
   全小写 snake_case、纯 ASCII 路径（中文进内容不进路径）、时间戳 12 位 `YYYYMMDDHHMM`、
   跨项目路径用 `~` 开头不用绝对路径。
-- 关 session 前用户可能用 `/session-log` 归档本次工作；要找历史 session 用 `/session-search`；
-  交接与接手用 `/handoff`、`/pickup`。
+- 全局归档根：`~/_sxg/`（每台机器各一份，不跨机共享）
+  - `llm_session_log/` — session 摘要归档（`/session-log` 写入，`/session-search` 检索），
+    索引在 `index.md`
+  - `handoff/{project}.md` — 项目交接文档（`/handoff`、`/pickup`；个别老项目仍用项目根
+    `HANDOFF.md`）
+- 项目内 `_sxg/`：`TODO.md`、`qa_log.md`（`/lq`）、`diagram/`（`/mmd-explain`）等

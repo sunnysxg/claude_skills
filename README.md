@@ -15,13 +15,23 @@
 | `lq` | 把当前问答记录到项目的 `_sxg/qa_log.md` |
 | `playground` | 在 `playground/` 下新建实验项目 |
 | `neat-freak` | 会话收尾时整理文档与记忆，与代码对齐 |
-| `mmd-explain` | 用 Mermaid 图示解释（`.mmd` + PNG，默认输出到项目 `_sxg/diagram/`） |
+| `mmd-explain` | 用 Mermaid 图示解释（`.mmd` + PNG，默认输出到项目 `_sxg/diagram/`）；旧名 `mmdexplain` 已废弃，现为兼容符号链接 |
 | `session-log` | 关 chat 前写 session 摘要到 `~/_sxg/llm_session_log/` |
 | `session-search` | 按关键词、项目、时间检索已归档的 session 摘要 |
 
 ## 部署
 
 - 仓库 clone 到 `~/.claude/skills`（Claude Code 直接读取，OpenCode 也扫描该目录）。
+- **Cursor 额外一步**：Cursor 只扫描 `~/.cursor/skills/`，不会自动读 `~/.claude/skills/`。
+  新机器或新增 skill 后执行一次：
+
+  ```bash
+  ~/.claude/skills/scripts/sync_cursor_skills.sh
+  ```
+
+  该脚本为每个 skill 在 `~/.cursor/skills/` 建符号链接（单一事实源仍在
+  `~/.claude/skills`）；`~/.cursor/skills/` 下的真实目录（如 `factorhub-handadd`）
+  视为 Cursor 专属，不会被覆盖。
 - [global/CLAUDE.md](global/CLAUDE.md) 是跨项目通用规则，单一事实源在本 repo。
   各机器 `~/.claude/CLAUDE.md` 只放一行 `@skills/global/CLAUDE.md`（Claude Code 每个
   session 无条件加载该文件并跟随 import），机器特有内容（conda、内网服务等）追加在

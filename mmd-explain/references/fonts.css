@@ -1,0 +1,29 @@
+/* mmdc 渲染用字体栈：中文 + emoji 彩色字形 */
+* {
+  font-family:
+    "Noto Sans CJK SC",
+    "Noto Sans SC",
+    "Noto Color Emoji",
+    "DejaVu Sans",
+    sans-serif !important;
+}
+
+svg text,
+.nodeLabel,
+.edgeLabel,
+.label,
+.cluster-label,
+.actor,
+.messageText,
+.loopText,
+.noteText,
+.taskText,
+.sectionTitle,
+.titleText {
+  font-family:
+    "Noto Sans CJK SC",
+    "Noto Sans SC",
+    "Noto Color Emoji",
+    "DejaVu Sans",
+    sans-serif !important;
+}

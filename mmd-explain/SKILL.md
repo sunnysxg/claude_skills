@@ -13,6 +13,9 @@ description: >
 - 直接问（"`/mmd-explain` pipeline 是怎么跑的？"）
 - 指定输出目录（"`/mmd-explain` ... 放到 docs/diagrams/"）
 
+> 旧名 `/mmdexplain` 仍可用（仓库内 `mmdexplain` 是指向本目录的符号链接），但请优先用
+> `mmd-explain`。
+
 默认输出目录：**`_sxg/diagram/`**（相对于当前项目根）。
 
 ---
@@ -47,37 +50,31 @@ description: >
 - 用中文标注，节点内容简洁（10字以内/行）
 - 用 subgraph 分组展示层次
 - 用颜色区分状态：绿 `#d4edda` = 完成/正常，黄 `#fff3cd` = 进行中，红 `#ffeaea` = 问题/警告，蓝 `#e8f4fd` = 中性
-- 关键节点加 emoji（✅ ⏳ ⚠️ 🔵 等）
+- 关键节点加符号：✅ ⏳ ⚠️ 🔵 等彩色 emoji；序号用 **①②③**（不用 1️⃣2️⃣3️⃣——keycap 在 headless 渲染里常变方框）
 - 在图里直接回答问题，不要只画结构而不带解释
 
 ### 3. 渲染为 PNG
 
-按当前机器可用的方式**依次探测**，用第一个可用的：
+**优先用本 skill 自带脚本**（自动注入中英 emoji 字体、探测 mmdc/conda/npx）：
 
-1. **PATH 里有 `mmdc`**：
+```bash
+~/.claude/skills/mmd-explain/scripts/render.sh -i {in}.mmd -o {out}.png
+```
 
-   ```bash
-   mmdc -i {in}.mmd -o {out}.png -w 1200 -H 900
-   ```
+首次在本机渲染前，若 emoji 变方框，先装字体（无需 root）：
 
-2. **有 node/npm 但无 mmdc**（如 Windows 机器）：
+```bash
+~/.claude/skills/mmd-explain/scripts/install_emoji_font.sh
+# 或离线：把 NotoColorEmoji.ttf 放到任意路径后
+~/.claude/skills/mmd-explain/scripts/install_emoji_font.sh /path/to/NotoColorEmoji.ttf
+```
 
-   ```bash
-   npx -y @mermaid-js/mermaid-cli -i {in}.mmd -o {out}.png -w 1200 -H 900
-   ```
+脚本不可用时的兜底（按顺序探测）：
 
-   （首次运行会下载依赖，之后走缓存）
-
-3. **cpfs 集群**（mmdc 装在 conda env `mermaid` 里）：
-
-   ```bash
-   conda run -n mermaid bash -c \
-     'LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH "$CONDA_PREFIX/bin/mmdc" \
-     -i {in}.mmd -o {out}.png -w 1200 -H 900'
-   ```
-
-4. **都不可用**：保存 .mmd 源文件并告知路径，同时在回复里直接贴 ```mermaid 代码块
-   （多数 chat 界面能直接渲染），说明本机没有渲染环境、装 node 后可用方式 2。
+1. PATH 里的 `mmdc`（加 `-c references/mmd-config.json -C references/fonts.css`）
+2. `npx -y @mermaid-js/mermaid-cli`（同上参数）
+3. cpfs 集群 conda env `mermaid`（`render.sh` 已封装 `LD_LIBRARY_PATH`）
+4. 都不可用：保存 .mmd，回复里贴 ```mermaid 代码块，说明本机缺渲染环境
 
 PNG 文件名与 .mmd 同名，后缀改 `.png`。
 

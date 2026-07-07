@@ -21,9 +21,18 @@
 | 项目级指令 | 项目根 `AGENTS.md`（或 `CLAUDE.md`，Cursor 会兼容读取） |
 | 规则目录 | `.cursor/rules/*.mdc`（旧式 `.cursorrules` 已弃用） |
 | 斜杠命令 | `.cursor/commands/<name>.md` |
+| **Skills 目录** | `~/.cursor/skills/<name>/SKILL.md`（**不**自动读 `~/.claude/skills/`） |
 
 Cursor 没有独立的「记忆文件 + 索引」机制（内置 Memories 由 IDE 自己管理，不在文件层）。
 同步时参照 Codex 的做法：跨会话项目事实写进项目根 markdown。
+
+**与 `~/.claude/skills` 同步**：单一事实源在 claude_skills 仓库；Cursor 侧用符号链接：
+
+```bash
+~/.claude/skills/scripts/sync_cursor_skills.sh
+```
+
+`~/.cursor/skills/` 里已是真实目录的 skill（如 `factorhub-handadd`）保留不动。
 
 ## OpenAI Codex
 

@@ -2,7 +2,7 @@
 name: session-log
 description: >
   关闭 session 前，把本次对话的工作摘要归档到 ~/_sxg/llm_session_log/ 并更新索引，
-  同时给出建议的 chat 标题。
+  同时给出建议的 chat 标题。同一 chat 再次 log 时更新同一条，不新建重复条目。
 disable-model-invocation: true
 ---
 
@@ -14,6 +14,10 @@ chat 侧边栏只能按标题/时间浏览，这个归档 + 索引是**刻意为
 
 你的任务：**回顾当前对话**，写一份结构化 session 摘要到**全局归档目录**，并生成
 `suggested_chat_title`。
+
+> **平台**：时间解析（`session_times.py`）、upsert（`session_resolve.py`）、存量回填
+>（`session_backfill.py`）均在 **Cursor** 上实现并测试。**Claude Code 兼容性尚未测试**；
+> 在 Claude Code 中仍可按模板手填 `date`/`time`，但不要假设上述脚本可用。
 
 ## 1. 确定项目
 
@@ -53,52 +57,120 @@ git -C "{PROJECT}" status -sb
 
 把**本 session 相关**的 commit 写进摘要（hash + 一行说明）。无关的旧 commit 不要堆。
 
-## 3. 命名
+## 3. 时间与 upsert 解析（Cursor：必须先跑脚本）
 
-生成两个名字（简体中文或短英文均可，但要**可搜索**）：
+**禁止**用执行 `/session-log` 的当前时刻填时间。用户可能隔几小时或几天才来整理归档。
+
+### 3.1 时间 — `session_times.py`
+
+```bash
+python3 ~/.cursor/skills/session-log/scripts/session_times.py \
+  --transcript "{agent-transcripts/{uuid}/{uuid}.jsonl 绝对路径}"
+```
+
+transcript 路径（按优先级）：
+
+1. system 注入的 `Agent transcripts .../{uuid}.jsonl`
+2. `--uuid {uuid}` 自动查找
+
+保留输出 JSON（含 `session_id`、`date`、`time`、`filename_ts`、`started_at`、
+`last_active_at`、`logged_at`）。
+
+| 字段 | 用途 |
+|------|------|
+| `session_id` | frontmatter + resolve |
+| `date` | frontmatter `date`、index「日期」列（**session 开始日**；update 不变） |
+| `time` | frontmatter `time`（**最后活跃**；update 刷新） |
+| `last_active_at` / `logged_at` | frontmatter |
+| `filename_ts` | 仅 **create** 时用于文件名前缀 |
+| `fallback: true` | 找不到 transcript；允许用当前时间并在回复说明 |
+
+### 3.2 命名（先定 slug，再 resolve）
 
 | 字段 | 要求 | 示例 |
 |------|------|------|
 | `session_title` | 5–12 字概括本次工作 | `consistency gate 修复` |
-| `suggested_chat_title` | 供 chat 标题与侧边栏检索；建议带日期前缀 | `260629 consistency+mlflow-slug` |
+| `suggested_chat_title` | 供 chat 标题；建议带开始日前缀 | `260629 consistency+mlflow-slug` |
+| `slug` | 全小写 snake_case、ASCII、≤40 字符 | `consistency_gate_mlflow_slug` |
 
-`slug`（文件名用）：全小写 snake_case、纯 ASCII、≤40 字符，从 `session_title` 派生，
-如 `consistency_gate_mlflow_slug`。中文只进标题字段和正文，不进文件名。
+`suggested_chat_title` 日期前缀用 **session 开始日**（`date` 的 `YYMMDD`）。
 
-**文件名**：`{YYYYMMDDHHMM}_{project}_{slug}.md`
+### 3.3 Upsert — `session_resolve.py`
 
-- `{YYYYMMDDHHMM}`：关 log 时的本地时间，12 位，24h，无分隔符（如 `202606291743`）
-- 示例：`202606291743_hzy_projects_hcp_mlflow_login.md`
+```bash
+python3 ~/.cursor/skills/session-log/scripts/session_resolve.py \
+  --uuid "{session_id}" \
+  --times-inline '{session_times JSON 单行}' \
+  --project "{project}" \
+  --slug "{slug}"
+```
+
+| 输出 | 含义 |
+|------|------|
+| `mode: create` | 本 chat 首次归档 |
+| `mode: update` | 已有归档，**覆写同一文件** |
+| `target_file` / `target_path` | 写入路径（update 时文件名**不变**） |
+| `index_action: insert_row` | index 表头下插入新行 |
+| `index_action: replace_row` | **替换**含 `({target_file})` 的那一行 |
+| `index_line_match` | replace 时用于 StrReplace 的整行原文 |
+
+**Claude Code** 的 upsert / 时间脚本规则另议（**未测试**）；在 Claude Code 中按 template
+手填时间字段，文件名与 upsert 需人工判断。
 
 ## 4. 写文件
 
-**路径**：`~/_sxg/llm_session_log/{YYYYMMDDHHMM}_{project}_{slug}.md`
+**路径**：以 resolve 的 `target_path` 为准（不要自行拼新文件名）。
 
-**正文格式** — 严格按 `references/template.md`（YAML frontmatter + 章节）。写完后读取
-template 核对一遍。
+**create**：按 `references/template.md` 新建；frontmatter 必须含 `session_id`。
 
-**索引**：在 `~/_sxg/llm_session_log/index.md` **表头下方第一行**插入新行（文件不存在则按
-template 建表头）：
+**update**：
+
+1. Read 现有 md
+2. 保留 `session_id`、`date`（开始日不变）
+3. 更新 `time`、`last_active_at`、`logged_at`、`summary`、正文各节
+4. **禁止** rename 文件
+
+## 5. 更新 index
+
+| `index_action` | 操作 |
+|----------------|------|
+| `insert_row` | 在 `index.md` 表头下**第一行**插入 |
+| `replace_row` | 用 `index_line_match` 整行 **StrReplace**，**禁止**再插一行 |
+
+行格式：
 
 ```markdown
-| {YYYY-MM-DD} | {project} | [{session_title}]({filename}.md) | {一行 summary} | `{suggested_chat_title}` |
+| {date} | {project} | [{session_title}]({target_file}) | {一行 summary} | `{suggested_chat_title}` |
 ```
 
-## 5. 回复用户
+index「日期」= session **开始日**。
+
+## 6. 登记映射
+
+写入成功后运行：
+
+```bash
+python3 ~/.cursor/skills/session-log/scripts/session_resolve.py \
+  --register --uuid "{session_id}" --file "{target_file}" \
+  --started-at "{started_at}"
+```
+
+维护 `~/_sxg/llm_session_log/.session_map.json`（勿手改）。
+
+## 7. 回复用户
 
 用简短中文告知：
 
-1. 写入路径
-2. 以后如何检索：看 `~/_sxg/llm_session_log/index.md`；提到「上次/最近 session」且项目文档
-   不够时 agent 会自动查 `session-search`
-3. 给出 `suggested_chat_title`，按平台处理：
-   - **Cursor**：回复**最后一行**单独给出可直接复制发送的 `/rename {suggested_chat_title}`
-     （若用户已设过不同标题则跳过并说明）
-   - **Claude Code**：没有 /rename 命令，标题在侧边栏 UI 手动改；只给出建议标题即可
+1. **新建**或**更新同一条**，以及路径
+2. `date` / `time` 来源；若 `fallback` 则说明
+3. 检索：`~/_sxg/llm_session_log/index.md`；不够时 agent 用 `session-search`
+4. `suggested_chat_title`：
+   - **Cursor**：回复**最后一行**单独 `/rename {suggested_chat_title}`
+   - **Claude Code**：侧边栏手动改标题
 
 不要继续写无关代码，除非用户接着提新任务。
 
-## 6. 与 handoff / 项目 changelog 的边界
+## 8. 与 handoff / 项目 changelog 的边界
 
 | 工具 | 用途 |
 |------|------|
@@ -107,3 +179,17 @@ template 建表头）：
 | **项目 changelog** | 产品/代码变更史（另议，不在本 skill 范围） |
 
 若用户既要关 session 又要交接，先完成 session-log，再询问是否另跑 `/handoff`。
+
+## 9. 存量回填（一次性）
+
+脚本 `scripts/session_backfill.py`：从 Cursor transcript 写入记录反查 uuid，注入
+`session_id` 并生成 `.session_map.json`。
+
+```bash
+python3 ~/.cursor/skills/session-log/scripts/session_backfill.py          # 预览
+python3 ~/.cursor/skills/session-log/scripts/session_backfill.py --apply  # 写入
+```
+
+同一 chat 重复归档会先合并（见脚本内 `MERGE_GROUPS`），再回填。
+
+**仅 Cursor 测试**；Claude Code 未验证。

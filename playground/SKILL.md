@@ -32,6 +32,11 @@ description: >
    - 如果报错，修复后重试
    - 把运行结果展示给用户
 
+4. **归档**
+   - 根目录保留**当天 + 昨天**（按目录名 `YYYYMMDD` 前缀）；更早的由 cron 每日 00:00 自动移入 `playground/archived/`
+   - 手动：`python playground/归档旧实验.py`（`--dry-run` 预览，`--as-of YYYYMMDD` 模拟某日）
+   - cron：`0 0 * * * .../playground/归档cron.sh >> .../playground/.archive_cron.log 2>&1`
+
 ## 注意
 
 - 这是一次性实验，不需要工程规范

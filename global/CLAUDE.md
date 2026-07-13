@@ -29,24 +29,10 @@
    （tqdm 或逐项带序号/用时的日志行），防止无法判断是否卡死；
    结束时打各阶段用时汇总。
 
-## Commit 信息
+## Git
 
-格式：首行 `[模块][Tag] 中文摘要`；空一行；正文 1～3 句（为什么改、影响什么）。全部用中文。
-默认不加 Co-authored-by；PR 标题可与 commit 首行相同。
-
-```
-[Calc][Feat] 启动时从 factorhub 同步 registry
-
-运行时导出 fields/operators 至 gitignore 的 artifacts/doc；
-移除 vendor 内嵌 CSV；支持 FACTORHUB_ROOT 覆盖。
-```
-
-- **模块**：标明改动所在子目录/域。各项目在自己的 `CLAUDE.md` 里定义前缀表，
-  没有定义时按该项目目录名自拟；`Repo` = 仓库级（git 结构、目录搬迁、README/CLAUDE），
-  `Doc` = 仅文档。
-- **Tag**：`Init` 首次导入（少用）｜`Feat` 新功能｜`Fix` 修 bug｜`Ref` 重构（对外行为不变）
-  ｜`Docs` 只改文档｜`Chore` 合并、gitignore、杂项维护。
-- 摘要一行说完意图；正文写原因与范围，不写空话。
+版本控制（工作流、commit 格式、push/PR、安全红线）见同目录
+[`GIT.md`](GIT.md)——**新 session 必读**（`read-context` 已列入）。
 
 ## 格式化
 

@@ -77,3 +77,9 @@
 skill 读取时兼容两代命名，新写入一律用新规范。
 目录名例外：集群上 `LLM_session_log/` → `llm_session_log/`、`INDEX.md` → `index.md`
 需要改名一次（Linux 大小写敏感，skill 按新名寻址），目录内文件不动。
+
+## 11. 本仓库（claude_skills）的 commit 模块名
+
+- 模块 = **skill 目录名**（kebab-case），如 `[session-log]`、`[git-workflow]`。
+- 改 `global/` 下跨 skill 规则时用 `[global]`；改 `conventions.md`、`.gitignore` 等仓库级用 `[Repo]` 或 `[global]`。
+- 完整格式与工作流见 `global/GIT.md`。

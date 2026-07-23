@@ -164,6 +164,7 @@ if ($manifest.version -ne 1) {
 if (@($manifest.supported_platforms) -notcontains "windows") {
     throw "Manifest does not declare Windows support"
 }
+$platformName = "windows"
 
 $localConfig = $null
 if (Test-Path -LiteralPath $LocalConfigPath -PathType Leaf) {
@@ -178,6 +179,48 @@ if ($localConfig) {
     }
 }
 $machineId = Normalize-MachineId $machineIdSource
+
+function Test-EntryPlatform {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Entry
+    )
+
+    $platforms = @(Get-ObjectProperty $Entry "platforms")
+    if ($platforms.Count -eq 0) {
+        throw "Entry must declare at least one platform: $($Entry.name)"
+    }
+    foreach ($platform in $platforms) {
+        if (@($manifest.supported_platforms) -notcontains [string]$platform) {
+            throw "Entry declares an unsupported platform: $($Entry.name) -> $platform"
+        }
+    }
+    return $platforms -contains $platformName
+}
+
+function Test-LocalSkillEnabled {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SkillName
+    )
+
+    if (-not $localConfig) {
+        return $true
+    }
+    $localSkills = Get-ObjectProperty $localConfig "skills"
+    if (-not $localSkills) {
+        return $true
+    }
+    $override = Get-ObjectProperty $localSkills $SkillName
+    if (-not $override) {
+        return $true
+    }
+    $enabled = Get-ObjectProperty $override "enabled"
+    if ($null -eq $enabled) {
+        return $true
+    }
+    return [bool]$enabled
+}
 
 $clientNames = @($manifest.clients.PSObject.Properties.Name)
 if ($Client -and $Client.Count -gt 0) {
@@ -218,6 +261,7 @@ foreach ($clientName in $selectedClients) {
 $sourceRoot = Expand-PortablePath -PathValue ([string]$manifest.source_root) -BasePath $repoRoot
 $declaredEntries = @()
 $seenNames = @{}
+$canonicalSkillNames = @{}
 
 foreach ($skill in @($manifest.skills)) {
     $name = [string]$skill.name
@@ -228,16 +272,19 @@ foreach ($skill in @($manifest.skills)) {
         throw "Duplicate skill or alias name: $name"
     }
     $seenNames[$name] = $true
+    $canonicalSkillNames[$name] = $true
 
     $sourcePath = Expand-PortablePath -PathValue ([string]$skill.source) -BasePath $sourceRoot
     if (-not (Test-Path -LiteralPath (Join-Path $sourcePath "SKILL.md") -PathType Leaf)) {
         throw "Skill is missing SKILL.md: $name ($sourcePath)"
     }
-    $declaredEntries += [PSCustomObject]@{
-        Name = $name
-        SourcePath = $sourcePath
-        Targets = @($skill.targets)
-        Kind = "skill"
+    if ((Test-EntryPlatform $skill) -and (Test-LocalSkillEnabled $name)) {
+        $declaredEntries += [PSCustomObject]@{
+            Name = $name
+            SourcePath = $sourcePath
+            Targets = @($skill.targets)
+            Kind = "skill"
+        }
     }
 }
 
@@ -250,16 +297,36 @@ foreach ($alias in @($manifest.aliases)) {
         throw "Duplicate skill or alias name: $name"
     }
     $seenNames[$name] = $true
+    $canonicalName = [string](Get-ObjectProperty $alias "canonical")
+    if (-not $canonicalName) {
+        throw "Alias must declare canonical: $name"
+    }
+    if (-not $canonicalSkillNames.ContainsKey($canonicalName)) {
+        throw "Alias canonical skill is not declared: $name -> $canonicalName"
+    }
 
     $sourcePath = Expand-PortablePath -PathValue ([string]$alias.source) -BasePath $sourceRoot
     if (-not (Test-Path -LiteralPath (Join-Path $sourcePath "SKILL.md") -PathType Leaf)) {
         throw "Alias source is missing SKILL.md: $name ($sourcePath)"
     }
-    $declaredEntries += [PSCustomObject]@{
-        Name = $name
-        SourcePath = $sourcePath
-        Targets = @($alias.targets)
-        Kind = "alias"
+    if ((Test-EntryPlatform $alias) -and (Test-LocalSkillEnabled $canonicalName)) {
+        $declaredEntries += [PSCustomObject]@{
+            Name = $name
+            SourcePath = $sourcePath
+            Targets = @($alias.targets)
+            Kind = "alias"
+        }
+    }
+}
+
+if ($localConfig) {
+    $localSkills = Get-ObjectProperty $localConfig "skills"
+    if ($localSkills) {
+        foreach ($localSkillName in @($localSkills.PSObject.Properties.Name)) {
+            if (-not $canonicalSkillNames.ContainsKey($localSkillName)) {
+                throw "Local config references an undeclared skill: $localSkillName"
+            }
+        }
     }
 }
 
@@ -299,6 +366,7 @@ foreach ($clientName in $selectedClients) {
 }
 
 Write-Host "machine_id: $machineId"
+Write-Host "platform: $platformName"
 Write-Host "command: $Command"
 Write-Host "clients: $($selectedClients -join ', ')"
 Write-Host "manifest: $ManifestPath"

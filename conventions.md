@@ -70,6 +70,11 @@
   触发场景融进句子，不罗列带引号的短语清单，不写「不要自动触发」这类否定指令。
 - 设了 `disable-model-invocation: true` 的 skill，description 只描述功能——
   模型永远不会自动触发它，写触发条件是废文。
+- 跨平台差异不要全部塞进公共正文：`SKILL.md` 只写选择条件，并直接链接
+  `references/windows.md`、`references/linux.md`；agent 只读当前平台分支。脚本按平台使用
+  `.ps1` / `.sh`，浏览器、字体和二进制优先自动探测，机器私有路径用未跟踪配置或环境变量。
+- `skills.manifest.json` 中每个 canonical skill 和 alias 都声明 `platforms`；alias 另声明
+  `canonical`，使逐-skill machine override 能同时控制新旧名称。
 
 ## 10. 存量数据兼容
 

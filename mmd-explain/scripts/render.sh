@@ -50,9 +50,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 CSS_FILE="$SKILL_DIR/references/fonts.css"
 CONFIG_FILE="$SKILL_DIR/references/mmd-config.json"
+CONDA_ENV_NAME="${MMD_EXPLAIN_CONDA_ENV:-mermaid}"
 
 if [[ ! -f "$CSS_FILE" || ! -f "$CONFIG_FILE" ]]; then
   echo "缺少字体配置: $CSS_FILE 或 $CONFIG_FILE" >&2
+  exit 1
+fi
+
+if [[ -n "${PUPPETEER_EXECUTABLE_PATH:-}" && ! -x "$PUPPETEER_EXECUTABLE_PATH" ]]; then
+  echo "PUPPETEER_EXECUTABLE_PATH 不可执行: $PUPPETEER_EXECUTABLE_PATH" >&2
   exit 1
 fi
 
@@ -108,9 +114,26 @@ render_with_mmdc() {
   fi
 }
 
-# 优先 conda mermaid（集群上 PATH 的 mmdc 常缺 libatk）
-if command -v conda >/dev/null 2>&1 && conda env list 2>/dev/null | awk '{print $1}' | grep -qx mermaid; then
-  CONDA_PREFIX="$(conda run -n mermaid bash -c 'echo "$CONDA_PREFIX"')"
+# 显式本机覆盖优先，但不写入 Git。
+if [[ -n "${MMD_EXPLAIN_MMDC:-}" ]]; then
+  if [[ -x "$MMD_EXPLAIN_MMDC" ]]; then
+    render_with_mmdc "$MMD_EXPLAIN_MMDC"
+    echo "$OUTPUT"
+    exit 0
+  elif command -v "$MMD_EXPLAIN_MMDC" >/dev/null 2>&1; then
+    render_with_mmdc "$(command -v "$MMD_EXPLAIN_MMDC")"
+    echo "$OUTPUT"
+    exit 0
+  else
+    echo "MMD_EXPLAIN_MMDC 不可执行或不在 PATH: $MMD_EXPLAIN_MMDC" >&2
+    exit 1
+  fi
+fi
+
+# 优先 conda renderer（集群上 PATH 的 mmdc 常缺 libatk）。
+if command -v conda >/dev/null 2>&1 &&
+    conda env list 2>/dev/null | awk '{print $1}' | grep -Fxq "$CONDA_ENV_NAME"; then
+  CONDA_PREFIX="$(conda run -n "$CONDA_ENV_NAME" bash -c 'echo "$CONDA_PREFIX"')"
   MMDC_BIN="$CONDA_PREFIX/bin/mmdc"
   if [[ -x "$MMDC_BIN" ]]; then
     render_with_mmdc "$MMDC_BIN" "$CONDA_PREFIX"

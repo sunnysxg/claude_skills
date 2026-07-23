@@ -16,16 +16,18 @@
 | `lq` | 把当前问答记录到项目的 `_sxg/qa_log.md` |
 | `playground` | 在 `playground/` 下新建实验项目 |
 | `neat-freak` | 会话收尾时整理文档与记忆，与代码对齐 |
-| `mmd-explain` | 用 Mermaid 图示解释（`.mmd` + PNG，默认输出到项目 `_sxg/diagram/`）；旧名 `mmdexplain` 已废弃，由 manifest 创建客户端兼容链接 |
+| `mmd-explain` | 用 Mermaid 图示解释（`.mmd` + PNG，默认输出到项目 `_sxg/diagram/`）；Windows/Linux 分别使用 PowerShell/Bash renderer，旧名 `mmdexplain` 由 manifest 创建兼容链接 |
 | `session-log` | 关 chat 前写 session 摘要到 `~/_sxg/llm_session_log/` |
 | `session-search` | 按关键词、项目、时间检索已归档的 session 摘要 |
 
 ## 部署
 
 - 仓库 clone 到 `~/.claude/skills`（Claude Code 直接读取，OpenCode 也扫描该目录）。
-- 安装集合由 [skills.manifest.json](skills.manifest.json) 声明，不再扫描所有目录猜测 skill。
+- 安装集合由 [skills.manifest.json](skills.manifest.json) 声明，包括每个 skill 的目标客户端与
+  支持平台；同步器不再扫描所有目录猜测 skill。
 - 每台机器复制 `sync.local.example.json` 为 `sync.local.json` 后，先把 `machine_id` 改成稳定
-  机器名；没有安装的客户端在同一文件里设为 `enabled: false`。
+  机器名；没有安装的客户端在 `clients` 中设为 `enabled: false`，某台机器不需要的 skill 在
+  `skills.<name>.enabled` 中关闭。关闭只停止管理该入口，不自动删除已有链接。
 - Windows 上先预览，再同步 Cursor 与 Codex：
 
   ```powershell
@@ -52,6 +54,11 @@
   `~/.cursor/skills/` 和 `~/.agents/skills/` 下已有的真实目录视为客户端专属内容，不会被
   覆盖或删除。旧命令 `scripts/sync_cursor_skills.sh` 仍保留，作为只处理 Cursor 的兼容入口。
   当前只承诺 Windows 与 Linux，不宣称支持 macOS。
+- 跨平台 skill 的 `SKILL.md` 只保留公共流程和平台路由；运行时仅加载当前平台 reference。
+  `mmd-explain` 在 Windows 使用
+  [`references/windows.md`](mmd-explain/references/windows.md)，在 Linux 使用
+  [`references/linux.md`](mmd-explain/references/linux.md)。浏览器、renderer 和字体由各平台
+  doctor 自动探测，机器私有路径仅通过本机环境变量覆盖，不写进 Git。
 - [global/CLAUDE.md](global/CLAUDE.md) 是跨项目通用规则，单一事实源在本 repo。
   各机器 `~/.claude/CLAUDE.md` 只放一行 `@skills/global/CLAUDE.md`（Claude Code 每个
   session 无条件加载该文件并跟随 import），机器特有内容（conda、内网服务等）追加在

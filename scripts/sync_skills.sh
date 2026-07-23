@@ -23,7 +23,8 @@ Options:
   -h, --help            Show this help.
 
 Without --client, enabled clients come from skills.manifest.json plus
-the untracked sync.local.json override.
+the untracked sync.local.json override. The same override can disable a
+canonical skill with skills.<name>.enabled=false.
 EOF
 }
 
@@ -79,6 +80,7 @@ while (($#)); do
 done
 
 [[ "$(uname -s)" == "Linux" ]] || die "this script is tested and supported on Linux only"
+platform_name="linux"
 command -v jq >/dev/null 2>&1 || die "jq is required"
 command -v realpath >/dev/null 2>&1 || die "realpath is required"
 
@@ -199,17 +201,48 @@ declare -a entry_sources=()
 declare -a entry_targets=()
 declare -a entry_kinds=()
 declare -A seen_names=()
+declare -A canonical_skill_names=()
 
-while IFS=$'\t' read -r name source targets kind; do
+while IFS=$'\t' read -r name source targets platforms kind override_key; do
   [[ "$name" =~ ^[a-z0-9][a-z0-9-]{0,63}$ ]] || die "invalid skill or alias name: $name"
   [[ -z "${seen_names[$name]+x}" ]] || die "duplicate skill or alias name: $name"
   seen_names["$name"]=1
+  if [[ "$kind" == "skill" ]]; then
+    canonical_skill_names["$name"]=1
+  else
+    [[ -n "$override_key" ]] || die "alias must declare canonical: $name"
+    [[ -n "${canonical_skill_names[$override_key]+x}" ]] ||
+      die "alias canonical skill is not declared: $name -> $override_key"
+  fi
 
   source_path="$(expand_path "$source" "$source_root")"
   [[ "$source_path" == "$source_root" || "$source_path" == "$source_root/"* ]] ||
     die "skill source escapes repository: $name -> $source_path"
   [[ -f "$source_path/SKILL.md" ]] ||
     die "skill source is missing SKILL.md: $name -> $source_path"
+
+  [[ -n "$platforms" ]] || die "entry must declare at least one platform: $name"
+  platform_selected=false
+  IFS=',' read -r -a platform_values <<<"$platforms"
+  for platform in "${platform_values[@]}"; do
+    jq -e --arg platform "$platform" \
+      '.supported_platforms | index($platform) != null' "$manifest_path" >/dev/null ||
+      die "entry declares an unsupported platform: $name -> $platform"
+    [[ "$platform" == "$platform_name" ]] && platform_selected=true
+  done
+  $platform_selected || continue
+
+  enabled="$(
+    jq -r \
+      --arg skill "$override_key" \
+      --argjson local "$local_json" \
+      'if $local.skills[$skill].enabled == null
+       then true
+       else $local.skills[$skill].enabled
+       end' \
+      "$manifest_path"
+  )"
+  [[ "$enabled" == "true" ]] || continue
 
   entry_names+=("$name")
   entry_sources+=("$source_path")
@@ -222,19 +255,29 @@ done < <(
         name: .name,
         source: .source,
         targets: .targets,
-        kind: "skill"
+        platforms: .platforms,
+        kind: "skill",
+        override_key: .name
       }] +
       [(.aliases // [])[] | {
         name: .name,
         source: .source,
         targets: .targets,
-        kind: "alias"
+        platforms: .platforms,
+        kind: "alias",
+        override_key: .canonical
       }]
     )[] |
-    [.name, .source, (.targets | join(",")), .kind] |
+    [.name, .source, (.targets | join(",")), (.platforms | join(",")), .kind, .override_key] |
     @tsv
   ' "$manifest_path"
 )
+
+while IFS= read -r local_skill; do
+  [[ -z "$local_skill" ]] && continue
+  [[ -n "${canonical_skill_names[$local_skill]+x}" ]] ||
+    die "local config references an undeclared skill: $local_skill"
+done < <(jq -r '(.skills // {}) | keys[]' <<<"$local_json")
 
 declare -a op_clients=()
 declare -a op_roots=()
@@ -276,6 +319,7 @@ for client in "${selected_clients[@]}"; do
 done
 
 echo "machine_id: $machine_id"
+echo "platform: $platform_name"
 echo "command: $command_name"
 echo "clients: ${selected_clients[*]}"
 echo "manifest: $manifest_path"

@@ -10,5 +10,10 @@
     "codex_legacy": {
       "enabled": false
     }
+  },
+  "skills": {
+    "mmd-explain": {
+      "enabled": true
+    }
   }
 }

@@ -33,6 +33,7 @@
     {
       "name": "git-workflow",
       "source": "git-workflow",
+      "platforms": ["windows", "linux"],
       "targets": ["cursor"],
       "compatibility": {
         "cursor": "compatible",
@@ -42,6 +43,7 @@
     {
       "name": "handoff",
       "source": "handoff",
+      "platforms": ["windows", "linux"],
       "targets": ["cursor", "codex", "codex_legacy"],
       "compatibility": {
         "cursor": "compatible",
@@ -51,6 +53,7 @@
     {
       "name": "lq",
       "source": "lq",
+      "platforms": ["windows", "linux"],
       "targets": ["cursor", "codex", "codex_legacy"],
       "compatibility": {
         "cursor": "compatible",
@@ -60,15 +63,19 @@
     {
       "name": "mmd-explain",
       "source": "mmd-explain",
+      "platforms": ["windows", "linux"],
       "targets": ["cursor", "codex", "codex_legacy"],
       "compatibility": {
         "cursor": "tested",
-        "codex": "requires_bash_renderer"
+        "codex": "tested",
+        "windows": "powershell_renderer",
+        "linux": "bash_renderer"
       }
     },
     {
       "name": "neat-freak",
       "source": "neat-freak",
+      "platforms": ["windows", "linux"],
       "targets": ["cursor", "codex", "codex_legacy"],
       "compatibility": {
         "cursor": "compatible",
@@ -78,6 +85,7 @@
     {
       "name": "pickup",
       "source": "pickup",
+      "platforms": ["windows", "linux"],
       "targets": ["cursor", "codex", "codex_legacy"],
       "compatibility": {
         "cursor": "compatible",
@@ -87,6 +95,7 @@
     {
       "name": "playground",
       "source": "playground",
+      "platforms": ["windows", "linux"],
       "targets": ["cursor", "codex", "codex_legacy"],
       "compatibility": {
         "cursor": "compatible",
@@ -96,6 +105,7 @@
     {
       "name": "session-log",
       "source": "session-log",
+      "platforms": ["windows", "linux"],
       "targets": ["cursor"],
       "compatibility": {
         "cursor": "tested",
@@ -105,6 +115,7 @@
     {
       "name": "session-search",
       "source": "session-search",
+      "platforms": ["windows", "linux"],
       "targets": ["cursor", "codex", "codex_legacy"],
       "compatibility": {
         "cursor": "compatible",
@@ -116,6 +127,8 @@
     {
       "name": "mmdexplain",
       "source": "mmd-explain",
+      "canonical": "mmd-explain",
+      "platforms": ["windows", "linux"],
       "targets": ["cursor", "codex", "codex_legacy"],
       "deprecated": true
     }

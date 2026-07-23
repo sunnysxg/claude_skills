@@ -165,5 +165,21 @@ if command -v npx >/dev/null 2>&1; then
   exit 0
 fi
 
-echo "未找到 mmdc / conda mermaid / npx，无法渲染 PNG" >&2
+if command -v pnpm >/dev/null 2>&1; then
+  _check_fonts
+  pnpm dlx @mermaid-js/mermaid-cli \
+    -i "$INPUT" \
+    -o "$OUTPUT" \
+    -w "$WIDTH" \
+    -H "$HEIGHT" \
+    -s "$SCALE" \
+    -c "$CONFIG_FILE" \
+    -C "$CSS_FILE" \
+    -b white \
+    -q
+  echo "$OUTPUT"
+  exit 0
+fi
+
+echo "未找到 mmdc / conda mermaid / npx / pnpm，无法渲染 PNG" >&2
 exit 1

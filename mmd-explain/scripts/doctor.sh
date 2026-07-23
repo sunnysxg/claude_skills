@@ -51,12 +51,14 @@ elif command -v mmdc >/dev/null 2>&1; then
   renderer="$(command -v mmdc)"
 elif command -v npx >/dev/null 2>&1; then
   renderer="$(command -v npx) -y @mermaid-js/mermaid-cli"
+elif command -v pnpm >/dev/null 2>&1; then
+  renderer="$(command -v pnpm) dlx @mermaid-js/mermaid-cli"
 fi
 
 if [[ -n "$renderer" ]]; then
   ok "renderer: $renderer"
 else
-  fail "no renderer found (MMD_EXPLAIN_MMDC, conda, mmdc, or npx)"
+  fail "no renderer found (MMD_EXPLAIN_MMDC, conda, mmdc, npx, or pnpm)"
 fi
 
 if [[ -n "${PUPPETEER_EXECUTABLE_PATH:-}" ]]; then

@@ -31,6 +31,26 @@ function Find-CommandPath {
     return $null
 }
 
+function Find-PnpmNodePath {
+    param([Parameter(Mandatory)][string]$PnpmPath)
+
+    $node = Find-CommandPath @("node.exe", "node")
+    if ($node) {
+        return $node
+    }
+
+    if (Test-Path -LiteralPath $PnpmPath -PathType Leaf) {
+        $pnpmDirectory = Split-Path -Parent ([System.IO.Path]::GetFullPath($PnpmPath))
+        $bundledNode = [System.IO.Path]::GetFullPath(
+            (Join-Path $pnpmDirectory "..\..\node\bin\node.exe")
+        )
+        if (Test-Path -LiteralPath $bundledNode -PathType Leaf) {
+            return $bundledNode
+        }
+    }
+    return $null
+}
+
 function Find-BrowserPath {
     $candidates = @()
     if ($env:LOCALAPPDATA) {
@@ -66,6 +86,8 @@ foreach ($relativePath in @("references\fonts.css", "references\mmd-config.json"
 }
 
 $renderer = $null
+$pnpmNode = $null
+$pnpmWithoutNode = $false
 if ($env:MMD_EXPLAIN_MMDC) {
     if (Test-Path -LiteralPath $env:MMD_EXPLAIN_MMDC -PathType Leaf) {
         $renderer = [System.IO.Path]::GetFullPath($env:MMD_EXPLAIN_MMDC)
@@ -83,11 +105,27 @@ if ($env:MMD_EXPLAIN_MMDC) {
             $renderer = "$npx -y @mermaid-js/mermaid-cli"
         }
     }
+    if (-not $renderer) {
+        $pnpm = Find-CommandPath @("pnpm.cmd", "pnpm")
+        if ($pnpm) {
+            $pnpmNode = Find-PnpmNodePath $pnpm
+            if ($pnpmNode) {
+                $renderer = "$pnpm dlx @mermaid-js/mermaid-cli"
+            } else {
+                $pnpmWithoutNode = $true
+            }
+        }
+    }
 }
 if ($renderer) {
     Write-Check OK "renderer: $renderer"
+    if ($pnpmNode) {
+        Write-Check OK "pnpm node runtime: $pnpmNode"
+    }
+} elseif ($pnpmWithoutNode) {
+    Write-Check FAIL "pnpm found, but no node runtime is available for downloaded command shims"
 } elseif (-not $env:MMD_EXPLAIN_MMDC) {
-    Write-Check FAIL "no renderer found (MMD_EXPLAIN_MMDC, mmdc, or npx)"
+    Write-Check FAIL "no renderer found (MMD_EXPLAIN_MMDC, mmdc, npx, or pnpm)"
 }
 
 $browser = $null

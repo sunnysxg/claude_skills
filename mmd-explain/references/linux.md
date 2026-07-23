@@ -16,6 +16,7 @@ renderer 按以下顺序探测：
 2. conda 环境 `mermaid`；可用 `MMD_EXPLAIN_CONDA_ENV` 改名
 3. PATH 中的 `mmdc`
 4. PATH 中的 `npx`
+5. PATH 中的 `pnpm`
 
 如果设置了 `PUPPETEER_EXECUTABLE_PATH`，doctor 会校验目标浏览器是否存在。
 

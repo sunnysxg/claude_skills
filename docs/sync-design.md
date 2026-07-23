@@ -137,9 +137,11 @@ bash scripts/sync_skills.sh doctor
 | Linux | `references/linux.md` | `scripts/doctor.sh` | `scripts/render.sh` |
 
 公共 `fonts.css` 同时列出 Noto 与 Windows 字体回退；系统不存在的字体由浏览器自然跳过。
-Windows 自动探测 `mmdc`/`npx`、Chrome/Edge/Brave、Microsoft YaHei 与 Segoe UI Emoji；
+Windows 自动探测 `mmdc`/`npx`/`pnpm`、Chrome/Edge/Brave、Microsoft YaHei 与 Segoe UI Emoji；
 Linux 自动探测显式 renderer、conda、PATH 和 fontconfig。只有自动探测不够时才在本机设置
 `MMD_EXPLAIN_MMDC`、`MMD_EXPLAIN_CONDA_ENV` 或 `PUPPETEER_EXECUTABLE_PATH`，这些值不入 Git。
+若 Codex bundled `pnpm` 的配套 Node 不在 PATH，Windows adapter 只为当前渲染进程临时注入，
+不写入机器级环境变量。
 
 平台 reference 必须由公共 `SKILL.md` 直接链接，避免深层引用；agent 不读取或执行另一个
 平台的安装步骤。未支持的平台只输出 `.mmd`，不得暗示 renderer 已验证。

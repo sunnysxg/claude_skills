@@ -22,6 +22,26 @@ function Find-CommandPath {
     return $null
 }
 
+function Find-PnpmNodePath {
+    param([Parameter(Mandatory)][string]$PnpmPath)
+
+    $node = Find-CommandPath @("node.exe", "node")
+    if ($node) {
+        return $node
+    }
+
+    if (Test-Path -LiteralPath $PnpmPath -PathType Leaf) {
+        $pnpmDirectory = Split-Path -Parent ([System.IO.Path]::GetFullPath($PnpmPath))
+        $bundledNode = [System.IO.Path]::GetFullPath(
+            (Join-Path $pnpmDirectory "..\..\node\bin\node.exe")
+        )
+        if (Test-Path -LiteralPath $bundledNode -PathType Leaf) {
+            return $bundledNode
+        }
+    }
+    return $null
+}
+
 function Find-BrowserPath {
     $candidates = @()
     if ($env:LOCALAPPDATA) {
@@ -73,6 +93,8 @@ foreach ($required in @($cssFile, $configFile)) {
 
 $rendererKind = $null
 $rendererCommand = $null
+$pnpmNodePath = $null
+$pnpmWithoutNode = $false
 if ($env:MMD_EXPLAIN_MMDC) {
     if (Test-Path -LiteralPath $env:MMD_EXPLAIN_MMDC -PathType Leaf) {
         $rendererCommand = [System.IO.Path]::GetFullPath($env:MMD_EXPLAIN_MMDC)
@@ -91,11 +113,25 @@ if ($env:MMD_EXPLAIN_MMDC) {
         $rendererCommand = Find-CommandPath @("npx.cmd", "npx")
         if ($rendererCommand) {
             $rendererKind = "npx"
+        } else {
+            $rendererCommand = Find-CommandPath @("pnpm.cmd", "pnpm")
+            if ($rendererCommand) {
+                $pnpmNodePath = Find-PnpmNodePath $rendererCommand
+                if ($pnpmNodePath) {
+                    $rendererKind = "pnpm"
+                } else {
+                    $rendererCommand = $null
+                    $pnpmWithoutNode = $true
+                }
+            }
         }
     }
 }
 if (-not $rendererCommand) {
-    throw "No renderer found. Run doctor.ps1 and install mmdc or npx."
+    if ($pnpmWithoutNode) {
+        throw "pnpm was found, but no node runtime is available for downloaded command shims."
+    }
+    throw "No renderer found. Run doctor.ps1 and install mmdc, npx, or pnpm."
 }
 
 if ($env:PUPPETEER_EXECUTABLE_PATH) {
@@ -124,6 +160,13 @@ $renderArgs = @(
 
 if ($rendererKind -eq "npx") {
     & $rendererCommand "-y" "@mermaid-js/mermaid-cli" @renderArgs
+} elseif ($rendererKind -eq "pnpm") {
+    $nodeDirectory = Split-Path -Parent $pnpmNodePath
+    $pathEntries = @($env:PATH -split [System.IO.Path]::PathSeparator)
+    if ($pathEntries -notcontains $nodeDirectory) {
+        $env:PATH = "$nodeDirectory$([System.IO.Path]::PathSeparator)$env:PATH"
+    }
+    & $rendererCommand "dlx" "@mermaid-js/mermaid-cli" @renderArgs
 } else {
     & $rendererCommand @renderArgs
 }

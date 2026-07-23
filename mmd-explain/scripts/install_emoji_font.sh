@@ -68,14 +68,25 @@ fi
 # 与 mermaid conda 环境共用（CJK 字体同目录，方便 headless 渲染）
 if [[ -d "$CONDA_MMD_FONT_DIR" ]]; then
   ln -sf "$USER_FONT_DIR/$FONT_NAME" "$CONDA_MMD_FONT_DIR/$FONT_NAME"
+  fc-cache -f "$CONDA_MMD_FONT_DIR" >/dev/null 2>&1 || true
 fi
 
 fc-cache -f "$USER_FONT_DIR" >/dev/null 2>&1 || true
 
-if is_installed; then
+CONDA_FC="${HOME}/.conda/envs/mermaid/etc/fonts/fonts.conf"
+is_installed_fc() {
+  local fc_file="${1:-}"
+  if [[ -n "$fc_file" && -f "$fc_file" ]]; then
+    FONTCONFIG_FILE="$fc_file" fc-list 2>/dev/null | grep -qi "$FONT_FAMILY"
+  else
+    fc-list 2>/dev/null | grep -qi "$FONT_FAMILY"
+  fi
+}
+
+if is_installed_fc && { [[ ! -f "$CONDA_FC" ]] || is_installed_fc "$CONDA_FC"; }; then
   echo "✓ $FONT_FAMILY 已可用"
   fc-list | grep -i "$FONT_FAMILY" | head -1
 else
-  echo "字体文件已复制，但 fontconfig 尚未识别。可尝试重新登录或执行: fc-cache -fv ~/.local/share/fonts" >&2
+  echo "字体文件已复制，但 fontconfig 尚未识别（检查系统与 conda FONTCONFIG）。可尝试: fc-cache -fv ~/.local/share/fonts" >&2
   exit 1
 fi

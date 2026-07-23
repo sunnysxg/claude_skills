@@ -1,0 +1,14 @@
+{
+  "machine_id": "replace-with-stable-machine-id",
+  "clients": {
+    "cursor": {
+      "enabled": true
+    },
+    "codex": {
+      "enabled": true
+    },
+    "codex_legacy": {
+      "enabled": false
+    }
+  }
+}

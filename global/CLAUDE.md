@@ -1,8 +1,8 @@
 # 全局规则（跨项目通用）
 
-所有机器、所有 agent（Claude Code / Cursor 等）通用。项目内若有更具体的 `CLAUDE.md`，
-以项目内为准，两者一并生效。机器特有内容（conda 环境、内网服务等）不写在这里，
-写在各机器 `~/.claude/CLAUDE.md` 的本机段落里。
+所有机器、所有 agent（Claude Code / Cursor / Codex / OpenCode 等）通用。项目内若有更具体
+的 agent 指令文件，以项目内为准，两者一并生效。机器特有内容（conda 环境、内网服务等）
+不写在这里，写在各机器的本机段落里。
 
 ## 语言与沟通
 

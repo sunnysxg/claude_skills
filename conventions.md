@@ -11,8 +11,9 @@
 - **唯一例外**：skill 名（= slash command 名）用 kebab-case——Claude Code 平台要求，
   name 字段只允许小写字母、数字、连字符。例：`session-log`、`mmd-explain`。
   平台固定名照抄，不套本规范：`SKILL.md`、`CLAUDE.md`、`README.md`、`LICENSE`。
-- **废弃别名**：改名后可用符号链接保留旧目录名（如 `mmdexplain` → `mmd-explain`），
-  仅供旧 slash 命令兼容；仓库内只维护 canonical 目录的内容，别名不单独写 `SKILL.md`。
+- **废弃别名**：改名后在 `skills.manifest.json` 的 `aliases` 中声明（如
+  `mmdexplain` → `mmd-explain`），由同步脚本在客户端创建 junction/symlink。仓库内只维护
+  canonical 目录的内容，不提交 Git symlink，也不为别名单独写 `SKILL.md`。
 
 ## 2. 字符集
 

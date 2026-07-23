@@ -2,7 +2,7 @@
 name: playground
 description: >
   在 playground/ 下新建实验项目：快速验证数据问题、测试想法、跑一次性脚本。
-  触发方式：/playground <要做什么>
+  用户输入 /playground 并附带实验描述时使用。
 ---
 
 # Playground 实验项目

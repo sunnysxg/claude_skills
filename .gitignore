@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 skill-creator
 sera-ops
+sync.local.json

@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "supported_platforms": ["windows", "linux"],
+  "source_root": ".",
+  "native_clients": {
+    "claude": "~/.claude/skills",
+    "opencode": "~/.claude/skills"
+  },
+  "clients": {
+    "cursor": {
+      "root": "~/.cursor/skills",
+      "enabled_by_default": true,
+      "windows_link_type": "junction",
+      "unix_link_type": "symlink"
+    },
+    "codex": {
+      "root": "~/.agents/skills",
+      "enabled_by_default": true,
+      "windows_link_type": "junction",
+      "unix_link_type": "symlink"
+    },
+    "codex_legacy": {
+      "root": "~/.codex/skills",
+      "enabled_by_default": false,
+      "windows_link_type": "junction",
+      "unix_link_type": "symlink",
+      "preserve": [
+        ".system"
+      ]
+    }
+  },
+  "skills": [
+    {
+      "name": "git-workflow",
+      "source": "git-workflow",
+      "targets": ["cursor"],
+      "compatibility": {
+        "cursor": "compatible",
+        "codex": "requires_adapter_for_explicit_invocation"
+      }
+    },
+    {
+      "name": "handoff",
+      "source": "handoff",
+      "targets": ["cursor", "codex", "codex_legacy"],
+      "compatibility": {
+        "cursor": "compatible",
+        "codex": "compatible"
+      }
+    },
+    {
+      "name": "lq",
+      "source": "lq",
+      "targets": ["cursor", "codex", "codex_legacy"],
+      "compatibility": {
+        "cursor": "compatible",
+        "codex": "compatible"
+      }
+    },
+    {
+      "name": "mmd-explain",
+      "source": "mmd-explain",
+      "targets": ["cursor", "codex", "codex_legacy"],
+      "compatibility": {
+        "cursor": "tested",
+        "codex": "requires_bash_renderer"
+      }
+    },
+    {
+      "name": "neat-freak",
+      "source": "neat-freak",
+      "targets": ["cursor", "codex", "codex_legacy"],
+      "compatibility": {
+        "cursor": "compatible",
+        "codex": "tested"
+      }
+    },
+    {
+      "name": "pickup",
+      "source": "pickup",
+      "targets": ["cursor", "codex", "codex_legacy"],
+      "compatibility": {
+        "cursor": "compatible",
+        "codex": "compatible"
+      }
+    },
+    {
+      "name": "playground",
+      "source": "playground",
+      "targets": ["cursor", "codex", "codex_legacy"],
+      "compatibility": {
+        "cursor": "compatible",
+        "codex": "compatible"
+      }
+    },
+    {
+      "name": "session-log",
+      "source": "session-log",
+      "targets": ["cursor"],
+      "compatibility": {
+        "cursor": "tested",
+        "codex": "requires_adapter_and_codex_upsert"
+      }
+    },
+    {
+      "name": "session-search",
+      "source": "session-search",
+      "targets": ["cursor", "codex", "codex_legacy"],
+      "compatibility": {
+        "cursor": "compatible",
+        "codex": "compatible"
+      }
+    }
+  ],
+  "aliases": [
+    {
+      "name": "mmdexplain",
+      "source": "mmd-explain",
+      "targets": ["cursor", "codex", "codex_legacy"],
+      "deprecated": true
+    }
+  ]
+}

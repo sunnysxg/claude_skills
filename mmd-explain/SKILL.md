@@ -13,8 +13,8 @@ description: >
 - 直接问（"`/mmd-explain` pipeline 是怎么跑的？"）
 - 指定输出目录（"`/mmd-explain` ... 放到 docs/diagrams/"）
 
-> 旧名 `/mmdexplain` 仍可用（仓库内 `mmdexplain` 是指向本目录的符号链接），但请优先用
-> `mmd-explain`。
+> 旧名 `/mmdexplain` 在执行客户端同步后仍可用；兼容链接由 `skills.manifest.json` 的
+> alias 生成。请优先用 `mmd-explain`。
 
 默认输出目录：**`_sxg/diagram/`**（相对于当前项目根）。
 
@@ -42,7 +42,7 @@ description: >
 **样式模板**（始终在开头加 init 配置）：
 
 ```
-%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#e8f4fd', 'primaryBorderColor': '#4a90d9', 'lineColor': '#555', 'fontSize': '13px'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#e8f4fd', 'primaryBorderColor': '#4a90d9', 'lineColor': '#555', 'fontSize': '18px'}}}%%
 ```
 
 图示原则：
@@ -51,38 +51,55 @@ description: >
 - 用 subgraph 分组展示层次
 - 用颜色区分状态：绿 `#d4edda` = 完成/正常，黄 `#fff3cd` = 进行中，红 `#ffeaea` = 问题/警告，蓝 `#e8f4fd` = 中性
 - 关键节点加符号：✅ ⏳ ⚠️ 🔵 等彩色 emoji；序号用 **①②③**（不用 1️⃣2️⃣3️⃣——keycap 在 headless 渲染里常变方框）
+- init 里 `fontSize` 建议 **16px～18px**（默认模板 13px 在大图上仍偏小）
 - 在图里直接回答问题，不要只画结构而不带解释
 
 ### 3. 渲染为 PNG
 
-**优先用本 skill 自带脚本**（自动注入中英 emoji 字体、探测 mmdc/conda/npx）：
+**硬规则：一律走 `scripts/render.sh`**，禁止裸调 `mmdc` / `npx`（会跳过 fonts.css、scale、字体预检）。
 
 ```bash
 ~/.claude/skills/mmd-explain/scripts/render.sh -i {in}.mmd -o {out}.png
+# 默认 -w 2400 -H 2400 -s 2（viewport；-s 为像素倍率）
+# 竖向深图（flowchart TB 多层）若裁切：加大 -H 3200~4800
+# 简单图嫌大：-s 1；仍嫌小：-w 2800 -s 3
 ```
 
-首次在本机渲染前，若 emoji 变方框，先装字体（无需 root）：
+`-w/-H` = puppeteer **视口**（不是最终 PNG 固定边长）；`-s` = deviceScaleFactor。旧默认 1200×900@1x 易出「图很小看不清」。
+
+Cursor 与 Claude 共指同一 skill 目录（`~/.cursor/skills/mmd-explain` → symlink），改一份即可。
+
+#### 本机字体（cpfs 已踩过的坑）
+
+Headless Chromium **不会**随便用系统中文字体。约定：
+
+| 字体 | 用途 | 放置 |
+|------|------|------|
+| **Noto Sans CJK SC** | 中文 | `install_cjk_font.sh` → user + conda `mermaid/fonts/` |
+| **Noto Color Emoji** | emoji | `install_emoji_font.sh` → 同上 |
 
 ```bash
+~/.claude/skills/mmd-explain/scripts/install_cjk_font.sh    # 互链已有字体，不强制 CDN
 ~/.claude/skills/mmd-explain/scripts/install_emoji_font.sh
-# 或离线：把 NotoColorEmoji.ttf 放到任意路径后
-~/.claude/skills/mmd-explain/scripts/install_emoji_font.sh /path/to/NotoColorEmoji.ttf
+
+# 验收（两套 fontconfig 都要过）：
+fc-list | grep -i 'Noto Sans CJK SC'
+FONTCONFIG_FILE=~/.conda/envs/mermaid/etc/fonts/fonts.conf fc-list | grep -i 'Noto Sans CJK SC'
+fc-list | grep -i 'Noto Color Emoji'
 ```
 
-脚本不可用时的兜底（按顺序探测）：
+`render.sh` 缺字会 WARN 但仍可能 exit 0——**渲染后必须 Read PNG**，中文/emoji 方框则补字体重渲，不得当成功交差。
 
-1. PATH 里的 `mmdc`（加 `-c references/mmd-config.json -C references/fonts.css`）
-2. `npx -y @mermaid-js/mermaid-cli`（同上参数）
-3. cpfs 集群 conda env `mermaid`（`render.sh` 已封装 `LD_LIBRARY_PATH`）
-4. 都不可用：保存 .mmd，回复里贴 ```mermaid 代码块，说明本机缺渲染环境
+脚本探测顺序：conda `mermaid` → PATH `mmdc` → `npx`；都没有则只留 .mmd。
 
-PNG 文件名与 .mmd 同名，后缀改 `.png`。
+PNG 与 .mmd 同名，后缀 `.png`。
 
 ### 4. 回复用户
 
 - 说明图示回答了什么
 - 告知文件路径（.mmd 和 .png）
 - 用一段文字补充图示中不直观的部分（可选）
+- 若用户反馈「图很小 / 缺字」：先确认是否用了本脚本默认 `-s 2`，再查上面字体表；**不要**只用系统 `mmdc` 裸跑（会跳过 fonts.css / scale）
 
 ---
 
@@ -93,3 +110,4 @@ PNG 文件名与 .mmd 同名，后缀改 `.png`。
 1. 先检查 .mmd 语法（Mermaid 语法对缩进/引号敏感）
 2. 节点 label 里的特殊字符（括号、斜杠）用引号包裹：`["label with (parens)"]`
 3. 如果渲染仍失败，把 .mmd 源码展示给用户，说明需要手动渲染
+4. 中文方框 / emoji 方框：按上文「本机字体」补齐后重渲，勿改图内容硬凑英文

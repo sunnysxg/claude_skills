@@ -26,10 +26,13 @@
 Cursor 没有独立的「记忆文件 + 索引」机制（内置 Memories 由 IDE 自己管理，不在文件层）。
 同步时参照 Codex 的做法：跨会话项目事实写进项目根 markdown。
 
-**与 `~/.claude/skills` 同步**：单一事实源在 claude_skills 仓库；Cursor 侧用符号链接：
+**与 `~/.claude/skills` 同步**：单一事实源在 claude_skills 仓库；Windows 用 junction，
+Linux 用 symlink：
 
 ```bash
-~/.claude/skills/scripts/sync_cursor_skills.sh
+powershell -NoProfile -ExecutionPolicy Bypass -File `
+  ~/.claude/skills/scripts/sync_skills.ps1 -Command Sync -DryRun            # Windows
+bash ~/.claude/skills/scripts/sync_skills.sh sync --dry-run                # Linux
 ```
 
 `~/.cursor/skills/` 里已是真实目录的 skill（如 `factorhub-handadd`）保留不动。
@@ -41,9 +44,11 @@ Cursor 没有独立的「记忆文件 + 索引」机制（内置 Memories 由 ID
 | 跨会话指令(全局) | `~/.codex/AGENTS.md` 或 `$CODEX_HOME/AGENTS.md` |
 | 项目级指令 | 项目根 `AGENTS.md`(可层级嵌套) |
 | 项目级 override | `AGENTS.override.md`(若存在,覆盖同目录 AGENTS.md) |
-| Skills 目录 | `~/.codex/skills/<name>/SKILL.md` 或项目内 `.codex/skills/<name>/` |
+| Skills 目录 | `~/.agents/skills/<name>/SKILL.md` 或项目内 `.agents/skills/<name>/` |
 
-Codex 没有独立的"记忆文件 + 索引"机制,所有跨会话信息都直接写在 `AGENTS.md` 里。同步时把"项目事实"那部分内容统一放 AGENTS.md。
+Codex 的官方用户级 skill 根是 `~/.agents/skills`；`~/.codex/skills` 只作为部分存量客户端的
+兼容位置，不应接管其中的 `.system`。Codex 没有独立的"记忆文件 + 索引"机制，所有跨会话
+信息都直接写在 `AGENTS.md` 里。同步时把"项目事实"那部分内容统一放 AGENTS.md。
 
 发现项目里有 `TEAM_GUIDE.md` 或 `.agents.md` 也要看——这是 Codex 的 fallback 文件名。
 
@@ -65,10 +70,11 @@ OpenClaw 没有独立的"记忆文件 + 索引"机制，跨会话信息可放在
 |---|---|
 | 全局配置 | `~/.config/opencode/` |
 | 项目配置 | `.opencode/` |
-| Skills 目录(项目) | `.opencode/skills/`、`.claude/skills/`、`.codex/skills/` 都会被扫描 |
-| Skills 目录(全局) | `~/.config/opencode/skills/`、`~/.claude/skills/`、`~/.codex/skills/` |
+| Skills 目录(项目) | `.opencode/skills/`、`.claude/skills/`、`.agents/skills/` 等兼容目录 |
+| Skills 目录(全局) | `~/.config/opencode/skills/`、`~/.claude/skills/`、`~/.agents/skills/` |
 
-OpenCode 同时读取 Claude Code 和 Codex 的目录,所以同一个 skill 装在 `~/.claude/skills/` 下的话三家都能识别。OpenClaw 走自己的 `~/.openclaw/skills/`，需要单独装一份（或用符号链接）。
+OpenCode 读取 Claude Code 和 Codex 的兼容目录，所以同一个 skill 装在 `~/.claude/skills/`
+下即可识别。OpenClaw 走自己的 `~/.openclaw/skills/`，需要单独装一份（或用符号链接）。
 
 ## 如果当前 agent 没有独立记忆系统
 

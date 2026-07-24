@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve create vs update for session-log upsert by session UUID.
-
-Platform: Cursor only (tested). Claude Code not tested.
-"""
+"""Resolve create vs update for Cursor/Claude session-log upsert by UUID."""
 
 from __future__ import annotations
 

@@ -3,11 +3,11 @@
 写入 `~/_sxg/llm_session_log/{target_file}.md` 时使用（create 时 `{target_file}` 由
 `session_resolve.py` 给出；update 时沿用已有文件名）。
 
-## 时间字段（Cursor）
+## 时间字段（Cursor / Claude Code）
 
 | 字段 | 含义 | 来源 |
 |------|------|------|
-| `date` | session **开始**日期 | `session_times.py` → `date`；**update 时不变** |
+| `date` | session **开始**日期 | `session_times.py` 自动识别 Cursor / Claude → `date`；**update 时不变** |
 | `time` | **最后一条实质用户消息**（/session-log 前） | `session_times.py` → `time`；update 时刷新 |
 | `filename_ts` | 文件名前缀 12 位（仅 create） | 开始 `YYYYMMDD` + 最后活跃 `HHMM` |
 
@@ -55,8 +55,7 @@ git_commits: []
 
 # Session: {session_title}
 
-> **Chat 标题建议**：`{suggested_chat_title}`（Cursor 可发 `/rename {suggested_chat_title}`；
-> Claude Code 在侧边栏 UI 改名）
+> **Chat 标题建议**：`{suggested_chat_title}`
 
 ## 目标
 

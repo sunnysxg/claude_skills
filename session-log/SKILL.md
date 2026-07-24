@@ -15,9 +15,15 @@ chat 侧边栏只能按标题/时间浏览，这个归档 + 索引是**刻意为
 你的任务：**回顾当前对话**，写一份结构化 session 摘要到**全局归档目录**，并生成
 `suggested_chat_title`。
 
-> **平台**：时间解析（`session_times.py`）、upsert（`session_resolve.py`）、存量回填
->（`session_backfill.py`）均在 **Cursor** 上实现并测试。**Claude Code 兼容性尚未测试**；
-> 在 Claude Code 中仍可按模板手填 `date`/`time`，但不要假设上述脚本可用。
+> **平台**：时间解析（`session_times.py`）与 upsert（`session_resolve.py`）支持 Cursor 和 Claude Code；
+> 脚本会自动识别 transcript 格式。存量回填（`session_backfill.py`）仍仅支持 Cursor。
+
+## 0. 执行边界与效率
+
+- session-log 只做归档；不要顺带 commit、补文档或重跑项目测试，除非用户明确同时要求。
+- 第一轮并行收集 transcript 时间、Git 事实、template、index 和已有 target；不要逐项串行读取。
+- `session_times.py` 返回 `fallback: false` 时直接采用，不再人工重扫 transcript。
+- resolve 后集中写归档、更新 index、register 映射，避免为每个字段单开工具轮次。
 
 ## 1. 确定项目
 
@@ -57,21 +63,22 @@ git -C "{PROJECT}" status -sb
 
 把**本 session 相关**的 commit 写进摘要（hash + 一行说明）。无关的旧 commit 不要堆。
 
-## 3. 时间与 upsert 解析（Cursor：必须先跑脚本）
+## 3. 时间与 upsert 解析（必须先跑脚本）
 
 **禁止**用执行 `/session-log` 的当前时刻填时间。用户可能隔几小时或几天才来整理归档。
 
 ### 3.1 时间 — `session_times.py`
 
 ```bash
-python3 ~/.cursor/skills/session-log/scripts/session_times.py \
-  --transcript "{agent-transcripts/{uuid}/{uuid}.jsonl 绝对路径}"
+# Claude Code；Cursor 将 ~/.claude 替换为 ~/.cursor
+python3 ~/.claude/skills/session-log/scripts/session_times.py \
+  --transcript "{当前 session transcript 的绝对路径}"
 ```
 
 transcript 路径（按优先级）：
 
-1. system 注入的 `Agent transcripts .../{uuid}.jsonl`
-2. `--uuid {uuid}` 自动查找
+1. system 注入的当前 transcript 绝对路径
+2. `--uuid {uuid}` 自动查找 Cursor `agent-transcripts/` 或 Claude `~/.claude/projects/**/*.jsonl`
 
 保留输出 JSON（含 `session_id`、`date`、`time`、`filename_ts`、`started_at`、
 `last_active_at`、`logged_at`）。
@@ -98,7 +105,8 @@ transcript 路径（按优先级）：
 ### 3.3 Upsert — `session_resolve.py`
 
 ```bash
-python3 ~/.cursor/skills/session-log/scripts/session_resolve.py \
+# Claude Code；Cursor 将 ~/.claude 替换为 ~/.cursor
+python3 ~/.claude/skills/session-log/scripts/session_resolve.py \
   --uuid "{session_id}" \
   --times-inline '{session_times JSON 单行}' \
   --project "{project}" \
@@ -114,8 +122,8 @@ python3 ~/.cursor/skills/session-log/scripts/session_resolve.py \
 | `index_action: replace_row` | **替换**含 `({target_file})` 的那一行 |
 | `index_line_match` | replace 时用于 StrReplace 的整行原文 |
 
-**Claude Code** 的 upsert / 时间脚本规则另议（**未测试**）；在 Claude Code 中按 template
-手填时间字段，文件名与 upsert 需人工判断。
+`session_times.py` 会按 transcript 自动区分 Cursor / Claude；`session_resolve.py` 的 UUID upsert
+逻辑两端共用。若 `fallback: true`，才允许人工核对并填写时间。
 
 ## 4. 写文件
 
@@ -150,7 +158,8 @@ index「日期」= session **开始日**。
 写入成功后运行：
 
 ```bash
-python3 ~/.cursor/skills/session-log/scripts/session_resolve.py \
+# Claude Code；Cursor 将 ~/.claude 替换为 ~/.cursor
+python3 ~/.claude/skills/session-log/scripts/session_resolve.py \
   --register --uuid "{session_id}" --file "{target_file}" \
   --started-at "{started_at}"
 ```
@@ -164,9 +173,9 @@ python3 ~/.cursor/skills/session-log/scripts/session_resolve.py \
 1. **新建**或**更新同一条**，以及路径
 2. `date` / `time` 来源；若 `fallback` 则说明
 3. 检索：`~/_sxg/llm_session_log/index.md`；不够时 agent 用 `session-search`
-4. `suggested_chat_title`：
-   - **Cursor**：回复**最后一行**单独 `/rename {suggested_chat_title}`
-   - **Claude Code**：侧边栏手动改标题
+4. `suggested_chat_title`：Cursor / Claude Code 都在回复**最后一行**单独输出
+   `/rename {suggested_chat_title}`。若已安装 Stop hook `auto_rename_on_stop.py`，会经 tmux
+   `send-keys` 自动执行；未安装时用户仍可手动运行该命令。
 
 不要继续写无关代码，除非用户接着提新任务。
 

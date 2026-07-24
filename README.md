@@ -17,7 +17,7 @@
 | `playground` | 在 `playground/` 下新建实验项目 |
 | `neat-freak` | 会话收尾时整理文档与记忆，与代码对齐 |
 | `mmd-explain` | 用 Mermaid 图示解释（`.mmd` + PNG，默认输出到项目 `_sxg/diagram/`）；Windows/Linux 分别使用 PowerShell/Bash renderer，旧名 `mmdexplain` 由 manifest 创建兼容链接 |
-| `session-log` | 关 chat 前写 session 摘要到 `~/_sxg/llm_session_log/` |
+| `session-log` | 在 Cursor / Claude Code 归档并 upsert 同一 chat；可选 Stop hook 经 tmux 自动执行标题建议 |
 | `session-search` | 按关键词、项目、时间检索已归档的 session 摘要 |
 
 ## 部署

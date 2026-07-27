@@ -42,8 +42,12 @@ Windows 使用目录联接（junction），Linux 使用符号链接。不要链�
 `skills.manifest.json` 是安装集合的唯一清单。它显式声明 canonical skill、兼容别名、目标
 客户端和支持平台，不通过扫描仓库目录猜测安装内容。每个 skill/alias 都必须声明
 `platforms`；alias 还要声明 `canonical`，使 machine override 能同时控制 canonical 与旧名。
-旧别名 `mmdexplain` 由 manifest 指向 `mmd-explain`，不再依赖 Git symlink；这样 Windows
-未启用 `core.symlinks` 时也不会 checkout 成 11 字节文本文件。
+alias 只用于仍有真实调用方的短期迁移，迁移完成后从 manifest 删除。`mmdexplain` 已在
+2026-07-27 退役，canonical 名称只有 `mmd-explain`。同步器没有 prune，因此曾安装过旧
+alias 的机器需各自确认并删除旧链接；不能删除 canonical 源目录。
+
+`managed_rules` 与 skill 清单并列，声明由 `global/COMMON.md` 生成的客户端规则投影。规则
+投影不是 skill，也不是客户端根目录链接；它有独立的 DryRun、Doctor、冲突保护和统计。
 
 链接建立成功不等于客户端一定能加载。`git-workflow` 与 `session-log` 的
 `disable-model-invocation` 是 Claude/Cursor 专属 frontmatter，不符合 Codex 使用的 Agent
@@ -73,8 +77,9 @@ override 时，脚本使用归一化 hostname。
 }
 ```
 
-同步器先按当前平台过滤 manifest，再应用本机 override。关闭 `mmd-explain` 时其
-`mmdexplain` alias 也同时停止管理。同步器没有 prune 行为，所以不会删除此前已存在的链接。
+同步器先按当前平台过滤 manifest，再应用本机 override。若未来为某个 canonical skill 临时
+增加 alias，关闭 canonical 时 alias 也同时停止管理。同步器没有 prune 行为，所以不会删除
+此前已存在的链接。
 
 先预览，再同步，再检查：
 
@@ -97,6 +102,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync_skills.ps1 `
 - 正确 junction 重复执行不变。
 - 指向错误位置的 junction 默认报冲突；只有显式 `-RepairLinks` 才替换链接本身。
 - 不自动删除 manifest 之外的目录，也没有 prune 行为。
+- 默认 `Scope=All`；`-Scope Skills` 只管理 skill 链接，`-Scope Rules` 只管理全局规则。
+- Cursor 规则只写专用的 `~/.cursor/rules/claude-skills-common.mdc`；若同名文件存在但没有
+  管理标记，报冲突且不覆盖。
+- Codex 只替换 `~/.codex/AGENTS.md` 的管理区块，区块前后本机内容原样保留；缺失标记时
+  追加，单侧/重复/逆序标记时报冲突。
 - 脚本只写选中客户端的 skill 根，不读取或复制认证、密钥、整份 Codex 配置、Computer Use
   allowlist、Clash 配置或 session 归档。
 
@@ -112,7 +122,8 @@ bash scripts/sync_skills.sh doctor
 ```
 
 依赖 Bash、`jq` 与 GNU `realpath`。默认处理 Cursor 和 Codex 官方根；可以用
-`--client cursor` 等参数缩小范围。安全语义与 Windows 一致：
+`--client cursor` 等参数缩小客户端范围，用 `--scope skills` / `--scope rules` 缩小操作
+类型。安全语义与 Windows 一致：
 
 - 普通文件和真实目录永不覆盖。
 - 正确 symlink 重复执行不变。
@@ -146,16 +157,41 @@ Linux 自动探测显式 renderer、conda、PATH 和 fontconfig。只有自动�
 平台 reference 必须由公共 `SKILL.md` 直接链接，避免深层引用；agent 不读取或执行另一个
 平台的安装步骤。未支持的平台只输出 `.mmd`，不得暗示 renderer 已验证。
 
-## 6. COMMON 与全局指令（下一切片）
+## 6. COMMON 与全局指令
 
-后续把真正跨平台的个人规则收敛到 `global/COMMON.md`。安装器只维护目标文件中的标记区块：
+`global/COMMON.md` 是跨客户端规则的唯一维护源。客户端入口只做加载适配，不再各维护一份
+正文：
 
-- Claude：`~/.claude/CLAUDE.md`
-- Codex：`~/.codex/AGENTS.md`
+| 客户端 | 入口 | 投影方式 | 本机内容边界 |
+|---|---|---|---|
+| Claude Code | `~/.claude/CLAUDE.md` → `skills/global/CLAUDE.md` | `global/CLAUDE.md` 仅用 `@COMMON.md` 相对导入 | 用户级入口导入行之外可追加本机规则 |
+| Cursor 3.9.16+ | `~/.cursor/rules/claude-skills-common.mdc` | 同步器生成带 `alwaysApply: true` frontmatter 的用户文件规则 | 只接管这个专用文件，不碰同目录其他规则 |
+| Codex | `~/.codex/AGENTS.md` | 同步器更新 `claude_skills:global-common` 标记区块 | 区块前后内容原样保留 |
 
-标记区块之外是 machine-local 内容，必须原样保留。不要同步整份 `~/.codex/config.toml`；
-Codex 官方建议把个人全局习惯放 `~/.codex/AGENTS.md`，把仓库规则放作用域最接近当前项目的
-`AGENTS.md`。
+Cursor 官方稳定入口仍是 Settings → Rules → User Rules；当前 vmcc 的 3.9.16 已确认实现
+`~/.cursor/rules/*.mdc` 用户文件规则。同步器采用文件入口，便于从 COMMON 自动更新和
+Doctor 比对；旧 Cursor 或云端环境若不加载它，应在官方 User Rules 中放一条读取 COMMON
+的短规则，不能同时再复制整份正文，避免重复注入。
+
+Codex 不解析 Claude 的 `@import`，所以不能让 `~/.codex/AGENTS.md` 只写
+`@skills/global/...`。同步器会把 COMMON 正文复制进管理区块；历史上唯一一行
+`@skills/global/AGENTS.md` 的旧占位会在精确匹配时迁移，若文件还有其他内容则不删除。
+
+OpenCode 在未配置自己的 `~/.config/opencode/AGENTS.md` 时会回退到 Claude 用户规则，但它
+不保证解析 Claude 的递归 `@import`；本机尚未安装 OpenCode，本切片不宣称已做运行时验收。
+若以后启用，应在 manifest 增加独立 target 或通过 OpenCode `instructions` 直接指向 COMMON。
+
+不要同步整份 `~/.codex/config.toml`。Codex 个人全局习惯放用户级 `AGENTS.md`，仓库规则放
+作用域最接近项目的 `AGENTS.md`；两层一并生效。
+
+Windows 的 managed-rule 隔离回归：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test_sync_rules.ps1
+```
+
+覆盖首次创建、DryRun、Doctor 漂移、幂等不改 mtime、块外内容保留、精确旧占位迁移和
+畸形/未受管文件冲突。Linux 同步器已实现对称状态机，但阶段 2 仍需在 Linux host 实机复验。
 
 ## 7. session-log 跨 host（后续切片）
 
@@ -201,13 +237,13 @@ commit/merge 协调。Handoff 可以在 Local、worktree 和匹配的 SSH host �
 | 两台 Windows 正式 Sync 后 Doctor | 每个声明 skill 指向中央仓库，重复运行幂等 | 已实现 |
 | 客户端已有真实目录 | 报冲突并保留原目录 | 已实现 |
 | 现有错误 junction | 默认报冲突；`-RepairLinks` 才替换 | 已实现 |
-| `mmdexplain` 别名 | 指向 canonical `mmd-explain`，不依赖 Git symlink | 已实现 |
+| `mmdexplain` 别名退役 | manifest 只保留 canonical；旧链接不由 prune 自动删除 | vmcc 已清理；其他曾安装机器待各自清理 |
 | Codex `.system`/插件缓存 | 不扫描、不删除、不覆盖 | 已实现 |
 | 每机不同安装根/客户端组合 | untracked override 可改 root/enabled | 已实现 |
 | skill 平台过滤 | Windows/Linux 只管理 manifest 中包含当前平台的条目 | 已实现并在两平台隔离 dry-run |
 | 逐-skill machine override | 关闭 canonical 时 alias 同时停止管理；未知名称报错 | 已实现并在两平台隔离 dry-run |
 | Linux 首次 dry-run | 报告 Cursor/Codex symlink 计划，不创建目录 | 已在 Linux host 实机验收，零冲突 |
-| Linux Sync、Doctor、重复 Sync | 建立所有声明入口，Doctor 通过且重复运行幂等 | 已在 Linux host 实机验收，18/18 OK |
+| Linux Sync、Doctor、重复 Sync | 16 个 canonical skill 链接与 2 个规则投影分别通过，重复运行幂等 | 阶段 1 曾以含 alias 的 18/18 通过；阶段 2 待 Linux 复验 |
 | Linux 冲突与修复 | 保留真实目录；错误 symlink 仅显式 repair | 已实现并在 Linux host 隔离验收 |
 | Windows `mmd-explain` | doctor 探测浏览器/字体；真实 renderer 生成中文与 emoji 正常的 PNG | 已在当前 Windows host 用 bundled pnpm/Node 实机验收；第二台待执行 |
 | Linux `mmd-explain` | doctor 通过；真实 conda renderer 生成中文与 emoji 正常的 PNG | 已在 Linux host `/tmp` 验收 |
@@ -217,7 +253,9 @@ commit/merge 协调。Handoff 可以在 Local、worktree 和匹配的 SSH host �
 | SSH host | key + 最小权限账户 + VPN/mesh；无公开 app-server listener | 人工验收 |
 | Windows Computer Use | 在执行 host 前台运行，保持解锁；allowlist 不跨机 | 人工验收 |
 | Git 敏感边界 | auth、私钥、`config.toml`、allowlist、Clash 运行期文件不入库 | 已设计，需 CI 检查 |
-| COMMON managed block | 更新公共区块且保留机器私有区块 | 下一切片 |
+| COMMON → Claude adapter | 相对 import 只加载一份 COMMON | 已实现；新 Claude session 待行为验收 |
+| COMMON → Cursor user file rule | 生成专用 alwaysApply `.mdc`，不接管其他规则 | Windows 27 项隔离断言与 vmcc Doctor 通过；新 Cursor task 待行为验收 |
+| COMMON → Codex managed block | 更新公共区块且保留机器私有区块 | Windows 27 项隔离断言、vmcc Doctor 与重复 Sync 通过 |
 | 同 task 跨 host session upsert | task ID 不变，记录 host history，私有传输后更新同一文件 | 需先定传输层 |
 | 两个 agent 并行 | 独立 worktree/branch，不共写 checkout | 流程约束 |
 
@@ -228,3 +266,6 @@ commit/merge 协调。Handoff 可以在 Local、worktree 和匹配的 SSH host �
 - [Codex Remote Control、SSH host 与跨 host handoff](https://learn.chatgpt.com/docs/remote-connections)
 - [Computer Use：Windows 前台运行与本机 app policy](https://learn.chatgpt.com/docs/computer-use)
 - [Codex worktree 与 Local/Worktree handoff](https://learn.chatgpt.com/docs/environments/git-worktrees)
+- [Claude Code：CLAUDE.md 导入与相对路径解析](https://code.claude.com/docs/zh-CN/memory#importing-additional-files)
+- [Cursor Rules：项目规则与全局 User Rules](https://docs.cursor.com/context/rules)
+- [OpenCode Rules：全局文件、Claude fallback 与 instructions](https://opencode.ai/docs/rules/)

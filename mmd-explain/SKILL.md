@@ -13,9 +13,6 @@ description: >
 - 直接问（"`/mmd-explain` pipeline 是怎么跑的？"）
 - 指定输出目录（"`/mmd-explain` ... 放到 docs/diagrams/"）
 
-> 旧名 `/mmdexplain` 在执行客户端同步后仍可用；兼容链接由 `skills.manifest.json` 的
-> alias 生成。请优先用 `mmd-explain`。
-
 默认输出目录：**`_sxg/diagram/`**（相对于当前项目根）。
 
 ---

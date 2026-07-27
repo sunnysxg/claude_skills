@@ -16,7 +16,7 @@
 | `lq` | 把当前问答记录到项目的 `_sxg/qa_log.md` |
 | `playground` | 在 `playground/` 下新建实验项目 |
 | `neat-freak` | 会话收尾时整理文档与记忆，与代码对齐 |
-| `mmd-explain` | 用 Mermaid 图示解释（`.mmd` + PNG，默认输出到项目 `_sxg/diagram/`）；Windows/Linux 分别使用 PowerShell/Bash renderer，旧名 `mmdexplain` 由 manifest 创建兼容链接 |
+| `mmd-explain` | 用 Mermaid 图示解释（`.mmd` + PNG，默认输出到项目 `_sxg/diagram/`）；Windows/Linux 分别使用 PowerShell/Bash renderer |
 | `session-log` | 在 Cursor / Claude Code 归档并 upsert 同一 chat；可选 Stop hook 经 tmux 自动执行标题建议 |
 | `session-search` | 按关键词、项目、时间检索已归档的 session 摘要 |
 
@@ -37,10 +37,12 @@
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync_skills.ps1 -Command Doctor
   ```
 
-  Cursor 目标为 `~/.cursor/skills`；Codex 官方用户级目标为 `~/.agents/skills`。脚本逐 skill
-  创建目录联接，不覆盖已有真实目录。`~/.codex/skills` 是默认关闭的存量兼容目标，且永不
-  接管 `.system`。`git-workflow` 与 `session-log` 暂不安装给 Codex：两者使用
-  Claude/Cursor 专属的显式调用 frontmatter，待增加 Codex adapter 后再启用。
+  默认 `Scope=All`，同时同步 skill 链接和全局规则投影；可用
+  `-Scope Skills` / `-Scope Rules` 单独处理。Cursor skill 目标为 `~/.cursor/skills`；
+  Codex 官方用户级 skill 目标为 `~/.agents/skills`。脚本逐 skill 创建目录联接，不覆盖
+  已有真实目录。`~/.codex/skills` 是默认关闭的存量兼容目标，且永不接管 `.system`。
+  `git-workflow` 与 `session-log` 暂不安装给 Codex：两者使用 Claude/Cursor 专属的显式调用
+  frontmatter，待增加 Codex adapter 后再启用。
 - Linux 上同样先预览，再同步 Cursor 与 Codex：
 
   ```bash
@@ -50,7 +52,8 @@
   bash scripts/sync_skills.sh doctor
   ```
 
-  该脚本需要 Bash、`jq` 和 GNU `realpath`，按 manifest 为每个 skill 创建符号链接；
+  该脚本需要 Bash、`jq` 和 GNU `realpath`，默认同时同步 skill 链接和全局规则；可用
+  `--scope skills` / `--scope rules` 单独处理。它按 manifest 为每个 skill 创建符号链接；
   `~/.cursor/skills/` 和 `~/.agents/skills/` 下已有的真实目录视为客户端专属内容，不会被
   覆盖或删除。旧命令 `scripts/sync_cursor_skills.sh` 仍保留，作为只处理 Cursor 的兼容入口。
   当前只承诺 Windows 与 Linux，不宣称支持 macOS。
@@ -59,11 +62,23 @@
   [`references/windows.md`](mmd-explain/references/windows.md)，在 Linux 使用
   [`references/linux.md`](mmd-explain/references/linux.md)。浏览器、renderer 和字体由各平台
   doctor 自动探测，机器私有路径仅通过本机环境变量覆盖，不写进 Git。
-- [global/CLAUDE.md](global/CLAUDE.md) 是跨项目通用规则，单一事实源在本 repo。
-  各机器 `~/.claude/CLAUDE.md` 只放一行 `@skills/global/CLAUDE.md`（Claude Code 每个
-  session 无条件加载该文件并跟随 import），机器特有内容（conda、内网服务等）追加在
-  这行下面。Cursor 不解析 `@import`，用规则（如 read-context）显式 Read
-  `~/.claude/skills/global/CLAUDE.md` 与 `~/.claude/CLAUDE.md` 两个文件。
+- [global/COMMON.md](global/COMMON.md) 是跨客户端全局规则的唯一维护源。三个客户端用不同
+  的薄适配读取同一正文：
+  - Claude：`~/.claude/CLAUDE.md` 导入 `skills/global/CLAUDE.md`，后者只含
+    `@COMMON.md`；机器特有内容可继续放在用户级文件的导入行下面。
+  - Cursor：同步器生成用户级
+    `~/.cursor/rules/claude-skills-common.mdc`（`alwaysApply: true`）。这是当前 Cursor
+    3.9.16 的文件化 User Rule；同步器只管理这一文件，不接管整个 `rules/` 目录。
+  - Codex：同步器只替换 `~/.codex/AGENTS.md` 的
+    `<!-- BEGIN/END claude_skills:global-common -->` 标记区块，块外本机规则原样保留。
+- 首次接线或 COMMON 更新后，用新 task 验证实际加载；Cursor 如未立即刷新，执行 Reload
+  Window 后在 Settings → Rules 确认 `claude-skills-common` 出现在用户规则中。
+- 规则投影与 skill 链接分别计数。同步器遇到畸形标记、目录/reparse target，或同名但没有
+  管理标记的 Cursor 文件时只报冲突，不覆盖。Windows 隔离回归可运行：
+
+  ```powershell
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test_sync_rules.ps1
+  ```
 - 归档目录 `~/_sxg/` 各机器独立，skill 首次写入时自动创建。
 
 双机 Remote Control、SSH host、Computer Use、machine-local 配置边界和验收矩阵见

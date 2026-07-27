@@ -19,7 +19,8 @@
 | 用途 | 路径 |
 |---|---|
 | 项目级指令 | 项目根 `AGENTS.md`（或 `CLAUDE.md`，Cursor 会兼容读取） |
-| 规则目录 | `.cursor/rules/*.mdc`（旧式 `.cursorrules` 已弃用） |
+| 项目规则目录 | `<project>/.cursor/rules/*.mdc`（旧式 `.cursorrules` 已弃用） |
+| 用户级全局规则 | 官方入口为 Cursor Settings → Rules → User Rules；支持 user file rules 的版本也读取 `~/.cursor/rules/*.mdc` |
 | 斜杠命令 | `.cursor/commands/<name>.md` |
 | **Skills 目录** | `~/.cursor/skills/<name>/SKILL.md`（**不**自动读 `~/.claude/skills/`） |
 

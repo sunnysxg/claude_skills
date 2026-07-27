@@ -12,6 +12,8 @@
 | Skill | 说明 |
 |-------|------|
 | `handoff` | 写交接文档到 `~/_sxg/handoff/{project}.md`，供下一个 session/agent 接手 |
+| `hv-analysis` | 用横纵分析法研究产品、公司、概念或人物，产出带来源的 Markdown 报告，并在环境已有依赖时安全生成 PDF |
+| `leader` | 将一句话需求整理成有边界、验收和断点续跑机制的 agent 任务书 |
 | `pickup` | 读取交接文档并继续（兼容旧式项目根 `HANDOFF.md`） |
 | `lq` | 把当前问答记录到项目的 `_sxg/qa_log.md` |
 | `playground` | 在 `playground/` 下新建实验项目 |
@@ -72,4 +74,4 @@
 
 ## Credits
 
-`neat-freak` 原作者为 [kkkkhazix](https://github.com/kkkkhazix/khazix-skills)，在此按 MIT License 使用。
+`neat-freak`、`leader` 与 `hv-analysis` 源自 [KKKKhazix/Khazix-Skills](https://github.com/KKKKhazix/Khazix-Skills)，按 MIT License 使用。`leader` 与 `hv-analysis` 固定导入提交 [`30c131e`](https://github.com/KKKKhazix/Khazix-Skills/commit/30c131ee3d804db7b31e4951c62018d5bde27e08)，并做了本仓库的安全和跨客户端适配；完整声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

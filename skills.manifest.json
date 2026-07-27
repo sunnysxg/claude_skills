@@ -51,6 +51,26 @@
       }
     },
     {
+      "name": "hv-analysis",
+      "source": "hv-analysis",
+      "platforms": ["windows", "linux"],
+      "targets": ["cursor", "codex", "codex_legacy"],
+      "compatibility": {
+        "cursor": "compatible",
+        "codex": "compatible"
+      }
+    },
+    {
+      "name": "leader",
+      "source": "leader",
+      "platforms": ["windows", "linux"],
+      "targets": ["cursor", "codex", "codex_legacy"],
+      "compatibility": {
+        "cursor": "compatible",
+        "codex": "compatible"
+      }
+    },
+    {
       "name": "lq",
       "source": "lq",
       "platforms": ["windows", "linux"],

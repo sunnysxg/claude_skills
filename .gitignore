@@ -2,5 +2,7 @@
 __pycache__/
 *.pyc
 skill-creator
+# 本机专属：依赖 vmcc → sera 的 LAN ssh，别的机器走不通
 sera-ops
+vault-ops
 sync.local.json

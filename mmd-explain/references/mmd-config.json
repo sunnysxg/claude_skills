@@ -1,3 +1,4 @@
 {
-  "fontFamily": "\"Noto Sans CJK SC\", \"Noto Sans SC\", \"Microsoft YaHei\", \"Microsoft YaHei UI\", \"Segoe UI Emoji\", \"Noto Color Emoji\", \"DejaVu Sans\", sans-serif"
+  "fontFamily": "\"Noto Sans CJK SC\", \"Noto Sans SC\", \"Microsoft YaHei\", \"Microsoft YaHei UI\", \"Segoe UI Emoji\", \"Noto Color Emoji\", \"DejaVu Sans\", sans-serif",
+  "themeCSS": "foreignObject { overflow: visible !important; }"
 }

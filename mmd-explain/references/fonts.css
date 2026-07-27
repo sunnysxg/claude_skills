@@ -1,18 +1,19 @@
-/* mmdc 渲染用字体栈：中文 + emoji 彩色字形 */
-* {
-  font-family:
-    "Noto Sans CJK SC",
-    "Noto Sans SC",
-    "Microsoft YaHei",
-    "Microsoft YaHei UI",
-    "Segoe UI Emoji",
-    "Noto Color Emoji",
-    "DejaVu Sans",
-    sans-serif !important;
-  font-size: 18px;
+/*
+ * Mermaid 在追加 -C CSS 之前已经量过 label，并把结果写进 foreignObject
+ * 的固定 width/height。不要在这里改 font-family、font-size、font-weight、
+ * line-height、letter-spacing 或 padding；这些属性会让实际字形与旧 bbox
+ * 不一致。字体栈必须放在 mmd-config.json，确保布局前生效。
+ */
+
+/*
+ * 防御字体回退或浏览器亚像素取整产生的极小误差。节点本身另有留白，
+ * 允许 foreignObject 显示溢出比截掉末字更安全。
+ */
+svg foreignObject,
+foreignObject {
+  overflow: visible !important;
 }
 
-svg text,
 .nodeLabel,
 .edgeLabel,
 .label,
@@ -24,13 +25,5 @@ svg text,
 .taskText,
 .sectionTitle,
 .titleText {
-  font-family:
-    "Noto Sans CJK SC",
-    "Noto Sans SC",
-    "Microsoft YaHei",
-    "Microsoft YaHei UI",
-    "Segoe UI Emoji",
-    "Noto Color Emoji",
-    "DejaVu Sans",
-    sans-serif !important;
+  overflow: visible !important;
 }

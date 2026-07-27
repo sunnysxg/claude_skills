@@ -25,7 +25,11 @@ Codex Desktop 的 bundled `pnpm` 与 Node 未必同时位于 PATH。脚本会从
 Puppeteer 自带浏览器时，doctor 即使没有找到系统浏览器也只会警告。
 
 Windows 中文优先使用 Microsoft YaHei，emoji 优先使用 Segoe UI Emoji；若本机另外安装了
-Noto 字体，公共 `fonts.css` 也会优先使用。
+Noto 字体，`mmd-config.json` 中的公共字体栈会优先使用。
+
+字体栈由 `mmd-config.json` 在 Mermaid 计算 label 边界前注入。`fonts.css` 只提供
+`foreignObject` 溢出保护，不得在布局后覆盖字号、行高、字重、字距或字体族；缺末字时不要
+在 label 末尾补全角空格。
 
 ## 渲染
 

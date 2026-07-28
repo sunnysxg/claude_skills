@@ -54,10 +54,10 @@
       "name": "git-workflow",
       "source": "git-workflow",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor"],
+      "targets": ["cursor", "codex", "codex_legacy"],
       "compatibility": {
         "cursor": "compatible",
-        "codex": "requires_adapter_for_explicit_invocation"
+        "codex": "compatible"
       }
     },
     {

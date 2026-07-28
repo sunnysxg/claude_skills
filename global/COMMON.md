@@ -48,11 +48,6 @@
    （tqdm 或逐项带序号/用时的日志行），防止无法判断是否卡死；
    结束时打各阶段用时汇总。
 
-## Git
-
-版本控制（工作流、commit 格式、push/PR、安全红线）见
-`~/.claude/skills/global/GIT.md`——新 session 必读（`read-context` 已列入）。
-
 ## 格式化
 
 ### 数学公式

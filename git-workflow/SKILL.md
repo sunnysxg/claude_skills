@@ -1,18 +1,14 @@
 ---
 name: git-workflow
 description: >
-  按 GIT.md 执行 commit/push：功能验收后用户说提交或推送时使用。
-  完整规则在 ~/.claude/skills/global/GIT.md；本 session 若已读过则直接执行，勿重复 Read。
-disable-model-invocation: true
+  管理 Git 提交、推送、分支和 PR。用户要求提交或推送，或项目规范授权 agent 按约定节奏执行
+  Git 写操作时使用；先遵守项目规范，缺失时询问并记录到项目配置后再执行。
 ---
 
 # Git Workflow
 
-**正文 SSOT**：`~/.claude/skills/global/GIT.md`（新 session 已由 `read-context` 必读）。
+执行 Git 写操作前，完整读取 [references/git.md](references/git.md)，按其中顺序解析项目规范、
+授权范围、执行节奏和安全边界。
 
-1. 若本 session **已读过** GIT.md → **直接按其中流程执行**，不要再 Read 全文。
-2. 若不确定是否读过（如新 agent、context 已压缩）→ Read `~/.claude/skills/global/GIT.md` 后再执行。
-3. **不要**在本文件重复 GIT.md 内容。
-
-用户说「提交 / commit」→ 按 GIT.md §3 执行 commit。  
-用户说「push / 推送」→ 按 GIT.md §4 执行 push。
+只读的 `status`、`diff`、`log` 可用于确认现状，不视为 Git 写操作。项目没有规范时，先提出
+最小必要建议，获得用户确认并记录；不要凭通用偏好替项目决定 commit、push 或 PR 节奏。

@@ -68,8 +68,8 @@
 - 结构：`{skill-name}/SKILL.md`（+ 可选 `references/`）。
 - description 用自然语言一两句话说清「做什么、什么时候用」；
   触发场景融进句子，不罗列带引号的短语清单，不写「不要自动触发」这类否定指令。
-- 设了 `disable-model-invocation: true` 的 skill，description 只描述功能——
-  模型永远不会自动触发它，写触发条件是废文。
+- 面向多个客户端的 skill frontmatter 只使用标准 `name`、`description`；客户端专属字段只用于
+  manifest 已限制到对应客户端的 skill。
 - 跨平台差异不要全部塞进公共正文：`SKILL.md` 只写选择条件，并直接链接
   `references/windows.md`、`references/linux.md`；agent 只读当前平台分支。脚本按平台使用
   `.ps1` / `.sh`，浏览器、字体和二进制优先自动探测，机器私有路径用未跟踪配置或环境变量。
@@ -88,4 +88,4 @@ skill 读取时兼容两代命名，新写入一律用新规范。
 
 - 模块 = **skill 目录名**（kebab-case），如 `[session-log]`、`[git-workflow]`。
 - 改 `global/` 下跨 skill 规则时用 `[global]`；改 `conventions.md`、`.gitignore` 等仓库级用 `[Repo]` 或 `[global]`。
-- 完整格式与工作流见 `global/GIT.md`。
+- 完整工作流见 `git-workflow/references/git.md`。

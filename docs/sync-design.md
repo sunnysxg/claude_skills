@@ -49,10 +49,10 @@ alias 的机器需各自确认并删除旧链接；不能删除 canonical 源目
 `managed_rules` 与 skill 清单并列，声明由 `global/COMMON.md` 生成的客户端规则投影。规则
 投影不是 skill，也不是客户端根目录链接；它有独立的 DryRun、Doctor、冲突保护和统计。
 
-链接建立成功不等于客户端一定能加载。`git-workflow` 与 `session-log` 的
-`disable-model-invocation` 是 Claude/Cursor 专属 frontmatter，不符合 Codex 使用的 Agent
-Skills 标准；当前 manifest 不把这两个 skill 安装给 Codex。后续用 Codex adapter 的
-`agents/openai.yaml` 表达显式调用策略，并为 `session-log` 补齐 Codex upsert 后再启用。
+链接建立成功不等于客户端一定能加载。`git-workflow` 已改为标准 Agent Skill，并安装到
+Cursor 与 Codex；它通过 description 触发，再从项目指令或 `_sxg/project_config.md` 解析
+授权节奏，不需要 Codex adapter。`session-log` 仍使用 Claude/Cursor 专属的
+`disable-model-invocation`，待补齐 Codex session upsert 与调用策略后再启用。
 
 ## 3. Windows 使用方法
 
@@ -248,7 +248,7 @@ commit/merge 协调。Handoff 可以在 Local、worktree 和匹配的 SSH host �
 | Windows `mmd-explain` | doctor 探测浏览器/字体；真实 renderer 生成中文与 emoji 正常的 PNG | 已在当前 Windows host 用 bundled pnpm/Node 实机验收；第二台待执行 |
 | Linux `mmd-explain` | doctor 通过；真实 conda renderer 生成中文与 emoji 正常的 PNG | 已在 Linux host `/tmp` 验收 |
 | Linux `session-log` | Cursor/Claude 时间解析、upsert 与 Stop hook 去重 | 10 项回归测试已在 Windows 与 Linux 通过；Linux hook 已 machine-local 配置 |
-| Codex skill 格式 | 只安装 Agent Skills 标准兼容项；两个显式调用 skill 等 adapter | 已实现安装边界；adapter 待办 |
+| Codex skill 格式 | 只安装 Agent Skills 标准兼容项；`git-workflow` 已标准化，`session-log` 暂缓 | Git 已启用；session-log 待补 upsert 与调用策略 |
 | Remote Control | 每个控制端与每个 host 单独配对；同账号不视为已配对 | 人工验收 |
 | SSH host | key + 最小权限账户 + VPN/mesh；无公开 app-server listener | 人工验收 |
 | Windows Computer Use | 在执行 host 前台运行，保持解锁；allowlist 不跨机 | 人工验收 |

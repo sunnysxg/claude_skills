@@ -22,4 +22,6 @@
   `references/windows.md`、`references/linux.md` 与对应脚本。优先运行时探测，机器路径只用
   本机环境变量覆盖，不硬编码 hostname、浏览器或字体位置。
 - 并行 agent 使用不同 worktree/branch，通过 Git 协调；禁止两个 agent 同时写同一 checkout。
-- Git 提交与推送遵循 `global/GIT.md`；只有用户明确要求时才 commit/push。
+- 本仓库的 Git 操作遵循 `git-workflow/references/git.md`。每个已获用户授权、验证通过的 skill
+  改动形成独立 commit，无需再询问一次；push 仍需用户明确要求。Commit message 格式遵循
+  `conventions.md`。

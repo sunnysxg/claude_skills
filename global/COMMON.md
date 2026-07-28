@@ -35,7 +35,6 @@
   不要前缀列表符。
 - 引用路径、URL 用完整 markdown 链接，不省略前缀或中间段。
 - fenced code block 与 inline backtick 内按字面显示，不用 HTML 实体代替符号。
-- 复杂逻辑可用 mermaid（`/mmd-explain`）或 ascii 图说明；简单改动不必强行画图。
 
 ## 编码
 
@@ -89,4 +88,4 @@ Markdown 渲染器里正常显示。
     索引在 `index.md`
   - `handoff/{project}.md` — 项目交接文档（`/handoff`、`/pickup`；个别老项目仍用项目根
     `HANDOFF.md`）
-- 项目内 `_sxg/`：`TODO.md`、`qa_log.md`（`/lq`）、`diagram/`（`/mmd-explain`）等
+- 项目内 `_sxg/`：`TODO.md`、`qa_log.md`（`/lq`）等

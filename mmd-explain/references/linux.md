@@ -38,6 +38,10 @@ Linux headless Chromium 需要 fontconfig 能看到中文与 emoji 字体。cpfs
 脚本把字体放在用户 fontconfig 目录，并在存在 conda `mermaid` 字体目录时建立共享链接。
 CJK 字体包较大，安装脚本不自动从 CDN 下载；传入已有字体路径即可。
 
+字体栈由 `mmd-config.json` 在 Mermaid 计算 label 边界前注入。`fonts.css` 只提供
+`foreignObject` 溢出保护，不得在布局后覆盖字号、行高、字重、字距或字体族；缺末字时不要
+在 label 末尾补全角空格。
+
 ## 渲染
 
 ```bash

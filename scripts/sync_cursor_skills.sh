@@ -3,4 +3,4 @@
 set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-exec bash "$script_dir/sync_skills.sh" --client cursor "$@"
+exec bash "$script_dir/sync_skills.sh" --client cursor --scope skills "$@"

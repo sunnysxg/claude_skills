@@ -9,6 +9,9 @@ param(
 
     [switch]$RepairLinks,
 
+    [ValidateSet("All", "Skills", "Rules")]
+    [string]$Scope = "All",
+
     [string]$ManifestPath,
 
     [string]$LocalConfigPath
@@ -153,6 +156,238 @@ function Remove-ExistingLink {
     }
 }
 
+function Normalize-ManagedText {
+    param([AllowEmptyString()][string]$Value)
+
+    return (($Value -replace "`r`n", "`n") -replace "`r", "`n").TrimEnd("`n")
+}
+
+function Get-ManagedRuleMarkers {
+    param([Parameter(Mandatory)][string]$Name)
+
+    return [PSCustomObject]@{
+        Begin = "<!-- BEGIN claude_skills:$Name -->"
+        End = "<!-- END claude_skills:$Name -->"
+    }
+}
+
+function Get-PreferredNewline {
+    param([AllowEmptyString()][string]$Value)
+
+    if ($Value.Contains("`r`n")) {
+        return "`r`n"
+    }
+    return "`n"
+}
+
+function Get-MarkerMatches {
+    param(
+        [AllowEmptyString()][string]$Content,
+        [Parameter(Mandatory)][string]$Marker
+    )
+
+    $pattern = "(?m)^" + [regex]::Escape($Marker) + "(?=\r?$)"
+    return @([regex]::Matches($Content, $pattern))
+}
+
+function New-ManagedRuleBlock {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$SourceContent,
+        [Parameter(Mandatory)][string]$Newline
+    )
+
+    $markers = Get-ManagedRuleMarkers $Name
+    $body = (Normalize-ManagedText $SourceContent).Replace("`n", $Newline)
+    return $markers.Begin + $Newline + $body + $Newline + $markers.End
+}
+
+function Get-ManagedRulePlan {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$Client,
+        [Parameter(Mandatory)][string]$Mode,
+        [Parameter(Mandatory)][string]$TargetPath,
+        [Parameter(Mandatory)][string]$SourceContent,
+        [AllowEmptyString()][string]$LegacyExactContent
+    )
+
+    $markers = Get-ManagedRuleMarkers $Name
+    if (@(Get-MarkerMatches -Content $SourceContent -Marker $markers.Begin).Count -gt 0 -or
+        @(Get-MarkerMatches -Content $SourceContent -Marker $markers.End).Count -gt 0) {
+        throw "Managed rule source contains its own markers: $Name"
+    }
+
+    $existing = Get-Item -LiteralPath $TargetPath -Force -ErrorAction SilentlyContinue
+    if ($null -eq $existing) {
+        $newline = "`n"
+        $block = New-ManagedRuleBlock -Name $Name -SourceContent $SourceContent -Newline $newline
+        if ($Mode -eq "cursor_mdc") {
+            $desired = "---${newline}description: Global rules generated from claude_skills/global/COMMON.md${newline}alwaysApply: true${newline}---${newline}$block$newline"
+        } else {
+            $desired = "$block$newline"
+        }
+        return [PSCustomObject]@{
+            Name = $Name
+            Client = $Client
+            Mode = $Mode
+            TargetPath = $TargetPath
+            State = "MissingFile"
+            DesiredContent = $desired
+            Detail = "target file does not exist"
+        }
+    }
+
+    if ($existing.PSIsContainer -or
+        ($existing.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+        return [PSCustomObject]@{
+            Name = $Name
+            Client = $Client
+            Mode = $Mode
+            TargetPath = $TargetPath
+            State = "UnsafeTarget"
+            DesiredContent = $null
+            Detail = "target is a directory or reparse point"
+        }
+    }
+
+    $content = [System.IO.File]::ReadAllText($TargetPath)
+    $newline = Get-PreferredNewline $content
+    $block = New-ManagedRuleBlock -Name $Name -SourceContent $SourceContent -Newline $newline
+    $beginMatches = @(Get-MarkerMatches -Content $content -Marker $markers.Begin)
+    $endMatches = @(Get-MarkerMatches -Content $content -Marker $markers.End)
+
+    if ($Mode -eq "cursor_mdc") {
+        $expected = "---${newline}description: Global rules generated from claude_skills/global/COMMON.md${newline}alwaysApply: true${newline}---${newline}$block$newline"
+        if ((Normalize-ManagedText $content) -ceq (Normalize-ManagedText $expected)) {
+            $state = "Current"
+            $detail = "generated Cursor rule is current"
+        } elseif ($beginMatches.Count -eq 1 -and $endMatches.Count -eq 1 -and
+            $beginMatches[0].Index -lt $endMatches[0].Index) {
+            $state = "Stale"
+            $detail = "generated Cursor rule differs from source"
+        } elseif ($beginMatches.Count -eq 0 -and $endMatches.Count -eq 0) {
+            $state = "UnmanagedFile"
+            $detail = "dedicated Cursor rule exists without managed markers"
+        } else {
+            $state = "Malformed"
+            $detail = "managed markers are missing, duplicated, or out of order"
+        }
+        return [PSCustomObject]@{
+            Name = $Name
+            Client = $Client
+            Mode = $Mode
+            TargetPath = $TargetPath
+            State = $state
+            DesiredContent = if ($state -in @("Current", "Stale")) { $expected } else { $null }
+            Detail = $detail
+        }
+    }
+
+    if ($Mode -ne "managed_block") {
+        throw "Unsupported managed rule mode: $Mode"
+    }
+
+    if ($LegacyExactContent -and
+        (Normalize-ManagedText $content) -ceq (Normalize-ManagedText $LegacyExactContent)) {
+        return [PSCustomObject]@{
+            Name = $Name
+            Client = $Client
+            Mode = $Mode
+            TargetPath = $TargetPath
+            State = "Legacy"
+            DesiredContent = "$block$newline"
+            Detail = "exact legacy bootstrap will be replaced"
+        }
+    }
+
+    if ($beginMatches.Count -eq 0 -and $endMatches.Count -eq 0) {
+        if ($content.Length -eq 0) {
+            $desired = "$block$newline"
+        } elseif ($content.EndsWith("$newline$newline")) {
+            $desired = $content + $block + $newline
+        } elseif ($content.EndsWith($newline)) {
+            $desired = $content + $newline + $block + $newline
+        } else {
+            $desired = $content + $newline + $newline + $block + $newline
+        }
+        return [PSCustomObject]@{
+            Name = $Name
+            Client = $Client
+            Mode = $Mode
+            TargetPath = $TargetPath
+            State = "Unmanaged"
+            DesiredContent = $desired
+            Detail = "managed block will be appended after existing local content"
+        }
+    }
+
+    if ($beginMatches.Count -ne 1 -or $endMatches.Count -ne 1 -or
+        $beginMatches[0].Index -ge $endMatches[0].Index) {
+        return [PSCustomObject]@{
+            Name = $Name
+            Client = $Client
+            Mode = $Mode
+            TargetPath = $TargetPath
+            State = "Malformed"
+            DesiredContent = $null
+            Detail = "managed markers are missing, duplicated, or out of order"
+        }
+    }
+
+    $replaceStart = $beginMatches[0].Index
+    $replaceEnd = $endMatches[0].Index + $endMatches[0].Length
+    $desired = $content.Substring(0, $replaceStart) + $block + $content.Substring($replaceEnd)
+    $currentBlock = $content.Substring($replaceStart, $replaceEnd - $replaceStart)
+    $state = if ((Normalize-ManagedText $currentBlock) -ceq (Normalize-ManagedText $block)) {
+        "Current"
+    } else {
+        "Stale"
+    }
+    return [PSCustomObject]@{
+        Name = $Name
+        Client = $Client
+        Mode = $Mode
+        TargetPath = $TargetPath
+        State = $state
+        DesiredContent = $desired
+        Detail = if ($state -eq "Current") { "managed block is current" } else { "managed block differs from source" }
+    }
+}
+
+function Write-Utf8FileAtomic {
+    param(
+        [Parameter(Mandatory)][string]$PathValue,
+        [AllowEmptyString()][string]$Content
+    )
+
+    $parent = Split-Path -Parent $PathValue
+    if (-not (Test-Path -LiteralPath $parent -PathType Container)) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+
+    $tempName = "." + [System.IO.Path]::GetFileName($PathValue) + "." +
+        [System.Guid]::NewGuid().ToString("N") + ".tmp"
+    $tempPath = Join-Path $parent $tempName
+    $backupPath = $tempPath + ".bak"
+    try {
+        $utf8 = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($tempPath, $Content, $utf8)
+        if (Test-Path -LiteralPath $PathValue -PathType Leaf) {
+            [System.IO.File]::Replace($tempPath, $PathValue, $backupPath, $true)
+        } else {
+            [System.IO.File]::Move($tempPath, $PathValue)
+        }
+    } finally {
+        if (Test-Path -LiteralPath $tempPath) {
+            Remove-Item -LiteralPath $tempPath -Force
+        }
+        if (Test-Path -LiteralPath $backupPath) {
+            Remove-Item -LiteralPath $backupPath -Force
+        }
+    }
+}
+
 if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) {
     throw "Manifest not found: $ManifestPath"
 }
@@ -222,7 +457,7 @@ function Test-LocalSkillEnabled {
     return [bool]$enabled
 }
 
-$clientNames = @($manifest.clients.PSObject.Properties.Name)
+$clientNames = @($manifest.clients.PSObject.Properties | ForEach-Object { $_.Name })
 if ($Client -and $Client.Count -gt 0) {
     $selectedClients = @($Client | ForEach-Object { $_ -split "," } | Where-Object { $_ })
 } else {
@@ -259,6 +494,8 @@ foreach ($clientName in $selectedClients) {
 }
 
 $sourceRoot = Expand-PortablePath -PathValue ([string]$manifest.source_root) -BasePath $repoRoot
+$manageSkills = $Scope -in @("All", "Skills")
+$manageRules = $Scope -in @("All", "Rules")
 $declaredEntries = @()
 $seenNames = @{}
 $canonicalSkillNames = @{}
@@ -322,7 +559,7 @@ foreach ($alias in @($manifest.aliases)) {
 if ($localConfig) {
     $localSkills = Get-ObjectProperty $localConfig "skills"
     if ($localSkills) {
-        foreach ($localSkillName in @($localSkills.PSObject.Properties.Name)) {
+        foreach ($localSkillName in @($localSkills.PSObject.Properties | ForEach-Object { $_.Name })) {
             if (-not $canonicalSkillNames.ContainsKey($localSkillName)) {
                 throw "Local config references an undeclared skill: $localSkillName"
             }
@@ -331,6 +568,7 @@ if ($localConfig) {
 }
 
 $operations = @()
+if ($manageSkills) {
 foreach ($clientName in $selectedClients) {
     $definition = Get-ObjectProperty $manifest.clients $clientName
     $rootValue = [string]$definition.root
@@ -364,10 +602,75 @@ foreach ($clientName in $selectedClients) {
         }
     }
 }
+}
+
+$managedRulePlans = @()
+if ($manageRules) {
+    $managedRuleTargetPaths = @{}
+    $managedRules = Get-ObjectProperty $manifest "managed_rules"
+    foreach ($rule in @($managedRules)) {
+        if ($null -eq $rule) {
+            continue
+        }
+        $ruleName = [string]$rule.name
+        if ($ruleName -notmatch "^[a-z0-9][a-z0-9-]{0,63}$") {
+            throw "Invalid managed rule name: $ruleName"
+        }
+        if (-not (Test-EntryPlatform $rule)) {
+            continue
+        }
+
+        $ruleSourcePath = Expand-PortablePath -PathValue ([string]$rule.source) -BasePath $sourceRoot
+        $normalizedSourceRoot = Get-NormalizedPath $sourceRoot
+        $sourcePrefix = $normalizedSourceRoot + [System.IO.Path]::DirectorySeparatorChar
+        $normalizedRuleSource = Get-NormalizedPath $ruleSourcePath
+        if (-not ((Test-SamePath $normalizedRuleSource $normalizedSourceRoot) -or
+            $normalizedRuleSource.StartsWith($sourcePrefix, [System.StringComparison]::OrdinalIgnoreCase))) {
+            throw "Managed rule source escapes repository: $ruleName -> $ruleSourcePath"
+        }
+        if (-not (Test-Path -LiteralPath $ruleSourcePath -PathType Leaf)) {
+            throw "Managed rule source not found: $ruleName ($ruleSourcePath)"
+        }
+        $ruleSourceContent = [System.IO.File]::ReadAllText($ruleSourcePath)
+
+        foreach ($target in @($rule.targets)) {
+            $targetClient = [string]$target.client
+            if ($clientNames -notcontains $targetClient) {
+                throw "Managed rule target client is not declared: $ruleName -> $targetClient"
+            }
+            if ($selectedClients -notcontains $targetClient) {
+                continue
+            }
+            $mode = [string]$target.mode
+            if ($mode -notin @("managed_block", "cursor_mdc")) {
+                throw "Unsupported managed rule mode: $ruleName -> $mode"
+            }
+            $targetPath = Expand-PortablePath -PathValue ([string]$target.path) -BasePath $repoRoot
+            $normalizedTarget = Get-NormalizedPath $targetPath
+            if ((Test-SamePath $normalizedTarget $normalizedSourceRoot) -or
+                $normalizedTarget.StartsWith($sourcePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Refusing to manage a rule file inside the source repository: $targetPath"
+            }
+            if ($managedRuleTargetPaths.ContainsKey($normalizedTarget)) {
+                throw "Duplicate managed rule target path: $targetPath"
+            }
+            $managedRuleTargetPaths[$normalizedTarget] = $true
+            $legacyExactContent = [string](Get-ObjectProperty $target "legacy_exact_content")
+            $managedRulePlans += Get-ManagedRulePlan `
+                -Name $ruleName `
+                -Client $targetClient `
+                -Mode $mode `
+                -TargetPath $targetPath `
+                -SourceContent $ruleSourceContent `
+                -LegacyExactContent $legacyExactContent
+        }
+    }
+}
 
 Write-Host "machine_id: $machineId"
 Write-Host "platform: $platformName"
 Write-Host "command: $Command"
+Write-Host "scope: $Scope"
 Write-Host "clients: $($selectedClients -join ', ')"
 Write-Host "manifest: $ManifestPath"
 if ($localConfig) {
@@ -376,6 +679,52 @@ if ($localConfig) {
     Write-Host "local override: not configured (using hostname and manifest defaults)"
 }
 Write-Host "---"
+
+$ruleChanges = 0
+$ruleOk = 0
+$ruleConflicts = 0
+$ruleMissingOrStale = 0
+$ruleIndex = 0
+$ruleConflictStates = @("UnmanagedFile", "Malformed", "UnsafeTarget")
+$blockRuleWrites = $Command -eq "Sync" -and -not $DryRun -and
+    @($managedRulePlans | Where-Object { $_.State -in $ruleConflictStates }).Count -gt 0
+
+foreach ($plan in $managedRulePlans) {
+    $ruleIndex += 1
+    $prefix = "[$ruleIndex/$($managedRulePlans.Count)] [rule:$($plan.Client)] $($plan.Name)"
+    switch ($plan.State) {
+        "Current" {
+            Write-Host "$prefix OK -> $($plan.TargetPath)"
+            $ruleOk += 1
+        }
+        { $_ -in @("MissingFile", "Unmanaged", "Legacy", "Stale") } {
+            if ($Command -eq "Doctor") {
+                Write-Host "$prefix $($plan.State.ToUpperInvariant()): $($plan.Detail)" -ForegroundColor Yellow
+                $ruleMissingOrStale += 1
+            } elseif ($DryRun) {
+                Write-Host "$prefix would create/update -> $($plan.TargetPath)"
+                $ruleChanges += 1
+            } elseif ($blockRuleWrites) {
+                Write-Host "$prefix not updated because managed-rule preflight found a conflict" -ForegroundColor Yellow
+            } else {
+                Write-Utf8FileAtomic -PathValue $plan.TargetPath -Content $plan.DesiredContent
+                Write-Host "$prefix created/updated -> $($plan.TargetPath)" -ForegroundColor Green
+                $ruleChanges += 1
+            }
+        }
+        default {
+            Write-Host "$prefix CONFLICT: $($plan.Detail) -> $($plan.TargetPath)" -ForegroundColor Red
+            $ruleConflicts += 1
+        }
+    }
+}
+
+if ($Command -eq "Sync" -and $ruleConflicts -gt 0) {
+    Write-Host "---"
+    Write-Host "Skills: not processed because managed-rule preflight failed"
+    Write-Host "Rules: OK $ruleOk, create/update $ruleChanges, missing/stale $ruleMissingOrStale, conflicts $ruleConflicts"
+    exit 1
+}
 
 $created = 0
 $ok = 0
@@ -437,8 +786,10 @@ foreach ($operation in $operations) {
 }
 
 Write-Host "---"
-Write-Host "OK: $ok, create/repair: $created, missing: $missing, conflicts: $conflicts"
+Write-Host "Skills: OK $ok, create/repair $created, missing $missing, conflicts $conflicts"
+Write-Host "Rules: OK $ruleOk, create/update $ruleChanges, missing/stale $ruleMissingOrStale, conflicts $ruleConflicts"
 
-if ($conflicts -gt 0 -or ($Command -eq "Doctor" -and $missing -gt 0)) {
+if ($conflicts -gt 0 -or $ruleConflicts -gt 0 -or
+    ($Command -eq "Doctor" -and ($missing -gt 0 -or $ruleMissingOrStale -gt 0))) {
     exit 1
 }

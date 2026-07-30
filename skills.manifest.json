@@ -29,6 +29,26 @@
       ]
     }
   },
+  "managed_rules": [
+    {
+      "name": "global-common",
+      "source": "global/COMMON.md",
+      "platforms": ["windows", "linux"],
+      "targets": [
+        {
+          "client": "cursor",
+          "path": "~/.cursor/rules/claude-skills-common.mdc",
+          "mode": "cursor_mdc"
+        },
+        {
+          "client": "codex",
+          "path": "~/.codex/AGENTS.md",
+          "mode": "managed_block",
+          "legacy_exact_content": "@skills/global/AGENTS.md"
+        }
+      ]
+    }
+  ],
   "skills": [
     {
       "name": "git-workflow",
@@ -143,14 +163,5 @@
       }
     }
   ],
-  "aliases": [
-    {
-      "name": "mmdexplain",
-      "source": "mmd-explain",
-      "canonical": "mmd-explain",
-      "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex", "codex_legacy"],
-      "deprecated": true
-    }
-  ]
+  "aliases": []
 }

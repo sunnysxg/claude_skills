@@ -10,5 +10,5 @@ description: >
 当前任务首次执行 Git 写操作前，完整读取 [references/git.md](references/git.md)。同一任务后续
 操作复用已加载内容，不重复读取；新任务、上下文压缩后或 reference 已变更时重新读取。
 
-先读取项目 `_sxg/project_config.md` 的 `Git workflow`。该段落不存在时，按 reference
-一次性解析项目规范、记录结果，再执行写操作。
+项目规范以项目指令文件（`AGENTS.md`、`CLAUDE.md`）里的 Git 规则为准；没有规则时按
+reference 的保守默认执行，完成后问一次是否放宽并记录。

@@ -22,5 +22,8 @@
   `references/windows.md`、`references/linux.md` 与对应脚本。优先运行时探测，机器路径只用
   本机环境变量覆盖，不硬编码 hostname、浏览器或字体位置。
 - 并行 agent 使用不同 worktree/branch，通过 Git 协调；禁止两个 agent 同时写同一 checkout。
-- 本仓库的项目级配置统一记录在 `_sxg/project_config.md`；Git 操作同时遵循
-  `git-workflow/references/git.md`。
+- Git 操作遵循 `git-workflow/references/git.md`；本仓库规则：
+  - commit：用户明确要求时执行，一次要求覆盖本轮连续、相关的改动
+  - push：仅在用户明确要求时执行
+  - branch / pull_request：沿用现有流程，需要新建时询问
+  - commit_message：`[模块][Tag] 中文摘要` 模板，模块名见 `conventions.md` 第 11 节

@@ -50,8 +50,8 @@ alias 的机器需各自确认并删除旧链接；不能删除 canonical 源目
 投影不是 skill，也不是客户端根目录链接；它有独立的 DryRun、Doctor、冲突保护和统计。
 
 链接建立成功不等于客户端一定能加载。`git-workflow` 已改为标准 Agent Skill，并安装到
-Cursor 与 Codex；它在 Git 写操作前触发，首次把项目规范归一到 `_sxg/project_config.md`，
-后续直接读取该入口，不需要 Codex adapter。`session-log` 仍使用 Claude/Cursor 专属的
+Cursor 与 Codex；它在 Git 写操作前触发，项目规范以项目指令文件里的 Git 规则为准，
+不需要 Codex adapter。`session-log` 仍使用 Claude/Cursor 专属的
 `disable-model-invocation`，待补齐 Codex session upsert 与调用策略后再启用。
 
 ## 3. Windows 使用方法

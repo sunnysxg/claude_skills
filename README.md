@@ -11,7 +11,7 @@
 
 | Skill | 说明 |
 |-------|------|
-| `git-workflow` | 执行 Git 写操作；首次解析项目规范并记录到 `_sxg/project_config.md`，后续直接复用 |
+| `git-workflow` | 执行 Git 写操作；按项目指令文件里的 Git 规则执行，没有规则时用保守默认并问一次 |
 | `handoff` | 写交接文档到 `~/_sxg/handoff/{project}.md`，供下一个 session/agent 接手 |
 | `pickup` | 读取交接文档并继续（兼容旧式项目根 `HANDOFF.md`） |
 | `lq` | 把当前问答记录到项目的 `_sxg/qa_log.md` |

@@ -5,9 +5,11 @@
 
 ## Git workflow
 
-- commit: 每个已获用户授权、验证通过的 skill 改动形成独立 commit，无需再次询问
+- commit: 用户明确要求时执行；一次要求覆盖本轮连续、相关的改动，不延伸到新任务
 - push: 仅在用户明确要求时执行
-- branch_pr: 沿用仓库现有分支与 PR 流程
-- commit_message: 遵循 `conventions.md`
+- branch: 沿用仓库现有分支流程；需要新建或切换时询问
+- pull_request: 沿用仓库现有流程；仅在用户明确要求时创建
+- commit_message: `[模块][Tag] 中文摘要`，模板见 `git-workflow/references/git.md`；
+  本仓库模块名见 `conventions.md` 第 11 节
 - source: 用户确认
-- recorded: 2026-07-29
+- recorded: 2026-08-04

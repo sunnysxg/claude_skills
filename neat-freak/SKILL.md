@@ -3,9 +3,8 @@ name: neat-freak
 description: >
   会话收尾时的知识库整理：以洁癖级标准审查项目文档（CLAUDE.md、README、docs/）和 agent
   记忆，使其与代码保持一致——合并重复、修正过期、删除废弃。用户要求整理或同步文档/记忆
-  （/sync、/neat、收尾、整理一下、这个阶段做完了），报告文档过期或记忆冲突，或想干净
+  （收尾、整理一下、这个阶段做完了），报告文档过期或记忆冲突，或想干净
   交接给同事和其他 agent 时使用；开发到一个里程碑、知识需要沉淀时也适用，宁可多触发。
-  跨平台通用：Claude Code、Cursor、Codex、OpenCode、OpenClaw。
 ---
 
 # 洁癖 — Knowledge Base Neat-Freak
@@ -21,7 +20,7 @@ description: >
 
 这个 Skill 的价值就在于：**让知识体系的每一层都跟得上代码的变化。**
 
-## 关键概念：三类知识，三种受众
+## 关键概念：四类知识，四种受众
 
 **必须先理解这件事，否则你会只改 CLAUDE.md 就结束，把下游同事和其他 agent 晾在那儿。**
 
@@ -30,8 +29,12 @@ description: >
 | **Agent 记忆系统**（若 agent 支持） | Agent 自己跨会话复用 | 个人偏好、非显而易见的项目事实、跨项目 reference | 下次会话 Agent 忘记历史决策 |
 | 项目根 `CLAUDE.md` / `AGENTS.md` | 当前项目里的 AI（下次会话自己） | 项目约定、结构、红线、环境变量、路由清单 | 下次 AI 在这个项目里走弯路 |
 | 项目 `docs/` + `README.md` | **其他人**（人类同事、下游开发者、未来接手的 AI） | 接入指南、架构图、运维手册、交接说明、API 参考 | **其他人或系统无法正确接入或运维** |
+| 项目 `_sxg/TODO.md` | 下一次的用户和 agent | **未完成**的工作：当前焦点、挂起的岔路、等待用户决定的事 | 下次要重新问一遍"做到哪了、接下来做什么" |
 
-这三层**受众不同，职责不重叠**。CLAUDE.md 里写"新增了 device flow 五个路由" ≠ docs/integration-guide.md 里"下游怎么接这套 flow" —— 前者是提醒自己，后者是教别人。**两份都要写。**
+这四层**受众不同，职责不重叠**。CLAUDE.md 里写"新增了 device flow 五个路由" ≠ docs/integration-guide.md 里"下游怎么接这套 flow" —— 前者是提醒自己，后者是教别人。**两份都要写。**
+
+前三层记的是"现在什么是真的"，TODO 记的是"什么还没做"。它和交接文档也不同：交接文档是
+一次性的，被 `pickup` 消费后即过期；TODO 跨多次 session 存活。
 
 > **Agent 记忆系统的具体位置因平台而异**（Claude Code 在 `~/.claude/projects/<...>/memory/`，Codex 用 `AGENTS.md`，OpenCode 用 `.opencode/`，OpenClaw 用 `~/.openclaw/`）。完整路径速查见 [references/agent-paths.md](references/agent-paths.md)。如果当前 agent 没有独立的记忆系统，直接跳过这一层，把功夫全花在 docs 和项目根 markdown 上。
 
@@ -136,6 +139,15 @@ API 速查表、环境变量表、术语表是高频查询的结构化信息，*
 ```
 
 只列有实际变更的条目。没改的不写。
+
+### 第六步：归档本次会话
+
+文档、记忆和 TODO 都改完之后，执行 `session-log`，把本次对话的摘要写入
+`~/_sxg/llm_session_log/` 并更新索引。
+
+顺序不能反：session-log 归档的是会话的最终状态，包含你刚做的这些文档改动；先归档再整理
+会留下一份不完整的记录。本次对话没有产生值得归档的工作（纯问答、只读探索）时跳过，
+并在摘要的「未处理」里说明。
 
 ## 特殊情况
 

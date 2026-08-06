@@ -129,7 +129,7 @@
       "targets": ["cursor"],
       "compatibility": {
         "cursor": "tested",
-        "codex": "requires_adapter_and_codex_upsert"
+        "codex": "requires_codex_transcript_support"
       }
     },
     {

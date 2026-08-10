@@ -1,12 +1,12 @@
 # 全局规则（跨项目通用）
 
-让 Sarah 在不同设备、不同 agent 间用同一套规则。项目内有更具体的指令文件时以项目内为准，发现冲突时提醒修正。
+让 Sarah 在不同设备、不同 agent 间用同一套规则。本文件随 claude_skills 仓库分发，是包里唯一永远加载的正文，与其他部件的分工见文末「所在的包」。项目内有更具体的指令文件时以项目内为准，发现冲突时提醒修正。
 
 ## 什么进这份文件
 
 这一节写给未来修改本文件的 Sarah 自己；agent 依「显式进化」提议上提经验时，也按同样的判据。
 
-验收标准：在一台新机器上第一次开 agent、只有这份文件时，能否不出错地按她的方式开工。逐条问「删掉它，agent 会不会真的犯错」——不会就删，或下沉到对应 skill。
+验收标准：在一台新机器上 clone 好 skills 仓库、第一次开 agent 时，能否不出错地按她的方式开工。逐条问「删掉它，agent 会不会真的犯错」——不会就删，或下沉到对应 skill。
 
 内容分三层，按「删掉后 agent 会怎么错」归类：
 
@@ -84,9 +84,16 @@
 # ✅ ax.plot(pd.to_datetime(df["di"].astype(str).str.zfill(12), format="%Y%m%d%H%M"), y)
 ```
 
-## 仓库与归档
+## 所在的包
 
-- Skills 仓库：`~/.claude/skills`（`git@github.com:sunnysxg/claude_skills.git`）。
-- 命名与路径规范见 `~/.claude/skills/conventions.md`，agent 写文件时遵循：全小写 snake_case、纯 ASCII 路径（中文进内容不进路径）、时间戳 12 位 `YYYYMMDDHHMM`、跨项目路径用 `~` 开头不用绝对路径。
+本文件不单独工作：它是 claude_skills 仓库（`~/.claude/skills`，`git@github.com:sunnysxg/claude_skills.git`）的一部分，新机器 clone 仓库、跑一遍同步脚本即可开工，步骤见仓库 README。包内分工：
+
+- `global/COMMON.md`（本文件）——全局规则。各客户端读到的是它的投影：Claude 经 `@import` 引用，永远是最新；Cursor（生成的用户规则文件）和 Codex（`AGENTS.md` 里的标记区块）是同步脚本抄的拷贝，跑同步才刷新。修改全局规则只改本文件并提交，再跑同步分发，不直接改投影文件。
+- 各 skill——按需触发的能力；路径、脚本、平台差异等细节由各自 `SKILL.md` 维护，本文件不重复。
+- `conventions.md`——agent 写文件时的命名与路径规范：全小写 snake_case、纯 ASCII 路径（中文进内容不进路径）、时间戳 12 位 `YYYYMMDDHHMM`、跨项目路径用 `~` 开头不用绝对路径。
+- 仓库自身的 `AGENTS.md` 与 `README.md`——开发这个仓库时才生效的约定和部署文档，与日常任务无关。
+
+## 归档
+
 - 全局归档根：`~/_sxg/`（每台机器各一份，不跨机共享）；具体子目录和文件名由各 skill 自己维护，不在这里重复。
 - 项目内 `_sxg/`：`TODO.md`、`qa_log.md`（`/lq`）等。

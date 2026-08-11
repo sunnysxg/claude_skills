@@ -36,6 +36,18 @@ Windows Computer Use 使用活动桌面，任务执行期间要保持机器解�
 - `~/.codex/skills` 只作为当前存量环境的可选兼容目标，manifest 中名为
   `codex_legacy`，默认关闭；同步时只处理声明的单个 skill，不接管 `.system`。
 
+这里不是把整个 `~/.codex` 改名为 `~/.agents`：Codex 配置、全局 `AGENTS.md` 和运行状态仍
+属于 `$CODEX_HOME`（默认 `~/.codex`），只有用户级/项目级 skill 的官方发现根迁到
+`~/.agents/skills` / `.agents/skills`。`~/.codex/skills/.system` 属于 Codex 自带内容，不能按
+legacy 用户 skill 清理。OpenAI 在 2026-02-01 的
+[openai/codex#10317](https://github.com/openai/codex/pull/10317) 加入项目级 `.agents/skills`，
+明确动机是让多个 Agent 共用一个位置、减少软链和复制；2026-02-03 的
+[openai/codex#10437](https://github.com/openai/codex/pull/10437) 又加入用户级
+`~/.agents/skills`，同时说明旧 `~/.codex/skills` 只是暂留的向后兼容入口，`.system` 不变。
+原作者 `neat-freak` 在 2026-04-29 按实机可加载现象把表格改回 `.codex/skills`，但该现象与
+兼容扫描完全相符，不能证明它仍是主路径。截至 2026-08-11，Codex 官方文档只推荐
+`.agents/skills`；本仓库因此把旧根严格限制为显式迁移目标。
+
 Windows 使用目录联接（junction），Linux 使用符号链接。不要链接整个客户端 skills 根；
 逐 skill 链接才能保留客户端自带或机器专属目录。
 
@@ -238,7 +250,7 @@ commit/merge 协调。Handoff 可以在 Local、worktree 和匹配的 SSH host �
 | 两台 Windows 正式 Sync 后 Doctor | 每个声明 skill 指向中央仓库，重复运行幂等 | 已实现 |
 | 客户端已有真实目录 | 报冲突并保留原目录 | 已实现 |
 | 现有错误 junction | 默认报冲突；`-RepairLinks` 才替换 | 已实现 |
-| `mmdexplain` 别名退役 | manifest 只保留 canonical；旧链接不由 prune 自动删除 | vmcc 已清理；其他曾安装机器待各自清理 |
+| `mmdexplain` 别名退役 | manifest 只保留 canonical；旧链接不由 prune 自动删除 | vmcc 与 `1ljnof8iufvprec` 已清理；其他曾安装机器待各自清理 |
 | Codex `.system`/插件缓存 | 不扫描、不删除、不覆盖 | 已实现 |
 | 每机不同安装根/客户端组合 | untracked override 可改 root/enabled | 已实现 |
 | skill 平台过滤 | Windows/Linux 只管理 manifest 中包含当前平台的条目 | 已实现并在两平台隔离 dry-run |

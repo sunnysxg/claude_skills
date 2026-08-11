@@ -89,3 +89,6 @@
 ## Credits
 
 `neat-freak` 原作者为 [kkkkhazix](https://github.com/kkkkhazix/khazix-skills)，在此按 MIT License 使用。
+本仓库基于上游 `neat-freak` v3.0.0（提交 `2b4a645`，2026-07-20）继续维护，保留
+跨客户端同步、TODO 与 `session-log` 收尾约定；平台路径以当前官方文档和本仓库
+`neat-freak/references/agent-paths.md` 为准，不直接照搬上游的历史路径表。

@@ -6,9 +6,6 @@
     },
     "codex": {
       "enabled": true
-    },
-    "codex_legacy": {
-      "enabled": false
     }
   },
   "skills": {

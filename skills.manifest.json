@@ -18,15 +18,6 @@
       "enabled_by_default": true,
       "windows_link_type": "junction",
       "unix_link_type": "symlink"
-    },
-    "codex_legacy": {
-      "root": "~/.codex/skills",
-      "enabled_by_default": false,
-      "windows_link_type": "junction",
-      "unix_link_type": "symlink",
-      "preserve": [
-        ".system"
-      ]
     }
   },
   "managed_rules": [
@@ -54,7 +45,7 @@
       "name": "git-workflow",
       "source": "git-workflow",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex", "codex_legacy"],
+      "targets": ["cursor", "codex"],
       "compatibility": {
         "cursor": "compatible",
         "codex": "compatible"
@@ -64,7 +55,7 @@
       "name": "handoff",
       "source": "handoff",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex", "codex_legacy"],
+      "targets": ["cursor", "codex"],
       "compatibility": {
         "cursor": "compatible",
         "codex": "compatible"
@@ -74,7 +65,7 @@
       "name": "lq",
       "source": "lq",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex", "codex_legacy"],
+      "targets": ["cursor", "codex"],
       "compatibility": {
         "cursor": "compatible",
         "codex": "compatible"
@@ -84,7 +75,7 @@
       "name": "mmd-explain",
       "source": "mmd-explain",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex", "codex_legacy"],
+      "targets": ["cursor", "codex"],
       "compatibility": {
         "cursor": "tested",
         "codex": "tested",
@@ -96,7 +87,7 @@
       "name": "neat-freak",
       "source": "neat-freak",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex", "codex_legacy"],
+      "targets": ["cursor", "codex"],
       "compatibility": {
         "cursor": "compatible",
         "codex": "tested"
@@ -106,7 +97,7 @@
       "name": "pickup",
       "source": "pickup",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex", "codex_legacy"],
+      "targets": ["cursor", "codex"],
       "compatibility": {
         "cursor": "compatible",
         "codex": "compatible"
@@ -116,7 +107,7 @@
       "name": "playground",
       "source": "playground",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex", "codex_legacy"],
+      "targets": ["cursor", "codex"],
       "compatibility": {
         "cursor": "compatible",
         "codex": "compatible"
@@ -136,7 +127,7 @@
       "name": "session-search",
       "source": "session-search",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex", "codex_legacy"],
+      "targets": ["cursor", "codex"],
       "compatibility": {
         "cursor": "compatible",
         "codex": "compatible"

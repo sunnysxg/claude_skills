@@ -58,23 +58,14 @@ bash ~/.claude/skills/scripts/sync_skills.sh sync --dry-run                # Lin
 
 截至 2026-08-11，Codex 官方用户级和项目级 skill 根分别是 `~/.agents/skills` 与
 `.agents/skills`。这不是把整个 `~/.codex` 改名为 `~/.agents`：配置、全局指令、session 和
-系统内容仍属于 `$CODEX_HOME`。`~/.codex/skills/<用户 skill>` 是历史/第三方 legacy 安装位置；
-部分 Codex 版本可能为向后兼容继续扫描，但文件存在本身不能证明当前客户端正在消费，必须看
-实际加载诊断或显式配置。新用户 skill 不应再装到这里；不要删除 `~/.codex/skills` 根或 `.system`。
+系统内容仍属于 `$CODEX_HOME`。`~/.codex/skills/.system` 是 Codex 自带内容，不是用户安装
+目标；不要删除或接管它。
 
-路径历史容易误导：
-
-- OpenAI 于 2026-02-01 在 [openai/codex#10317](https://github.com/openai/codex/pull/10317)
-  加入项目级 `.agents/skills`。PR 直接说明动机：不同 Agent 各用自己的目录会迫使用户做
-  symlink/复制，统一到 `.agents/` 更容易共享；旧 `.codex/skills` 将被弃用。
-- 2026-02-03 的 [openai/codex#10437](https://github.com/openai/codex/pull/10437) 加入用户级
-  `~/.agents/skills`，并明确当时只是暂时保留 `~/.codex/skills` 向后兼容，`.system` 位置不变。
-- 原作者随后在 2026-04-29 的提交 `83fc7bd` 中，按当时实机仍可加载的现象把 reference 改回
-  `.codex/skills`。结合上面的兼容设计，这只能证明 legacy loader 当时仍工作，不能证明旧根
-  重新成为推荐路径。
-
-截至 2026-08-11，当前官方文档使用 `.agents/skills`。维护时应以当前官方文档和本机加载
-列表为准，而不是照抄旧版本 reference。
+OpenAI 于 2026-02-01 在 [openai/codex#10317](https://github.com/openai/codex/pull/10317)
+加入项目级 `.agents/skills`，明确动机是让多个 Agent 共用一个位置、减少软链和复制；
+2026-02-03 的 [openai/codex#10437](https://github.com/openai/codex/pull/10437) 又加入用户级
+`~/.agents/skills`。截至 2026-08-11，当前官方文档使用 `.agents/skills`；维护时以当前官方
+文档和本机加载列表为准。
 
 Codex 可能提供宿主生成的 memories、rollout summaries 或索引。这些内容没有明确写入授权时
 只读；项目稳定事实仍写入作用域正确的 `AGENTS.md` / docs，不直接编辑机器生成记忆。

@@ -45,8 +45,8 @@
   `-Scope Skills` / `-Scope Rules` 单独处理。Cursor skill 目标为 `~/.cursor/skills`；
   Codex 官方用户级 skill 目标为 `~/.agents/skills`。脚本逐 skill 创建目录联接，不覆盖
   已有真实目录。
-  `session-log` 暂不安装给 Codex：它仍使用 Claude/Cursor 专属的显式调用 frontmatter，
-  且需要补齐 Codex session upsert。
+  `session-log` 暂不安装给 Codex：它的脚本只解析 Cursor 与 Claude Code 的 transcript
+  格式，需要补齐 Codex transcript 解析与 upsert。
 - Linux 上同样先预览，再同步 Cursor 与 Codex：
 
   ```bash

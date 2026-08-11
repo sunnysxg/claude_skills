@@ -11,6 +11,7 @@
 
 | Skill | 说明 |
 |-------|------|
+| `git-workflow` | 执行 Git 写操作；按项目指令文件里的 Git 规则执行，没有规则时用保守默认并问一次 |
 | `handoff` | 写交接文档到 `~/_sxg/handoff/{project}.md`，供下一个 session/agent 接手 |
 | `hv-analysis` | 用横纵分析法研究产品、公司、概念或人物，产出带来源的 Markdown 报告，并在环境已有依赖时安全生成 PDF |
 | `leader` | 将一句话需求整理成有边界、验收和断点续跑机制的 agent 任务书 |
@@ -43,8 +44,8 @@
   `-Scope Skills` / `-Scope Rules` 单独处理。Cursor skill 目标为 `~/.cursor/skills`；
   Codex 官方用户级 skill 目标为 `~/.agents/skills`。脚本逐 skill 创建目录联接，不覆盖
   已有真实目录。`~/.codex/skills` 是默认关闭的存量兼容目标，且永不接管 `.system`。
-  `git-workflow` 与 `session-log` 暂不安装给 Codex：两者使用 Claude/Cursor 专属的显式调用
-  frontmatter，待增加 Codex adapter 后再启用。
+  `session-log` 暂不安装给 Codex：它仍使用 Claude/Cursor 专属的显式调用 frontmatter，
+  且需要补齐 Codex session upsert。
 - Linux 上同样先预览，再同步 Cursor 与 Codex：
 
   ```bash

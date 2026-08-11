@@ -1,9 +1,8 @@
 ---
 name: session-log
 description: >
-  关闭 session 前，把本次对话的工作摘要归档到 ~/_sxg/llm_session_log/ 并更新索引，
-  同时给出建议的 chat 标题。同一 chat 再次 log 时更新同一条，不新建重复条目。
-disable-model-invocation: true
+  在 neat-freak 完成文档与记忆整理之后，把本次对话的工作摘要归档到
+  ~/_sxg/llm_session_log/、更新索引，并给出建议的 chat 标题。
 ---
 
 # Session Log — 关 session 前写摘要

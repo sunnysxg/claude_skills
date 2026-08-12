@@ -13,7 +13,7 @@
 |-------|------|
 | `git-workflow` | 执行 Git 写操作；按项目指令文件里的 Git 规则执行，没有规则时用保守默认并问一次 |
 | `handoff` | 写交接文档到 `~/_sxg/handoff/{project}.md`，供下一个 session/agent 接手 |
-| `hv-analysis` | 用横纵分析法研究产品、公司、概念或人物，产出带来源的 Markdown 报告，并在环境已有依赖时安全生成 PDF |
+| `hv-analysis` | 用横纵分析法研究产品、公司、概念或人物，产出带来源的 Markdown 报告，并在环境已有依赖时安全生成 PDF；不自动触发，用 `/hv-analysis` 显式调用 |
 | `leader` | 将一句话需求整理成有边界、验收和断点续跑机制的 agent 任务书 |
 | `pickup` | 读取交接文档并继续（兼容旧式项目根 `HANDOFF.md`） |
 | `lq` | 把当前问答记录到项目的 `_sxg/qa_log.md` |

@@ -274,7 +274,7 @@ def md_to_html(
     title=None,
     subtitle="横纵分析法深度研究报告",
     meta_line="",
-    author="数字生命卡兹克",
+    author="Sarah",
     markdown_module=None,
 ):
     """将 Markdown 转为不执行原始 HTML、且模板值已转义的完整 HTML。"""
@@ -673,7 +673,7 @@ def build_parser():
     parser.add_argument("input", help="输入的 Markdown 文件路径")
     parser.add_argument("output", help="输出的 PDF 文件路径")
     parser.add_argument("--title", default=None, help="报告标题")
-    parser.add_argument("--author", default="数字生命卡兹克", help="作者名")
+    parser.add_argument("--author", default="Sarah", help="作者名")
     parser.add_argument(
         "--html-output",
         default=None,

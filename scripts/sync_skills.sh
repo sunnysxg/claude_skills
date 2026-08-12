@@ -205,7 +205,7 @@ normalize_text_file() {
     END {
       last = NR
       while (last > 0 && lines[last] == "") last -= 1
-      for (index = 1; index <= last; index += 1) print lines[index]
+      for (line_no = 1; line_no <= last; line_no += 1) print lines[line_no]
     }
   ' "$input_path" >"$output_path"
 }

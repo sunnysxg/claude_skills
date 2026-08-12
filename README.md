@@ -12,6 +12,7 @@
 | Skill | 说明 |
 |-------|------|
 | `git-workflow` | 执行 Git 写操作；按项目指令文件里的 Git 规则执行，没有规则时用保守默认并问一次 |
+| `grilling` | 把一个计划/想法组织成设计树，按轮追问用户直到达成共同理解；每题带推荐答案，事实自查不问用户 |
 | `handoff` | 写交接文档到 `~/_sxg/handoff/{project}.md`，供下一个 session/agent 接手 |
 | `hv-analysis` | 用横纵分析法研究产品、公司、概念或人物，产出带来源的 Markdown 报告，并在环境已有依赖时安全生成 PDF；不自动触发，用 `/hv-analysis` 显式调用 |
 | `leader` | 将一句话需求整理成有边界、验收和断点续跑机制的 agent 任务书 |
@@ -98,3 +99,9 @@
 并做了本仓库的安全和跨客户端适配。`neat-freak` 基于上游 v3.0.0（提交 `2b4a645`，
 2026-07-20）继续维护，保留跨客户端同步、TODO 与 `session-log` 收尾约定；平台路径以当前
 官方文档和本仓库 `neat-freak/references/agent-paths.md` 为准，不直接照搬上游的历史路径表。
+
+`grilling` 源自 [mattpocock/skills](https://github.com/mattpocock/skills)，按 MIT License 使用；
+中文直译自上游提交
+[`1495d01`](https://github.com/mattpocock/skills/commit/1495d014303e041c51c29f9e442485ba06f5878d)
+的 `skills/productivity/grilling/SKILL.md`，后续修改以本仓库为准；上游的 `grill-me`
+入口层（内容仅为「Run a `/grilling` session」一行）未移植。

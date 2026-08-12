@@ -52,6 +52,16 @@
       }
     },
     {
+      "name": "grilling",
+      "source": "grilling",
+      "platforms": ["windows", "linux"],
+      "targets": ["cursor", "codex"],
+      "compatibility": {
+        "cursor": "compatible",
+        "codex": "compatible"
+      }
+    },
+    {
       "name": "handoff",
       "source": "handoff",
       "platforms": ["windows", "linux"],

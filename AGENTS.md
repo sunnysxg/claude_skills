@@ -4,7 +4,8 @@
   `~/.codex/config.toml`、Computer Use allowlist、Clash 本机配置或其他凭据。
 - 安装集合只由 `skills.manifest.json` 声明；每个 skill/alias 必须显式声明 `platforms`，
   alias 必须声明 `canonical`。不要恢复根目录 Git symlink，也不要通过扫描所有目录自动安装
-  未声明内容。
+  未声明内容。Codex 用户 skill 只允许安装到 `~/.agents/skills`；`~/.codex/skills/.system`
+  是 Codex 自带内容，不得声明为客户端目标或由同步器接管。
 - 跨客户端全局正文只维护 `global/COMMON.md`。`managed_rules` 只生成声明的 Cursor 用户规则
   文件和 Codex `AGENTS.md` 标记区块；不得覆盖 Codex 块外机器私有内容，也不得接管整个
   `~/.cursor/rules`。畸形/重复标记和未受管的同名 Cursor 文件必须报冲突。

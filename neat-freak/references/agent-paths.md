@@ -1,6 +1,13 @@
-# Agent 记忆与配置路径速查
+# Agent 规则、记忆与 skill 路径速查
 
-不同 agent 平台的记忆系统和项目配置文件位置不一样。执行第一步盘点时按你正在使用的平台查这张表。
+不同 Agent 平台的规则、记忆与 skill 入口不同。平台机制会变；涉及写入、加载顺序或尺寸上限
+时，优先核对当前官方文档和本机诊断，不把本表当成永远不变的事实。
+
+通用原则：
+
+- 区分人工维护的规则、Agent 自动记忆、机器生成的历史/索引；三者不能共用写入规则。
+- 发现多个平台目录不等于每个平台都在使用；先检查 realpath、加载列表和当前客户端。
+- 同名 skill 的复制副本不会自动合并。只编辑权威真身；复制安装要显式同步或退役。
 
 ## Claude Code
 
@@ -42,16 +49,31 @@ bash ~/.claude/skills/scripts/sync_skills.sh sync --dry-run                # Lin
 
 | 用途 | 路径 |
 |---|---|
-| 跨会话指令(全局) | `~/.codex/AGENTS.md` 或 `$CODEX_HOME/AGENTS.md` |
+| Codex home | `$CODEX_HOME`，默认 `~/.codex` |
+| 跨会话指令(全局) | `$CODEX_HOME/AGENTS.override.md`；不存在时读 `$CODEX_HOME/AGENTS.md` |
 | 项目级指令 | 项目根 `AGENTS.md`(可层级嵌套) |
 | 项目级 override | `AGENTS.override.md`(若存在,覆盖同目录 AGENTS.md) |
 | Skills 目录 | `~/.agents/skills/<name>/SKILL.md` 或项目内 `.agents/skills/<name>/` |
+| System skills | 由 Codex 自带；本机可见于 `~/.codex/skills/.system`，不是用户安装目标 |
 
-Codex 的官方用户级 skill 根是 `~/.agents/skills`；`~/.codex/skills` 只作为部分存量客户端的
-兼容位置，不应接管其中的 `.system`。Codex 没有独立的"记忆文件 + 索引"机制，所有跨会话
-信息都直接写在 `AGENTS.md` 里。同步时把"项目事实"那部分内容统一放 AGENTS.md。
+截至 2026-08-11，Codex 官方用户级和项目级 skill 根分别是 `~/.agents/skills` 与
+`.agents/skills`。这不是把整个 `~/.codex` 改名为 `~/.agents`：配置、全局指令、session 和
+系统内容仍属于 `$CODEX_HOME`。`~/.codex/skills/.system` 是 Codex 自带内容，不是用户安装
+目标；不要删除或接管它。
 
-发现项目里有 `TEAM_GUIDE.md` 或 `.agents.md` 也要看——这是 Codex 的 fallback 文件名。
+OpenAI 于 2026-02-01 在 [openai/codex#10317](https://github.com/openai/codex/pull/10317)
+加入项目级 `.agents/skills`，明确动机是让多个 Agent 共用一个位置、减少软链和复制；
+2026-02-03 的 [openai/codex#10437](https://github.com/openai/codex/pull/10437) 又加入用户级
+`~/.agents/skills`。截至 2026-08-11，当前官方文档使用 `.agents/skills`；维护时以当前官方
+文档和本机加载列表为准。
+
+Codex 可能提供宿主生成的 memories、rollout summaries 或索引。这些内容没有明确写入授权时
+只读；项目稳定事实仍写入作用域正确的 `AGENTS.md` / docs，不直接编辑机器生成记忆。
+
+Codex 默认只查 `AGENTS.md` / `AGENTS.override.md`；只有本机 `config.toml` 的
+`project_doc_fallback_filenames` 显式列出其他名字时，才把 `TEAM_GUIDE.md`、`.agents.md` 等
+当作 fallback（默认列表为空）。`project_doc_max_bytes` 控制整个项目指令链的合计读取上限，维护时
+应读取本机配置，不把某个版本的默认值写死为项目约束。
 
 ## OpenClaw
 
@@ -86,6 +108,14 @@ OpenCode 读取 Claude Code 和 Codex 的兼容目录，所以同一个 skill �
 
 仍然是有效的同步——记忆是锦上添花,docs 才是项目知识的最低保障。
 
+## 共存检查
+
+1. 列出实际存在的平台目录和同名 skill 的 realpath。
+2. 判断每个入口是 junction/symlink、复制安装还是独立真实目录。
+3. 只修改权威真身；复制副本若没有独有内容，应退出扫描路径，而不是再链接一份制造重复。
+4. 验证客户端实际加载，而不只验证文件存在；使用 skill list、诊断入口或新 task。
+5. Windows/Linux 的链接方式服从本仓库 manifest 和同步器，不手工链接整个 skills 根。
+
 ## 跨平台共存策略
 
 如果一个项目同时被 Claude Code 用户和 Codex 用户使用,推荐:
@@ -93,3 +123,9 @@ OpenCode 读取 Claude Code 和 Codex 的兼容目录，所以同一个 skill �
 - **项目根同时放 `CLAUDE.md` 和 `AGENTS.md`**,内容可以互相 symlink 或在两边维护
 - 或者一份内容主文件 + 另一份用一行 `See CLAUDE.md` 跳转
 - docs/ 和 README 是平台中立的,不需要分两份
+
+## 官方复核入口
+
+- Codex skills：<https://learn.chatgpt.com/docs/build-skills>
+- Codex AGENTS.md：<https://learn.chatgpt.com/docs/agent-configuration/agents-md>
+- Agent Skills specification：<https://agentskills.io/specification>

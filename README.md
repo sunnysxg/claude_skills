@@ -28,12 +28,13 @@
 - 仓库 clone 到 `~/.claude/skills`（Claude Code 直接读取，OpenCode 也扫描该目录）。
 - 安装集合由 [skills.manifest.json](skills.manifest.json) 声明，包括每个 skill 的目标客户端与
   支持平台；同步器不再扫描所有目录猜测 skill。
-- 每台机器复制 `sync.local.example.json` 为 `sync.local.json` 后，先把 `machine_id` 改成稳定
-  机器名；没有安装的客户端在 `clients` 中设为 `enabled: false`，某台机器不需要的 skill 在
-  `skills.<name>.enabled` 中关闭。关闭只停止管理该入口，不自动删除已有链接。
+- `sync.local.json` 是可选且不入 Git 的 machine override。只有需要稳定自定义 `machine_id`、
+  改安装根、关闭某个客户端或关闭某项 skill 时，才复制 `sync.local.example.json`；完全采用
+  manifest 默认值时无需创建。关闭只停止管理该入口，不自动删除已有链接。
 - Windows 上先预览，再同步 Cursor 与 Codex：
 
   ```powershell
+  # 仅在需要 machine override 时执行下一行
   Copy-Item sync.local.example.json sync.local.json
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync_skills.ps1 -Command Sync -DryRun
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync_skills.ps1 -Command Sync
@@ -43,7 +44,7 @@
   默认 `Scope=All`，同时同步 skill 链接和全局规则投影；可用
   `-Scope Skills` / `-Scope Rules` 单独处理。Cursor skill 目标为 `~/.cursor/skills`；
   Codex 官方用户级 skill 目标为 `~/.agents/skills`。脚本逐 skill 创建目录联接，不覆盖
-  已有真实目录。`~/.codex/skills` 是默认关闭的存量兼容目标，且永不接管 `.system`。
+  已有真实目录。
   `session-log` 暂不安装给 Codex：它仍使用 Claude/Cursor 专属的显式调用 frontmatter，
   且需要补齐 Codex session upsert。
 - Linux 上同样先预览，再同步 Cursor 与 Codex：
@@ -90,4 +91,10 @@
 
 ## Credits
 
-`neat-freak`、`leader` 与 `hv-analysis` 源自 [KKKKhazix/Khazix-Skills](https://github.com/KKKKhazix/Khazix-Skills)，按 MIT License 使用。`leader` 与 `hv-analysis` 固定导入提交 [`30c131e`](https://github.com/KKKKhazix/Khazix-Skills/commit/30c131ee3d804db7b31e4951c62018d5bde27e08)，并做了本仓库的安全和跨客户端适配；完整声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+`neat-freak`、`leader` 与 `hv-analysis` 源自
+[KKKKhazix/Khazix-Skills](https://github.com/KKKKhazix/Khazix-Skills)，按 MIT License 使用。
+`leader` 与 `hv-analysis` 固定导入提交
+[`30c131e`](https://github.com/KKKKhazix/Khazix-Skills/commit/30c131ee3d804db7b31e4951c62018d5bde27e08)，
+并做了本仓库的安全和跨客户端适配。`neat-freak` 基于上游 v3.0.0（提交 `2b4a645`，
+2026-07-20）继续维护，保留跨客户端同步、TODO 与 `session-log` 收尾约定；平台路径以当前
+官方文档和本仓库 `neat-freak/references/agent-paths.md` 为准，不直接照搬上游的历史路径表。

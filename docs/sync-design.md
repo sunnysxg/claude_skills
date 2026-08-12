@@ -33,8 +33,16 @@ Windows Computer Use 使用活动桌面，任务执行期间要保持机器解�
 - Claude Code 与 OpenCode 直接读取该目录。
 - Cursor 安装根为 `~/.cursor/skills`。
 - Codex 官方用户级 skill 根为 `~/.agents/skills`。
-- `~/.codex/skills` 只作为当前存量环境的可选兼容目标，manifest 中名为
-  `codex_legacy`，默认关闭；同步时只处理声明的单个 skill，不接管 `.system`。
+
+这里不是把整个 `~/.codex` 改名为 `~/.agents`：Codex 配置、全局 `AGENTS.md` 和运行状态仍
+属于 `$CODEX_HOME`（默认 `~/.codex`），只有用户级/项目级 skill 的官方发现根迁到
+`~/.agents/skills` / `.agents/skills`。`~/.codex/skills/.system` 属于 Codex 自带内容，不是
+用户安装目标，也不在本仓库同步器的管理范围内。OpenAI 在 2026-02-01 的
+[openai/codex#10317](https://github.com/openai/codex/pull/10317) 加入项目级 `.agents/skills`，
+明确动机是让多个 Agent 共用一个位置、减少软链和复制；2026-02-03 的
+[openai/codex#10437](https://github.com/openai/codex/pull/10437) 又加入用户级
+`~/.agents/skills`。截至 2026-08-11，Codex 官方文档也只推荐 `.agents/skills`；本仓库只声明
+这一项 Codex skill 目标。
 
 Windows 使用目录联接（junction），Linux 使用符号链接。不要链接整个客户端 skills 根；
 逐 skill 链接才能保留客户端自带或机器专属目录。
@@ -57,14 +65,15 @@ Cursor 与 Codex；它在 Git 写操作前触发，项目规范以项目指令�
 
 ## 3. Windows 使用方法
 
-每台 Windows 机器各自创建不入 Git 的 override：
+需要覆盖 manifest 默认值的 Windows 机器，才创建不入 Git 的 override：
 
 ```powershell
 Copy-Item sync.local.example.json sync.local.json
 ```
 
-把 `machine_id` 改成稳定、易识别且不含凭据的名称，例如 `home-win`、`cloud-win`。未创建
-override 时，脚本使用归一化 hostname。
+可把 `machine_id` 改成稳定、易识别且不含凭据的名称，例如 `home-win`、`cloud-win`；也可
+覆盖客户端安装根、关闭客户端或逐项关闭 skill。完全采用 manifest 默认值时无需创建该文件，
+脚本会使用归一化 hostname。
 
 可以只在某台机器关闭一个 canonical skill：
 
@@ -90,12 +99,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync_skills.ps1 -Com
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync_skills.ps1 -Command Doctor
 ```
 
-默认处理 Cursor 和 Codex 官方根。只有确认当前客户端确实依赖旧路径时才显式加入：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync_skills.ps1 `
-  -Command Sync -Client cursor,codex,codex_legacy -DryRun
-```
+默认处理 Cursor 和 Codex 官方根；`-Client` 只能选择 manifest 当前声明的客户端。
 
 安全规则：
 
@@ -238,7 +242,7 @@ commit/merge 协调。Handoff 可以在 Local、worktree 和匹配的 SSH host �
 | 两台 Windows 正式 Sync 后 Doctor | 每个声明 skill 指向中央仓库，重复运行幂等 | 已实现 |
 | 客户端已有真实目录 | 报冲突并保留原目录 | 已实现 |
 | 现有错误 junction | 默认报冲突；`-RepairLinks` 才替换 | 已实现 |
-| `mmdexplain` 别名退役 | manifest 只保留 canonical；旧链接不由 prune 自动删除 | vmcc 已清理；其他曾安装机器待各自清理 |
+| `mmdexplain` 别名退役 | manifest 只保留 canonical；旧链接不由 prune 自动删除 | vmcc 与 `1ljnof8iufvprec` 已清理；其他曾安装机器待各自清理 |
 | Codex `.system`/插件缓存 | 不扫描、不删除、不覆盖 | 已实现 |
 | 每机不同安装根/客户端组合 | untracked override 可改 root/enabled | 已实现 |
 | skill 平台过滤 | Windows/Linux 只管理 manifest 中包含当前平台的条目 | 已实现并在两平台隔离 dry-run |

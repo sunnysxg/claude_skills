@@ -137,10 +137,10 @@
       "name": "session-log",
       "source": "session-log",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor"],
+      "targets": ["cursor", "codex"],
       "compatibility": {
         "cursor": "tested",
-        "codex": "requires_codex_transcript_support"
+        "codex": "tested"
       }
     },
     {

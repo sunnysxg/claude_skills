@@ -14,8 +14,9 @@ chat 侧边栏只能按标题/时间浏览，这个归档 + 索引是**刻意为
 你的任务：**回顾当前对话**，写一份结构化 session 摘要到**全局归档目录**，并生成
 `suggested_chat_title`。
 
-> **平台**：时间解析（`session_times.py`）与 upsert（`session_resolve.py`）支持 Cursor 和 Claude Code；
-> 脚本会自动识别 transcript 格式。存量回填（`session_backfill.py`）仍仅支持 Cursor。
+> **平台**：时间解析（`session_times.py`）与 upsert（`session_resolve.py`）支持 Cursor、
+> Claude Code 和 Codex；脚本会自动识别 transcript 格式。存量回填（`session_backfill.py`）
+> 仍仅支持 Cursor。
 
 ## 0. 执行边界与效率
 
@@ -28,8 +29,8 @@ chat 侧边栏只能按标题/时间浏览，这个归档 + 索引是**刻意为
 
 按优先级：
 
-1. 用户 `@` 的路径所在项目（含 `CLAUDE.md` 的子目录根）
-2. 从 cwd 向上找最近的 `CLAUDE.md` 或 git 根
+1. 用户 `@` 的路径所在项目（含 `CLAUDE.md` / `AGENTS.md` 的子目录根）
+2. 从 cwd 向上找最近的 `CLAUDE.md`、`AGENTS.md` 或 git 根
 3. 多项目并列时，以**主要改动最多的那个**为准；不确定则问用户
 
 记为 `{PROJECT}`（绝对路径）。元信息字段：
@@ -66,21 +67,29 @@ git -C "{PROJECT}" status -sb
 
 **禁止**用执行 `/session-log` 的当前时刻填时间。用户可能隔几小时或几天才来整理归档。
 
+先把适合当前 shell 的 Python 3 调用前缀记为 `{PYTHON_CMD}`，并实际运行 `--version` 验证；
+PowerShell 调用绝对路径时前缀包含 `&`，WindowsApps 占位程序不算可用。Codex Desktop 的
+PATH 没有 Python 时，用 workspace dependencies 返回的 bundled Python 绝对路径。脚本只依赖标准库。
+
 ### 3.1 时间 — `session_times.py`
 
-```bash
-# Claude Code；Cursor 将 ~/.claude 替换为 ~/.cursor
-python3 ~/.claude/skills/session-log/scripts/session_times.py \
-  --transcript "{当前 session transcript 的绝对路径}"
+从当前 `SKILL.md` 的目录解析为 `{SKILL_DIR}`，不要猜客户端安装根：
+
+```text
+{PYTHON_CMD} "{SKILL_DIR}/scripts/session_times.py" --transcript "{当前 session transcript 的绝对路径}"
 ```
 
 transcript 路径（按优先级）：
 
 1. system 注入的当前 transcript 绝对路径
-2. `--uuid {uuid}` 自动查找 Cursor `agent-transcripts/` 或 Claude `~/.claude/projects/**/*.jsonl`
+2. `--uuid {uuid}`（Codex 优先用已设置的 `CODEX_THREAD_ID`）自动查找 Cursor `agent-transcripts/`、Claude
+   `~/.claude/projects/**/*.jsonl` 或 Codex `$CODEX_HOME/sessions/**/rollout-*-{uuid}.jsonl`
+
+Codex 查找必须按 rollout **文件名**精确匹配 UUID，禁止全文 grep；subagent transcript
+即使正文带 root UUID 也不能冒充 root session。
 
 保留输出 JSON（含 `session_id`、`date`、`time`、`filename_ts`、`started_at`、
-`last_active_at`、`logged_at`）。
+`last_active_at`、`logged_at`），并原样保存到临时 `{TIMES_JSON_PATH}`。
 
 | 字段 | 用途 |
 |------|------|
@@ -103,13 +112,8 @@ transcript 路径（按优先级）：
 
 ### 3.3 Upsert — `session_resolve.py`
 
-```bash
-# Claude Code；Cursor 将 ~/.claude 替换为 ~/.cursor
-python3 ~/.claude/skills/session-log/scripts/session_resolve.py \
-  --uuid "{session_id}" \
-  --times-inline '{session_times JSON 单行}' \
-  --project "{project}" \
-  --slug "{slug}"
+```text
+{PYTHON_CMD} "{SKILL_DIR}/scripts/session_resolve.py" --uuid "{session_id}" --times-json "{TIMES_JSON_PATH}" --project "{project}" --slug "{slug}"
 ```
 
 | 输出 | 含义 |
@@ -121,8 +125,8 @@ python3 ~/.claude/skills/session-log/scripts/session_resolve.py \
 | `index_action: replace_row` | **替换**含 `({target_file})` 的那一行 |
 | `index_line_match` | replace 时用于 StrReplace 的整行原文 |
 
-`session_times.py` 会按 transcript 自动区分 Cursor / Claude；`session_resolve.py` 的 UUID upsert
-逻辑两端共用。若 `fallback: true`，才允许人工核对并填写时间。
+`session_times.py` 会按 transcript 自动区分 Cursor / Claude / Codex；
+`session_resolve.py` 的 UUID upsert 逻辑三端共用。若 `fallback: true`，才允许人工核对并填写时间。
 
 ## 4. 写文件
 
@@ -156,11 +160,8 @@ index「日期」= session **开始日**。
 
 写入成功后运行：
 
-```bash
-# Claude Code；Cursor 将 ~/.claude 替换为 ~/.cursor
-python3 ~/.claude/skills/session-log/scripts/session_resolve.py \
-  --register --uuid "{session_id}" --file "{target_file}" \
-  --started-at "{started_at}"
+```text
+{PYTHON_CMD} "{SKILL_DIR}/scripts/session_resolve.py" --register --uuid "{session_id}" --file "{target_file}" --started-at "{started_at}"
 ```
 
 维护 `~/_sxg/llm_session_log/.session_map.json`（勿手改）。
@@ -172,9 +173,9 @@ python3 ~/.claude/skills/session-log/scripts/session_resolve.py \
 1. **新建**或**更新同一条**，以及路径
 2. `date` / `time` 来源；若 `fallback` 则说明
 3. 检索：`~/_sxg/llm_session_log/index.md`；不够时 agent 用 `session-search`
-4. `suggested_chat_title`：Cursor / Claude Code 都在回复**最后一行**单独输出
-   `/rename {suggested_chat_title}`。若已安装 Stop hook `auto_rename_on_stop.py`，会经 tmux
-   `send-keys` 自动执行；未安装时用户仍可手动运行该命令。
+4. `suggested_chat_title`：在回复**最后一行**单独输出 `/rename {suggested_chat_title}`。
+   Claude/Cursor 环境若已安装 Stop hook `auto_rename_on_stop.py`，会经 tmux `send-keys`
+   自动执行；其他环境由用户手动运行该命令。
 
 不要继续写无关代码，除非用户接着提新任务。
 
@@ -200,4 +201,4 @@ python3 ~/.cursor/skills/session-log/scripts/session_backfill.py --apply  # 写�
 
 同一 chat 重复归档会先合并（见脚本内 `MERGE_GROUPS`），再回填。
 
-**仅 Cursor 测试**；Claude Code 未验证。
+存量 backfill 仅支持并测试 Cursor。

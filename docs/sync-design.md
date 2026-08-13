@@ -64,6 +64,8 @@ Cursor 与 Codex；它在 Git 写操作前触发，项目规范以项目指令�
 Codex adapter 按 rollout 文件名精确匹配 UUID；以 `session_meta.payload.timestamp` 为开始时间，
 以最后一条实质 root user message 为最后活跃时间。它窄过滤已知 synthetic context、subagent
 注入与纯 `/session-log`、`/rename`、`/handoff` 命令，同时保留 `<codex_delegation>` 的真实任务。
+归档成功后，Codex Desktop 通过宿主 thread-title 工具直接修改当前任务名，不把 CLI 的
+`/rename` 命令交给桌面端用户执行；没有直接工具的客户端才走自身支持的标题命令或建议。
 
 ## 3. Windows 使用方法
 
@@ -203,10 +205,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test_sync_rules.ps1
 ## 7. session-log 跨 host（后续切片）
 
 当前本机能力已经覆盖 Cursor、Claude Code 与 Codex：`session_times.py` 自动识别三类
-transcript，`session_resolve.py` 按同一 session UUID upsert。可选 Stop hook
-`auto_rename_on_stop.py` 只面向 tmux 中的 Claude/Cursor 环境，注册属于 machine-local 配置，
-不由本仓库同步。以上能力仍只处理当前 host 的归档文件，并不等于跨 host 已经去重；存量
-backfill 也仍只支持 Cursor。
+transcript，`session_resolve.py` 按同一 session UUID upsert。Codex Desktop 的标题修改由
+宿主 thread-title 工具完成，不属于 Python adapter；可选 Stop hook `auto_rename_on_stop.py`
+只面向 tmux 中的 Claude/Cursor 环境，注册属于 machine-local 配置，不由本仓库同步。
+Codex CLI/TUI 仍可使用 `/rename`。以上能力仍只处理当前 host 的归档文件，并不等于跨 host
+已经去重；存量 backfill 也仍只支持 Cursor。
 
 `session_id`/task ID 是同一 task 跨 host handoff 后的 canonical identity，`machine_id` 只记录
 来源和最后写入 host，不能取代 task ID。下一版映射至少要记录：
@@ -256,6 +259,7 @@ commit/merge 协调。Handoff 可以在 Local、worktree 和匹配的 SSH host �
 | Linux `mmd-explain` | doctor 通过；真实 conda renderer 生成中文与 emoji 正常的 PNG | 已在 Linux host `/tmp` 验收 |
 | `session-log` 解析与 upsert | Windows/Linux fixture 覆盖三类 transcript、synthetic/meta 过滤、delegation、UUID 文件名查找与 create→update 去重 | 2026-08-13 双平台通过；Windows 另以真实 Codex rollout 在临时 log-dir 通过 |
 | Codex `session-log` 安装 | 标准 `agents/openai.yaml`；manifest 声明 Codex target；两端 DryRun → Sync → Doctor | 2026-08-13 Windows 与 cpu005 全项通过，新 Codex agent 可发现该 skill |
+| Codex Desktop 任务改名 | 归档成功后调用宿主 thread-title 工具；省略 `threadId` 定位当前任务；成功分支不输出 `/rename`；失败不回滚归档、不误报，并给 UI 手动标题 | 2026-08-13 在当前 Windows Codex Desktop 实测，工具返回当前 thread ID，任务列表读回新标题；独立无工具 forward-test 确认不会猜测 `/rename` |
 | Remote Control | 每个控制端与每个 host 单独配对；同账号不视为已配对 | 人工验收 |
 | SSH host | key + 最小权限账户 + VPN/mesh；无公开 app-server listener | 人工验收 |
 | Windows Computer Use | 在执行 host 前台运行，保持解锁；allowlist 不跨机 | 人工验收 |

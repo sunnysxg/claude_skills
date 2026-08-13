@@ -2,7 +2,7 @@
 name: session-log
 description: >
   在 neat-freak 完成文档与记忆整理之后，把本次对话的工作摘要归档到
-  ~/_sxg/llm_session_log/、更新索引，并给出建议的 chat 标题。
+  ~/_sxg/llm_session_log/、更新索引，并在宿主支持时直接重命名当前 chat。
 ---
 
 # Session Log — 关 session 前写摘要
@@ -168,14 +168,23 @@ index「日期」= session **开始日**。
 
 ## 7. 回复用户
 
-用简短中文告知：
+第 4–6 步全部成功后，再用简短中文告知：
 
 1. **新建**或**更新同一条**，以及路径
 2. `date` / `time` 来源；若 `fallback` 则说明
 3. 检索：`~/_sxg/llm_session_log/index.md`；不够时 agent 用 `session-search`
-4. `suggested_chat_title`：在回复**最后一行**单独输出 `/rename {suggested_chat_title}`。
-   Claude/Cursor 环境若已安装 Stop hook `auto_rename_on_stop.py`，会经 tmux `send-keys`
-   自动执行；其他环境由用户手动运行该命令。
+4. 处理 `suggested_chat_title`：
+   - 宿主提供直接修改当前 task/thread 标题的工具时，调用该工具；Codex Desktop 通常为
+     `codex_app__set_thread_title`，省略 `threadId` 以定位当前 task。工具返回成功后只需告知
+     用户“任务已重命名为 `{suggested_chat_title}`”，不要再输出 `/rename` 或要求用户操作。
+   - **只有**当前客户端已明确识别为 Claude、Cursor 或 Codex CLI/TUI，且确认该 surface
+     支持 `/rename` 时，才在回复**最后一行**单独输出 `/rename {suggested_chat_title}`。
+     Claude/Cursor 环境若已安装 Stop hook
+     `auto_rename_on_stop.py`，会经 tmux `send-keys` 自动执行；Codex CLI/TUI 可由用户执行。
+   - Codex Desktop 的工具缺失、失败或结果含糊时，不回滚已成功归档，不输出它不支持的
+     `/rename`；明确说未完成重命名，并给出标题供用户在 UI 手动修改。
+   - 未知客户端只给标题建议，不假定它支持 slash command；**直接标题工具不可见并不能证明
+     `/rename` 可用**。不得声称已改好。
 
 不要继续写无关代码，除非用户接着提新任务。
 

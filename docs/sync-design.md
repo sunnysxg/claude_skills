@@ -254,8 +254,8 @@ commit/merge 协调。Handoff 可以在 Local、worktree 和匹配的 SSH host �
 | Linux 冲突与修复 | 保留真实目录；错误 symlink 仅显式 repair | 已实现并在 Linux host 隔离验收 |
 | Windows `mmd-explain` | doctor 探测浏览器/字体；真实 renderer 生成中文与 emoji 正常的 PNG | 已在当前 Windows host 用 bundled pnpm/Node 实机验收；第二台待执行 |
 | Linux `mmd-explain` | doctor 通过；真实 conda renderer 生成中文与 emoji 正常的 PNG | 已在 Linux host `/tmp` 验收 |
-| `session-log` 解析与 upsert | Windows/Linux fixture 覆盖三类 transcript、synthetic/meta 过滤、delegation、UUID 文件名查找与 create→update 去重 | 本切片验收项；Windows 另以真实 Codex rollout 在临时 log-dir 演练 |
-| Codex `session-log` 安装 | 标准 `agents/openai.yaml`；manifest 声明 Codex target；两端 DryRun → Sync → Doctor | 本切片验收项 |
+| `session-log` 解析与 upsert | Windows/Linux fixture 覆盖三类 transcript、synthetic/meta 过滤、delegation、UUID 文件名查找与 create→update 去重 | 2026-08-13 双平台通过；Windows 另以真实 Codex rollout 在临时 log-dir 通过 |
+| Codex `session-log` 安装 | 标准 `agents/openai.yaml`；manifest 声明 Codex target；两端 DryRun → Sync → Doctor | 2026-08-13 Windows 与 cpu005 全项通过，新 Codex agent 可发现该 skill |
 | Remote Control | 每个控制端与每个 host 单独配对；同账号不视为已配对 | 人工验收 |
 | SSH host | key + 最小权限账户 + VPN/mesh；无公开 app-server listener | 人工验收 |
 | Windows Computer Use | 在执行 host 前台运行，保持解锁；allowlist 不跨机 | 人工验收 |

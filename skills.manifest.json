@@ -162,6 +162,16 @@
         "cursor": "compatible",
         "codex": "compatible"
       }
+    },
+    {
+      "name": "todo-hub",
+      "source": "todo-hub",
+      "platforms": ["windows", "linux"],
+      "targets": ["cursor", "codex"],
+      "compatibility": {
+        "cursor": "compatible",
+        "codex": "compatible"
+      }
     }
   ],
   "aliases": []

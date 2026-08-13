@@ -1,0 +1,4 @@
+interface:
+  display_name: "Session Log"
+  short_description: "Archive, upsert, and rename the current task"
+  default_prompt: "Use $session-log to archive this task with transcript-derived times, update its searchable summary, and rename it when the host supports that action."

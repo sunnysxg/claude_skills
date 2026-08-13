@@ -3,12 +3,12 @@
 写入 `~/_sxg/llm_session_log/{target_file}.md` 时使用（create 时 `{target_file}` 由
 `session_resolve.py` 给出；update 时沿用已有文件名）。
 
-## 时间字段（Cursor / Claude Code）
+## 时间字段（Cursor / Claude Code / Codex）
 
 | 字段 | 含义 | 来源 |
 |------|------|------|
-| `date` | session **开始**日期 | `session_times.py` 自动识别 Cursor / Claude → `date`；**update 时不变** |
-| `time` | **最后一条实质用户消息**（/session-log 前） | `session_times.py` → `time`；update 时刷新 |
+| `date` | session **开始**日期 | `session_times.py` 自动识别 Cursor / Claude / Codex → `date`；**update 时不变** |
+| `time` | **最后一条实质用户消息** | `session_times.py` → `time`；纯收尾/meta 命令与 synthetic context 不计入，update 时刷新 |
 | `filename_ts` | 文件名前缀 12 位（仅 create） | 开始 `YYYYMMDD` + 最后活跃 `HHMM` |
 
 ## Upsert（同 chat 多次 log）
@@ -22,7 +22,7 @@
 
 | 字段 | 类型 | 规则 |
 |------|------|------|
-| `session_id` | string | 双引号；Cursor/Claude chat UUID；**create/update 均必填** |
+| `session_id` | string | 双引号；客户端 chat/task UUID；**create/update 均必填** |
 | `session_title` | string | 双引号；5–12 字 |
 | `date` | date | `YYYY-MM-DD`，不加引号；**session 开始日** |
 | `time` | string | 双引号；`"HH:MM"` 24h；**最后活跃** |

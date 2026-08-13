@@ -21,7 +21,7 @@
 | `playground` | 在 `playground/` 下新建实验项目 |
 | `neat-freak` | 会话收尾时整理文档与记忆，与代码对齐 |
 | `mmd-explain` | 用 Mermaid 图示解释（`.mmd` + PNG，默认输出到项目 `_sxg/diagram/`）；Windows/Linux 分别使用 PowerShell/Bash renderer |
-| `session-log` | 在 Cursor / Claude Code 归档并 upsert 同一 chat；可选 Stop hook 经 tmux 自动执行标题建议 |
+| `session-log` | 在 Cursor / Claude Code / Codex 归档并按 UUID upsert 同一 chat；Codex Desktop 在宿主工具可用时直接改任务名，Claude/Cursor 可选 Stop hook 执行标题建议 |
 | `session-search` | 按关键词、项目、时间检索已归档的 session 摘要 |
 
 ## 部署
@@ -46,8 +46,6 @@
   `-Scope Skills` / `-Scope Rules` 单独处理。Cursor skill 目标为 `~/.cursor/skills`；
   Codex 官方用户级 skill 目标为 `~/.agents/skills`。脚本逐 skill 创建目录联接，不覆盖
   已有真实目录。
-  `session-log` 暂不安装给 Codex：它的脚本只解析 Cursor 与 Claude Code 的 transcript
-  格式，需要补齐 Codex transcript 解析与 upsert。
 - Linux 上同样先预览，再同步 Cursor 与 Codex：
 
   ```bash

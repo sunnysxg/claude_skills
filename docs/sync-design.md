@@ -59,9 +59,13 @@ alias 的机器需各自确认并删除旧链接；不能删除 canonical 源目
 
 链接建立成功不等于客户端一定能加载。`git-workflow` 已改为标准 Agent Skill，并安装到
 Cursor 与 Codex；它在 Git 写操作前触发，项目规范以项目指令文件里的 Git 规则为准。
-`session-log` 的 frontmatter 已标准化（移除了 Claude/Cursor 专属的
-`disable-model-invocation`），剩余阻塞是脚本只解析 Cursor 与 Claude Code 的 transcript
-格式；补齐 Codex transcript 解析与 upsert 后即可安装到 Codex。
+`session-log` 的 frontmatter 已标准化，时间解析支持 Cursor、Claude Code 与 Codex，三端
+共用 `session_resolve.py` 的 UUID upsert，并由 manifest 安装到 Cursor 与 Codex。
+Codex adapter 按 rollout 文件名精确匹配 UUID；以 `session_meta.payload.timestamp` 为开始时间，
+以最后一条实质 root user message 为最后活跃时间。它窄过滤已知 synthetic context、subagent
+注入与纯 `/session-log`、`/rename`、`/handoff` 命令，同时保留 `<codex_delegation>` 的真实任务。
+归档成功后，Codex Desktop 通过宿主 thread-title 工具直接修改当前任务名，不把 CLI 的
+`/rename` 命令交给桌面端用户执行；没有直接工具的客户端才走自身支持的标题命令或建议。
 
 ## 3. Windows 使用方法
 
@@ -200,11 +204,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test_sync_rules.ps1
 
 ## 7. session-log 跨 host（后续切片）
 
-当前本机能力已经覆盖 Cursor 与 Claude Code：`session_times.py` 自动识别两类 transcript，
-`session_resolve.py` 按同一 session UUID upsert；可选 Stop hook
-`auto_rename_on_stop.py` 在 tmux 会话中执行最终 `/rename`。hook 注册属于 machine-local
-Claude/Cursor 配置，不由本仓库同步。以上能力仍只处理当前 host 的归档文件，并不等于跨 host
-已经去重。
+当前本机能力已经覆盖 Cursor、Claude Code 与 Codex：`session_times.py` 自动识别三类
+transcript，`session_resolve.py` 按同一 session UUID upsert。Codex Desktop 的标题修改由
+宿主 thread-title 工具完成，不属于 Python adapter；可选 Stop hook `auto_rename_on_stop.py`
+只面向 tmux 中的 Claude/Cursor 环境，注册属于 machine-local 配置，不由本仓库同步。
+Codex CLI/TUI 仍可使用 `/rename`。以上能力仍只处理当前 host 的归档文件，并不等于跨 host
+已经去重；存量 backfill 也仍只支持 Cursor。
 
 `session_id`/task ID 是同一 task 跨 host handoff 后的 canonical identity，`machine_id` 只记录
 来源和最后写入 host，不能取代 task ID。下一版映射至少要记录：
@@ -225,8 +230,8 @@ Claude/Cursor 配置，不由本仓库同步。以上能力仍只处理当前 ho
 
 当前归档根 `~/_sxg/llm_session_log` 仍是 machine-local。仅增加 `machine_id` 不能让另一台机器
 看到旧文件；要实现真正的跨 host 单文件 upsert，必须再选择一种私有传输层：handoff 时通过
-SSH 显式复制、或使用不进入本公共仓库的私有同步目录。确定传输层前，Codex adapter 只能在
-目标 host 创建同 task 的本地镜像，并明确记录来源，不能宣称全局去重。
+SSH 显式复制、或使用不进入本公共仓库的私有同步目录。确定传输层前，各客户端只能在目标
+host 创建同 task 的本地镜像，不能宣称全局去重。
 
 ## 8. 并行写入约束
 
@@ -248,12 +253,13 @@ commit/merge 协调。Handoff 可以在 Local、worktree 和匹配的 SSH host �
 | skill 平台过滤 | Windows/Linux 只管理 manifest 中包含当前平台的条目 | 已实现并在两平台隔离 dry-run |
 | 逐-skill machine override | 关闭 canonical 时 alias 同时停止管理；未知名称报错 | 已实现并在两平台隔离 dry-run |
 | Linux 首次 dry-run | 报告 Cursor/Codex symlink 计划，不创建目录 | 已在 Linux host 实机验收，零冲突 |
-| Linux Sync、Doctor、重复 Sync | 16 个 canonical skill 链接与 2 个规则投影分别通过，重复运行幂等 | 阶段 1 曾以含 alias 的 18/18 通过；阶段 2 待 Linux 复验 |
+| Linux Sync、Doctor、重复 Sync | manifest 声明的 skill 链接与规则投影分别通过，重复运行幂等 | 已在 Linux host 实机验收 |
 | Linux 冲突与修复 | 保留真实目录；错误 symlink 仅显式 repair | 已实现并在 Linux host 隔离验收 |
 | Windows `mmd-explain` | doctor 探测浏览器/字体；真实 renderer 生成中文与 emoji 正常的 PNG | 已在当前 Windows host 用 bundled pnpm/Node 实机验收；第二台待执行 |
 | Linux `mmd-explain` | doctor 通过；真实 conda renderer 生成中文与 emoji 正常的 PNG | 已在 Linux host `/tmp` 验收 |
-| Linux `session-log` | Cursor/Claude 时间解析、upsert 与 Stop hook 去重 | 10 项回归测试已在 Windows 与 Linux 通过；Linux hook 已 machine-local 配置 |
-| Codex skill 格式 | 只安装 Agent Skills 标准兼容项；`git-workflow` 已标准化，`session-log` 暂缓 | Git 已启用；session-log 待补 upsert 与调用策略 |
+| `session-log` 解析与 upsert | Windows/Linux fixture 覆盖三类 transcript、synthetic/meta 过滤、delegation、UUID 文件名查找与 create→update 去重 | 2026-08-13 双平台通过；Windows 另以真实 Codex rollout 在临时 log-dir 通过 |
+| Codex `session-log` 安装 | 标准 `agents/openai.yaml`；manifest 声明 Codex target；两端 DryRun → Sync → Doctor | 2026-08-13 Windows 与 cpu005 全项通过，新 Codex agent 可发现该 skill |
+| Codex Desktop 任务改名 | 归档成功后调用宿主 thread-title 工具；省略 `threadId` 定位当前任务；成功分支不输出 `/rename`；失败不回滚归档、不误报，并给 UI 手动标题 | 2026-08-13 在当前 Windows Codex Desktop 实测，工具返回当前 thread ID，任务列表读回新标题；独立无工具 forward-test 确认不会猜测 `/rename` |
 | Remote Control | 每个控制端与每个 host 单独配对；同账号不视为已配对 | 人工验收 |
 | SSH host | key + 最小权限账户 + VPN/mesh；无公开 app-server listener | 人工验收 |
 | Windows Computer Use | 在执行 host 前台运行，保持解锁；allowlist 不跨机 | 人工验收 |

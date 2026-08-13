@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Derive session start / last-active times from Cursor or Claude transcripts."""
+"""Derive session start / last-active times from supported session transcripts."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone, timedelta
@@ -35,6 +36,15 @@ CLAUDE_SYNTHETIC_PREFIXES = (
     "This session is being continued from a previous conversation",
     "## Context Usage",
     "[Request interrupted by user]",
+)
+CODEX_META_COMMAND_RE = re.compile(
+    r"^/(?:session-log|rename|handoff)(?:[ \t]+[^\r\n]*)?\s*$",
+    re.IGNORECASE,
+)
+CODEX_SUBAGENT_MESSAGE_RE = re.compile(
+    r"^Message Type:\s*(?:MESSAGE|FINAL_ANSWER)\s*\r?\n"
+    r"Task name:\s*.+\r?\nSender:\s*.+\r?\nPayload:\s*",
+    re.IGNORECASE,
 )
 
 
@@ -100,6 +110,55 @@ def is_cursor_meta_skill_only(text: str) -> bool:
     return not query
 
 
+def codex_input_text_parts(message: object) -> list[str]:
+    if not isinstance(message, dict) or message.get("type") != "message":
+        return []
+    content = message.get("content")
+    if not isinstance(content, list):
+        return []
+    return [
+        text
+        for part in content
+        if isinstance(part, dict)
+        and part.get("type") == "input_text"
+        and isinstance((text := part.get("text")), str)
+        and text.strip()
+    ]
+
+
+def is_codex_synthetic_part(text: str) -> bool:
+    """Match only known Codex-generated user-context envelopes."""
+    stripped = text.strip()
+    if re.fullmatch(
+        r"<recommended_plugins>.*</recommended_plugins>",
+        stripped,
+        re.DOTALL | re.IGNORECASE,
+    ):
+        return True
+    if re.fullmatch(
+        r"# AGENTS\.md instructions\s*<INSTRUCTIONS>.*</INSTRUCTIONS>",
+        stripped,
+        re.DOTALL,
+    ):
+        return True
+    if re.fullmatch(
+        r"<environment_context>.*</environment_context>", stripped, re.DOTALL
+    ):
+        return True
+    if re.fullmatch(
+        r"<(?:subagent_notification|task-notification)>.*"
+        r"</(?:subagent_notification|task-notification)>",
+        stripped,
+        re.DOTALL | re.IGNORECASE,
+    ):
+        return True
+    return bool(CODEX_SUBAGENT_MESSAGE_RE.match(stripped))
+
+
+def is_pure_codex_meta_command(text: str) -> bool:
+    return bool(CODEX_META_COMMAND_RE.fullmatch(text.strip()))
+
+
 def extract_cursor_user_timestamps(transcript_path: Path) -> list[datetime]:
     timestamps: list[datetime] = []
     with transcript_path.open(encoding="utf-8") as handle:
@@ -161,6 +220,94 @@ def extract_claude_user_timestamps(transcript_path: Path) -> list[datetime]:
     return timestamps
 
 
+def codex_uuid_from_filename(transcript_path: Path) -> str:
+    match = re.search(r"([0-9a-f-]{36})\.jsonl$", transcript_path.name, re.IGNORECASE)
+    if match and UUID_RE.fullmatch(match.group(1)):
+        return match.group(1)
+    return ""
+
+
+def extract_codex_session_meta(transcript_path: Path) -> dict:
+    expected_id = codex_uuid_from_filename(transcript_path).lower()
+    first_meta: dict | None = None
+    with transcript_path.open(encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(row, dict) or row.get("type") != "session_meta":
+                continue
+            payload = row.get("payload")
+            if not isinstance(payload, dict):
+                continue
+            first_meta = first_meta or payload
+            session_id = payload.get("id") or payload.get("session_id")
+            if (
+                expected_id
+                and isinstance(session_id, str)
+                and session_id.lower() == expected_id
+            ):
+                return payload
+    return first_meta or {}
+
+
+def is_codex_subagent_transcript(meta: dict) -> bool:
+    source = meta.get("source")
+    return isinstance(source, dict) and isinstance(source.get("subagent"), dict)
+
+
+def is_substantive_codex_user(row: dict) -> bool:
+    if row.get("type") != "response_item":
+        return False
+    message = row.get("payload")
+    if not isinstance(message, dict) or message.get("role") != "user":
+        return False
+
+    parts = [
+        part
+        for part in codex_input_text_parts(message)
+        if not is_codex_synthetic_part(part)
+    ]
+    if not parts:
+        return False
+    return not is_pure_codex_meta_command("\n".join(parts))
+
+
+def extract_codex_user_timestamps(transcript_path: Path) -> list[datetime]:
+    meta = extract_codex_session_meta(transcript_path)
+    if is_codex_subagent_transcript(meta):
+        return []
+
+    timestamps: list[datetime] = []
+    with transcript_path.open(encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(row, dict) or not is_substantive_codex_user(row):
+                continue
+            raw = row.get("timestamp")
+            if not isinstance(raw, str):
+                continue
+            try:
+                timestamps.append(parse_claude_timestamp(raw))
+            except ValueError:
+                continue
+    return timestamps
+
+
+def extract_codex_started_at(transcript_path: Path) -> datetime | None:
+    raw = extract_codex_session_meta(transcript_path).get("timestamp")
+    if not isinstance(raw, str):
+        return None
+    try:
+        return parse_claude_timestamp(raw)
+    except ValueError:
+        return None
+
+
 def detect_source(transcript_path: Path) -> str:
     with transcript_path.open(encoding="utf-8", errors="replace") as handle:
         for line in handle:
@@ -170,6 +317,19 @@ def detect_source(transcript_path: Path) -> str:
                 continue
             if not isinstance(payload, dict):
                 continue
+            if payload.get("type") == "session_meta" and isinstance(
+                payload.get("payload"), dict
+            ):
+                return "codex"
+            if payload.get("type") == "response_item" and isinstance(
+                payload.get("payload"), dict
+            ):
+                response = payload["payload"]
+                if response.get("type") == "message" and response.get("role") in {
+                    "user",
+                    "assistant",
+                }:
+                    return "codex"
             if payload.get("sessionId") or (
                 payload.get("type") in {"user", "assistant", "system"}
                 and payload.get("timestamp")
@@ -190,9 +350,36 @@ def find_meta_json(session_uuid: str) -> Path | None:
     return None
 
 
+def codex_home_path() -> Path:
+    configured = os.environ.get("CODEX_HOME")
+    return Path(configured).expanduser() if configured else Path.home() / ".codex"
+
+
+def find_codex_transcript(
+    session_uuid: str, codex_home: Path | None = None
+) -> Path | None:
+    if not UUID_RE.fullmatch(session_uuid):
+        return None
+    normalized_uuid = session_uuid.lower()
+    sessions_root = (codex_home or codex_home_path()) / "sessions"
+    if not sessions_root.is_dir():
+        return None
+    matches = sorted(
+        path
+        for path in sessions_root.glob(f"**/rollout-*-{normalized_uuid}.jsonl")
+        if path.is_file()
+    )
+    return matches[-1] if matches else None
+
+
 def find_transcript(session_uuid: str, explicit: Path | None) -> Path | None:
     if explicit is not None:
         return explicit if explicit.is_file() else None
+
+    codex_match = find_codex_transcript(session_uuid)
+    current_codex_id = os.environ.get("CODEX_THREAD_ID", "")
+    if codex_match and current_codex_id.lower() == session_uuid.lower():
+        return codex_match
 
     cursor_root = Path.home() / ".cursor" / "projects"
     if cursor_root.is_dir():
@@ -209,7 +396,7 @@ def find_transcript(session_uuid: str, explicit: Path | None) -> Path | None:
         matches = sorted(claude_root.glob(f"**/{session_uuid}.jsonl"))
         if matches:
             return matches[-1]
-    return None
+    return codex_match
 
 
 def infer_claude_uuid(transcript_path: Path) -> str:
@@ -227,9 +414,19 @@ def infer_claude_uuid(transcript_path: Path) -> str:
     return transcript_path.stem if UUID_RE.fullmatch(transcript_path.stem) else ""
 
 
+def infer_codex_uuid(transcript_path: Path) -> str:
+    meta = extract_codex_session_meta(transcript_path)
+    session_id = meta.get("id") or meta.get("session_id")
+    if isinstance(session_id, str) and UUID_RE.fullmatch(session_id):
+        return session_id
+    return codex_uuid_from_filename(transcript_path)
+
+
 def infer_uuid(transcript_path: Path, source: str) -> str:
     if source == "claude":
         return infer_claude_uuid(transcript_path)
+    if source == "codex":
+        return infer_codex_uuid(transcript_path)
     return transcript_path.parent.name
 
 
@@ -257,10 +454,16 @@ def compute_times(
     source = source or detect_source(transcript_path)
     if source == "claude":
         user_ts = extract_claude_user_timestamps(transcript_path)
+    elif source == "codex":
+        user_ts = extract_codex_user_timestamps(transcript_path)
     else:
         user_ts = extract_cursor_user_timestamps(transcript_path)
 
-    started = user_ts[0] if user_ts else None
+    started = (
+        extract_codex_started_at(transcript_path)
+        if source == "codex"
+        else (user_ts[0] if user_ts else None)
+    )
     last_active = user_ts[-1] if user_ts else None
 
     if source == "cursor" and meta_path and meta_path.is_file():
@@ -295,11 +498,11 @@ def main() -> int:
     parser.add_argument(
         "--transcript",
         type=Path,
-        help="Path to a Cursor or Claude session transcript",
+        help="Path to a supported session transcript",
     )
     parser.add_argument(
         "--uuid",
-        help="Cursor/Claude session UUID; locates the transcript when omitted",
+        help="Session UUID; locates a Cursor, Claude, or Codex transcript",
     )
     parser.add_argument(
         "--meta",

@@ -84,7 +84,7 @@ rg -i '关键词' "$LOG" --glob '*.md' -n -C 0
 ### 1. {session_title} — {date} {time}
 - **项目**：{project}
 - **文件**：`~/_sxg/llm_session_log/{filename}`
-- **Chat 标题建议**：`{suggested_chat_title}`（在 chat 历史里可搜此名）
+- **Chat 标题建议**：`{suggested_chat_title}`（客户端已成功应用时可在 chat 历史按此名查找；归档检索不依赖改名）
 - **匹配原因**：{为何命中，1 句}
 - **要点**：{2–4 条 bullet，来自摘要}
 

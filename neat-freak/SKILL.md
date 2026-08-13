@@ -35,8 +35,9 @@ description: >-
 | 规则 | Agent 收到的约束是否同源、可执行、无死引用？ | 层级 CLAUDE.md/AGENTS.md、override、hooks |
 | 记忆 | 快照是否仍准确且允许修改？ | 平台记忆入口、索引、生成来源 |
 | 工作区 | 是否仍有未集成或未审计的残留？ | 会话残留文件、worktree、分支、临时库 |
+| 会话归档（有值得检索的工作时） | 最终状态能否按同一 session 找回？ | 归档文件、index、`.session_map.json` |
 
-每一面标成 `verified-current`、`changed-and-verified`、`pending`、`out-of-scope` 或 `not-applicable`。小项目不必硬凑六个面：没有部署就没有运行态面，没有记忆系统就没有记忆面——如实标 `not-applicable`，不要编造证据。不要把 `git status` 干净、PR 已合并或测试通过单独当成「全部同步」。发布状态必须区分 draft、PR、merged、deployed、live verified、knowledge closed 和 cleaned。
+每一面标成 `verified-current`、`changed-and-verified`、`pending`、`out-of-scope` 或 `not-applicable`。小项目不必硬凑所有面：没有部署就没有运行态面，没有记忆系统就没有记忆面——如实标 `not-applicable`，不要编造证据。不要把 `git status` 干净、PR 已合并或测试通过单独当成「全部同步」。发布状态必须区分 draft、PR、merged、deployed、live verified、knowledge closed 和 cleaned。
 
 ## 权限和范围先于洁癖
 
@@ -173,7 +174,8 @@ description: >-
 3. **需要用户决定的**：只有越权、破坏性或无法裁决的项目。
 4. **技术细节**：关键文件、门禁、版本/marker 和受控警告。
 
-轻量路径和完整路径共用同一份骨架：
+轻量路径和完整路径共用同一份骨架。存在阻塞完成的 `pending` 时，标题必须改成
+`洁癖收尾待完成`，不得使用下面的完成标题或声称 `knowledge closed`：
 
 ```text
 ## 洁癖收尾完成
@@ -203,18 +205,21 @@ description: >-
 - [ ] 文档和规则没有新增流水账；主规则净增长异常时已重新压缩。
 - [ ] 轻量路径：规则文件五要素齐全且精简；已授权残留只按精确目标清理并报告，未授权候选仍保留并交用户确认。
 - [ ] 所有适用门禁通过；发布收尾已 live verify，知识凭证和清场授权都已核验。
+- [ ] 值得检索的工作已有会话归档凭证；否则已标 `pending` 且没有宣告收尾完成。
 - [ ] 没有把宽泛「做完后清理」当成任意删除授权，也没有对已经精确授权的目标机械要求二次确认。
 - [ ] 仅清理授权覆盖的精确目标；最终工作区重新审计，实际删除项、残留和 warning 已如实报告。
 
 ## 本仓库的本地收尾链
 
-在通用知识收尾完成后，再判断两个本地入口；没有实际内容时不要为了形式写入：
+在其他事实面对齐后，执行两个本地入口；没有实际内容时不要为了形式写入：
 
 1. 项目已经采用 `_sxg/TODO.md`，且本次仍有未完成事项：就地更新现有 TODO；已完成项删除，
    稳定机制移入权威 docs/rules，不把 TODO 写成第二份架构文档。
-2. 当前客户端支持 `session-log`，且本次产生了值得检索的工作：最后执行 `session-log`，让归档
-   记录文档和规则修改后的最终状态。纯问答、只读探索或客户端尚无 adapter 时跳过，并在
-   摘要中说明。
+2. 本次产生了值得检索的工作：最后执行 `session-log`，让归档记录文档和规则修改后的最终状态。
+   adapter 缺失、不可调用或验证失败时，按 [`session-log/SKILL.md`](../session-log/SKILL.md) 的 create/update/register
+   合同执行已记录的等价路径；等价路径也无法安全完成时标 `pending`，明确阻塞，且不得声称
+   `knowledge closed` 或「洁癖收尾完成」。只有纯问答、只读探索且确无可检索工作时才标
+   `not-applicable`；adapter 缺失本身不构成 `not-applicable`。
 
 用户同时需要交接物时，`neat-freak` 先把权威事实和规则收干净，再由 `handoff` 生成一次性交接；
 不要在交接文档里复制一套长期真相，也不要用交接代替知识收尾。

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve create vs update for Cursor/Claude session-log upsert by UUID."""
+"""Resolve create vs update for session-log upsert by session UUID."""
 
 from __future__ import annotations
 
@@ -173,7 +173,7 @@ def load_times_json(path: Path | None, inline: str | None) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--uuid", required=True, help="Cursor/Claude chat session UUID")
+    parser.add_argument("--uuid", required=True, help="Chat/task session UUID")
     parser.add_argument("--log-dir", type=Path, default=None, help="Archive directory")
     parser.add_argument("--times-json", type=Path, help="JSON file from session_times.py")
     parser.add_argument("--times-inline", help="Inline JSON from session_times.py")

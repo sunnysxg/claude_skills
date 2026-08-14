@@ -24,6 +24,8 @@
   本机环境变量覆盖，不硬编码 hostname、浏览器或字体位置。
 - 并行 agent 使用不同 worktree/branch，通过 Git 协调；禁止两个 agent 同时写同一 checkout。
 - Git 操作遵循 `git-workflow/references/git.md`；本仓库规则：
+  - session 开始：本仓库多机共用，动手前先 `git fetch` 对比远端；落后且可 fast-forward
+    时直接 pull，有分叉或工作区不干净时报告后再定
   - commit：用户明确要求时执行，一次要求覆盖本轮连续、相关的改动
   - push：仅在用户明确要求时执行
   - branch / pull_request：沿用现有流程，需要新建时询问

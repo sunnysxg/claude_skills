@@ -216,6 +216,7 @@ border-bottom:1px solid var(--line);padding-bottom:4px}
 .pill.hi{color:var(--high)}
 .item{padding:2px 0;font-size:13.5px}.item.high::before{content:"! ";color:var(--high);font-weight:bold}
 .item .sec{color:var(--dim);font-size:12px}
+.cont{color:var(--dim);font-size:12.5px;line-height:1.45;padding-left:14px;white-space:pre-wrap}
 details{margin-top:6px}summary{cursor:pointer;color:var(--accent);font-size:13px}
 .warn{margin-top:20px;color:var(--high);font-size:13px}
 </style></head><body>
@@ -241,14 +242,20 @@ def render_html(projects, unreachable, now):
                        len(p["pending"]), len(p["high"])))
         if p["error"]:
             out.append('<div class="warn">读取失败: %s</div>' % esc(p["error"]))
+        def cont(i):
+            for c in i["cont"]:
+                out.append('<div class="cont">%s</div>' % esc(c))
+
         for i in p["high"]:
             out.append('<div class="item high">%s</div>' % esc(i["text"]))
+            cont(i)
         rest = [i for i in p["pending"] if not i["high"]]
         if rest:
             out.append("<details><summary>其余未完成 %d 条</summary>" % len(rest))
             for i in rest:
                 sec = ' <span class="sec">（%s）</span>' % esc(i["section"]) if i["section"] else ""
                 out.append('<div class="item">%s%s</div>' % (esc(i["text"]), sec))
+                cont(i)
             out.append("</details>")
         out.append("</div>")
 

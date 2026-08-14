@@ -23,6 +23,7 @@
 | `mmd-explain` | 用 Mermaid 图示解释（`.mmd` + PNG，默认输出到项目 `_sxg/diagram/`）；Windows/Linux 分别使用 PowerShell/Bash renderer |
 | `session-log` | 在 Cursor / Claude Code / Codex 归档并按 UUID upsert 同一 chat；Codex Desktop 在宿主工具可用时直接改任务名，Claude Code Desktop 延迟补名（下次 session-log 顺手补其他 chat 的标题），Claude/Cursor CLI 可选 Stop hook 执行标题建议 |
 | `session-search` | 按关键词、项目、时间检索已归档的 session 摘要 |
+| `todo-hub` | 扫描各项目 `_sxg/TODO.md` 现扫现生成全局待办面板（文本/HTML），条目语法见 conventions.md 第 12 节 |
 
 ## 部署
 

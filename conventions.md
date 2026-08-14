@@ -10,7 +10,8 @@
 - 缩写也小写：`llm` 不写 `LLM`。
 - **唯一例外**：skill 名（= slash command 名）用 kebab-case——Claude Code 平台要求，
   name 字段只允许小写字母、数字、连字符。例：`session-log`、`mmd-explain`。
-  平台固定名照抄，不套本规范：`SKILL.md`、`CLAUDE.md`、`README.md`、`LICENSE`。
+  平台与通行固定名照抄，不套本规范：`SKILL.md`、`CLAUDE.md`、`README.md`、`LICENSE`、
+  项目待办 `TODO.md`（见第 12 节）。
 - **废弃别名**：只有确认仍有真实调用方时，才在 `skills.manifest.json` 的 `aliases` 中
   临时声明，由同步脚本在客户端创建 junction/symlink；迁移完成后删除。仓库内只维护
   canonical 目录的内容，不提交 Git symlink，也不为别名单独写 `SKILL.md`。

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone, timedelta
@@ -144,6 +145,7 @@ def register_entry(
     session_uuid: str,
     target_file: str,
     started_at: str | None = None,
+    chat_title: str | None = None,
 ) -> dict:
     mapping = load_map(log_dir)
     now = datetime.now(tz=LOCAL_TZ).isoformat()
@@ -159,8 +161,68 @@ def register_entry(
             "started_at": started_at or now,
             "last_logged_at": now,
         }
+    if chat_title:
+        mapping[session_uuid]["chat_title"] = chat_title
     save_map(log_dir, mapping)
     return mapping[session_uuid]
+
+
+def ccd_registry_root() -> Path | None:
+    """Locate Claude Code Desktop's per-session registry directory."""
+    candidates = []
+    appdata = os.environ.get("APPDATA")
+    if appdata:
+        candidates.append(Path(appdata) / "Claude" / "claude-code-sessions")
+    home = Path.home()
+    candidates.append(home / "Library" / "Application Support" / "Claude" / "claude-code-sessions")
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+def ccd_pending_renames(log_dir: Path, current_uuid: str, ccd_dir: Path | None = None) -> dict:
+    """List other CCD sessions whose title still differs from the archived chat_title.
+
+    Convergence is stateless: once a session is renamed (or the user set a manual
+    title, which the host tool preserves anyway), it drops out of the pending list.
+    """
+    root = ccd_dir if ccd_dir else ccd_registry_root()
+    if root is None or not root.is_dir():
+        return {"pending": [], "warning": "ccd_registry_not_found"}
+    mapping = load_map(log_dir)
+    desired = {
+        uuid.lower(): entry["chat_title"]
+        for uuid, entry in mapping.items()
+        if isinstance(entry, dict) and entry.get("chat_title")
+    }
+    pending = []
+    scanned = 0
+    for reg in root.rglob("local_*.json"):
+        try:
+            data = json.loads(reg.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        scanned += 1
+        cli_uuid = str(data.get("cliSessionId") or "").lower()
+        # the host tool refuses to rename the current session from within itself
+        if not cli_uuid or cli_uuid == current_uuid.lower():
+            continue
+        want = desired.get(cli_uuid)
+        if not want or data.get("title") == want:
+            continue
+        if data.get("titleSource") == "user":
+            continue  # user's manual title wins
+        pending.append(
+            {
+                "session_id": data.get("sessionId") or reg.stem,
+                "title": want,
+                "current_title": data.get("title"),
+            }
+        )
+    return {"pending": pending, "registry_root": str(root), "scanned": scanned}
 
 
 def load_times_json(path: Path | None, inline: str | None) -> dict:
@@ -186,15 +248,27 @@ def main() -> int:
     )
     parser.add_argument("--file", help="Archive filename for --register")
     parser.add_argument("--started-at", help="ISO started_at for --register")
+    parser.add_argument("--chat-title", help="suggested_chat_title to store for --register")
+    parser.add_argument(
+        "--ccd-pending",
+        action="store_true",
+        help="List other Claude Code Desktop sessions still awaiting their archived chat_title",
+    )
+    parser.add_argument("--ccd-dir", type=Path, help="Override CCD registry root (tests)")
     args = parser.parse_args()
 
     log_dir = log_dir_path(args.log_dir)
+
+    if args.ccd_pending:
+        result = ccd_pending_renames(log_dir, args.uuid, args.ccd_dir)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
 
     if args.register:
         if not args.file:
             print(json.dumps({"error": "register_requires_file"}, ensure_ascii=False), file=sys.stderr)
             return 1
-        entry = register_entry(log_dir, args.uuid, args.file, args.started_at)
+        entry = register_entry(log_dir, args.uuid, args.file, args.started_at, args.chat_title)
         print(json.dumps({"registered": True, "entry": entry}, ensure_ascii=False, indent=2))
         return 0
 

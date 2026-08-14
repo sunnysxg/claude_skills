@@ -2,7 +2,7 @@
 name: session-log
 description: >
   在 neat-freak 完成文档与记忆整理之后，把本次对话的工作摘要归档到
-  ~/_sxg/llm_session_log/、更新索引，并在宿主支持时直接重命名当前 chat。
+  ~/_sxg/llm_session_log/、更新索引，并在宿主支持时重命名 chat。
 ---
 
 # Session Log — 关 session 前写摘要
@@ -161,10 +161,11 @@ index「日期」= session **开始日**。
 写入成功后运行：
 
 ```text
-{PYTHON_CMD} "{SKILL_DIR}/scripts/session_resolve.py" --register --uuid "{session_id}" --file "{target_file}" --started-at "{started_at}"
+{PYTHON_CMD} "{SKILL_DIR}/scripts/session_resolve.py" --register --uuid "{session_id}" --file "{target_file}" --started-at "{started_at}" --chat-title "{suggested_chat_title}"
 ```
 
-维护 `~/_sxg/llm_session_log/.session_map.json`（勿手改）。
+维护 `~/_sxg/llm_session_log/.session_map.json`（勿手改）。`--chat-title` 是 Claude Code
+Desktop 延迟补名（见第 7 步）的数据来源，所有客户端都带上，无害。
 
 ## 7. 回复用户
 
@@ -177,6 +178,20 @@ index「日期」= session **开始日**。
    - 宿主提供直接修改当前 task/thread 标题的工具时，调用该工具；Codex Desktop 通常为
      `codex_app__set_thread_title`，省略 `threadId` 以定位当前 task。工具返回成功后只需告知
      用户“任务已重命名为 `{suggested_chat_title}`”，不要再输出 `/rename` 或要求用户操作。
+     Claude Code Desktop 是例外，见下一条。
+   - Claude Code Desktop（`mcp__ccd_session_mgmt__*` 工具可见；deferred 时先用 ToolSearch
+     加载 `set_session_title`）**改不了当前 session**：`set_session_title` 只能改其他
+     session，对当前 session 实测拒绝（"Refusing to rename the current session from within
+     itself"）；直接改 `claude-code-sessions` 注册 JSON 会被 app 内存态覆盖回去，两条路都
+     不要再试。改用**延迟补名**：register（第 6 步已含 `--chat-title`）之后运行
+
+     ```text
+     {PYTHON_CMD} "{SKILL_DIR}/scripts/session_resolve.py" --ccd-pending --uuid "{session_id}"
+     ```
+
+     对输出 `pending` 中的每项调用 `set_session_title`（用户手动改过的标题该工具会自动
+     保留，不必预判）。回复时说明：本 chat 的标题会在下次任一 session 跑 session-log 时
+     自动补上，急用可在侧边栏手动改成 `{suggested_chat_title}`。
    - **只有**当前客户端已明确识别为 Claude、Cursor 或 Codex CLI/TUI，且确认该 surface
      支持 `/rename` 时，才在回复**最后一行**单独输出 `/rename {suggested_chat_title}`。
      Claude/Cursor 环境若已安装 Stop hook

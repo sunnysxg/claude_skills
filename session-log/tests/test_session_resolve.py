@@ -56,5 +56,83 @@ class SessionResolveTest(unittest.TestCase):
             self.assertEqual(len(list(log_dir.glob("*.md"))), 2)
 
 
+CURRENT_ID = "aaaaaaaa-1111-42c4-885f-d1857c206df7"
+OTHER_ID = "bbbbbbbb-2222-42c4-885f-d1857c206df7"
+
+
+class CcdPendingRenamesTest(unittest.TestCase):
+    @staticmethod
+    def _write_registry(ccd_dir: Path, name: str, cli_uuid: str, title: str, source: str) -> None:
+        entry_dir = ccd_dir / "workspace" / "profile"
+        entry_dir.mkdir(parents=True, exist_ok=True)
+        (entry_dir / f"{name}.json").write_text(
+            session_resolve.json.dumps(
+                {
+                    "sessionId": name,
+                    "cliSessionId": cli_uuid,
+                    "title": title,
+                    "titleSource": source,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    def test_register_chat_title_and_pending_filters(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_dir = Path(temp_dir) / "log"
+            ccd_dir = Path(temp_dir) / "ccd"
+
+            session_resolve.register_entry(
+                log_dir, CURRENT_ID, "current.md", chat_title="260813 当前会话"
+            )
+            session_resolve.register_entry(
+                log_dir, OTHER_ID, "other.md", chat_title="260812 目标标题"
+            )
+
+            # other session, auto-titled and stale -> pending
+            self._write_registry(ccd_dir, "local_other", OTHER_ID, "自动标题", "auto")
+            # current session -> excluded (host tool refuses self-rename)
+            self._write_registry(ccd_dir, "local_current", CURRENT_ID, "自动标题", "auto")
+            # user manually titled -> respected
+            self._write_registry(ccd_dir, "local_user", OTHER_ID.replace("bbbbbbbb", "cccccccc"), "手动标题", "user")
+            # unrelated session without archived title -> ignored
+            self._write_registry(ccd_dir, "local_stranger", OTHER_ID.replace("bbbbbbbb", "dddddddd"), "路人", "auto")
+
+            result = session_resolve.ccd_pending_renames(log_dir, CURRENT_ID, ccd_dir)
+
+            self.assertEqual(result["scanned"], 4)
+            self.assertEqual(len(result["pending"]), 1)
+            self.assertEqual(
+                result["pending"][0],
+                {
+                    "session_id": "local_other",
+                    "title": "260812 目标标题",
+                    "current_title": "自动标题",
+                },
+            )
+
+    def test_pending_converges_after_rename(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_dir = Path(temp_dir) / "log"
+            ccd_dir = Path(temp_dir) / "ccd"
+            session_resolve.register_entry(
+                log_dir, OTHER_ID, "other.md", chat_title="260812 目标标题"
+            )
+            self._write_registry(ccd_dir, "local_other", OTHER_ID, "260812 目标标题", "user")
+
+            result = session_resolve.ccd_pending_renames(log_dir, CURRENT_ID, ccd_dir)
+
+            self.assertEqual(result["pending"], [])
+
+    def test_missing_registry_warns(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_dir = Path(temp_dir) / "log"
+            result = session_resolve.ccd_pending_renames(
+                log_dir, CURRENT_ID, Path(temp_dir) / "nonexistent"
+            )
+            self.assertEqual(result["pending"], [])
+            self.assertEqual(result["warning"], "ccd_registry_not_found")
+
+
 if __name__ == "__main__":
     unittest.main()

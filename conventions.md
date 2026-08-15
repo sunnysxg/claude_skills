@@ -10,8 +10,7 @@
 - 缩写也小写：`llm` 不写 `LLM`。
 - **唯一例外**：skill 名（= slash command 名）用 kebab-case——Claude Code 平台要求，
   name 字段只允许小写字母、数字、连字符。例：`session-log`、`mmd-explain`。
-  平台与通行固定名照抄，不套本规范：`SKILL.md`、`CLAUDE.md`、`README.md`、`LICENSE`、
-  项目待办 `TODO.md`（见第 12 节）。
+  平台与通行固定名照抄，不套本规范：`SKILL.md`、`CLAUDE.md`、`README.md`、`LICENSE`。
 - **废弃别名**：只有确认仍有真实调用方时，才在 `skills.manifest.json` 的 `aliases` 中
   临时声明，由同步脚本在客户端创建 junction/symlink；迁移完成后删除。仓库内只维护
   canonical 目录的内容，不提交 Git symlink，也不为别名单独写 `SKILL.md`。
@@ -93,19 +92,8 @@ skill 读取时兼容两代命名，新写入一律用新规范。
 - 改 `global/` 下跨 skill 规则时用 `[global]`；改 `conventions.md`、`.gitignore` 等仓库级用 `[Repo]` 或 `[global]`。
 - 完整工作流见 `git-workflow/references/git.md`。
 
-## 12. 项目 TODO（`_sxg/TODO.md`）格式
+## 12. 项目 TODO（已迁移）
 
-todo-hub 面板靠纯脚本扫描，条目行必须机器可读；条目行之外保持自由。
-
-- 条目语法（脚本只认这三种形态，todo-hub skill 与之同步）：
-  - `- [ ] 内容` 未完成；`- [x] 内容` 已完成
-  - 高优先：checkbox 后加 `!`，即 `- [ ] ! 内容`（含义：优先处理/等 Sarah 拍板）
-  - 缩进的行归属上一条目（续行）；HTML 面板随条目完整展示，文本面板是摘要视图，只展示条目首行
-- 其余一切自由：节名（`## ...`）自由、仅作分组展示；标题、日期、说明段落、
-  普通 `- ` 笔记行（不带 checkbox）都合法且不被解析。
-- 防漂移兜底：**长得像 checkbox 但不合语法**的行（如 `- []`、`-[ ]`、`* [ ]`）
-  计入「未识别」，面板上显示计数——格式坏了在面板上看得见，不靠自觉。
-- **跨项目条目信箱直投**：在项目 A 发现项目 B 该做的事，直接写进 B 的
-  `_sxg/TODO.md`（来龙去脉顺手写进正文即可，无专用语法）；目标在别的机器上
-  或一时不知在哪时，降级为自然语言记在自己项目的 TODO 里，面板照常展示、
-  人工转投。改共享组件（如某个 skill）前，先读它所在项目的 TODO。
+todo 创建约定随 todo_hub 项目维护：见 `~/Projects/todo_hub/todo_convention.md`
+（入口 `_sxg/inbox/` 一条一文件，事实源在中央看板；原 `_sxg/TODO.md` 语法退役，
+2026-08-14 Sarah 拍）。

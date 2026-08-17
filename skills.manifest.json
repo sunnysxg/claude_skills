@@ -164,15 +164,15 @@
       }
     },
     {
-      "name": "todo-hub",
-      "source": "todo-hub",
+      "name": "taskboard",
+      "source": "taskboard",
       "platforms": ["windows", "linux"],
       "targets": ["cursor", "codex"],
       "compatibility": {
         "cursor": "compatible",
         "codex": "compatible"
       }
-    }
+    },
   ],
   "aliases": []
 }

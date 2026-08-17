@@ -49,10 +49,8 @@
 ├── llm_session_log/                      # 全局 session 归档
 │   ├── index.md                          # 倒序索引表
 │   └── {YYYYMMDDHHMM}_{project}_{slug}.md
-├── handoff/
-│   └── {project}.md                      # 每项目一份，pickup 按项目名找
-└── todo_hub/
-    └── panel.html                        # todo-hub 生成的面板（可再生视图，丢了重扫）
+└── handoff/
+    └── {project}.md                      # 每项目一份，pickup 按项目名找
 ```
 
 其余目录等真的需要时再加；加之前先在本文件登记。

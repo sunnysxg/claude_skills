@@ -1,0 +1,6 @@
+interface:
+  display_name: "Handoff"
+  short_description: "Write remaining work and context into a handoff doc for the next session"
+  default_prompt: "Use $handoff to capture remaining work and necessary context into a handoff document for the next session."
+policy:
+  allow_implicit_invocation: false

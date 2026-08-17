@@ -1,6 +1,6 @@
 ---
 name: taskboard
-description: 操作中央待办看板（dashi taskboard，即派遣 prompt 里的 e-taskboard / manage-taskboard）：读卡、认领、改状态、评论、建卡、关联，全部走 taskctl CLI。当输入含看板卡片编号（如 TODOHUB-3）、被派遣「处理任务面板任务」、或要把工作结果回写看板状态时使用。
+description: 操作中央待办看板（dashi taskboard，即派遣 prompt 里的 e-taskboard / manage-taskboard）：读卡、认领、改状态、评论、建卡、关联，全部走 taskctl CLI。当输入含看板卡片编号（如 TODOHUB-3）、被派遣「处理任务面板任务」、要把工作结果回写看板状态、或发现了值得记录的新任务/待办时使用——board API 可达时，新任务直接用本 skill 建卡，不写 `_sxg/inbox/` md 文件（那是够不到看板时的降级路径，见 todo_convention.md）。
 ---
 
 # taskboard — 操作中央待办看板
@@ -38,8 +38,11 @@ taskctl 不在 PATH。本机（SeraCC）：
 3. 挪卡遇版本冲突：重新 `issue get` + `comment list`，仅当它仍是可认领的 `todo`、
    未绑他会话、未归档、描述评论未变时，用新 version 重试一次；否则停下汇报，
    不循环抢占。
-4. 新的持久需求先 `context current` + 搜现有卡，能更新就不新建重复卡；琐碎请求
-   不上板。
+4. 新的持久需求（含随手发现的新待办）：board API 可达时优先直接 `issue create`
+   建卡，不写 `_sxg/inbox/` md 文件——md 是够不到看板 API 时（跨机器多机部署前、
+   或纯人工不想调 CLI）的降级路径，不是本机 session 的默认创建方式。建卡前先
+   `context current` + 搜现有卡，能更新就不新建重复卡；琐碎请求不上板；粒度按
+   todo_convention.md（一个 agent 一个 session 能完成为界）。
 5. 卡绑定了 branch/worktree 时，该卡的活只在其中做。
 6. 做完并自验后：评论写清改动、验证方式、结果、遗留风险；重读卡片，带 version
    挪到 `in_review`（等你确认）。

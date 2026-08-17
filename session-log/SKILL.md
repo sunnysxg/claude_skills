@@ -182,7 +182,8 @@ Desktop 延迟补名（见第 7 步）的数据来源，所有客户端都带上
    - Claude Code Desktop（`mcp__ccd_session_mgmt__*` 工具可见；deferred 时先用 ToolSearch
      加载 `set_session_title`）**改不了当前 session**：`set_session_title` 只能改其他
      session，对当前 session 实测拒绝（"Refusing to rename the current session from within
-     itself"）；直接改 `claude-code-sessions` 注册 JSON 会被 app 内存态覆盖回去，两条路都
+     itself"）；让 subagent 发起同一调用也被同样拒绝——子 agent 共享宿主 session 的连接
+     身份；直接改 `claude-code-sessions` 注册 JSON 会被 app 内存态覆盖回去。三条路都
      不要再试。改用**延迟补名**：register（第 6 步已含 `--chat-title`）之后运行
 
      ```text

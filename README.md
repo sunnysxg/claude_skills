@@ -104,3 +104,7 @@
 [`1495d01`](https://github.com/mattpocock/skills/commit/1495d014303e041c51c29f9e442485ba06f5878d)
 的 `skills/productivity/grilling/SKILL.md`，后续修改以本仓库为准；上游的 `grill-me`
 入口层（内容仅为「Run a `/grilling` session」一行）未移植。
+
+`handoff` 为本仓库原生 skill；2026-08-17 吸收同一上游 `skills/productivity/handoff`
+的三条原则（引用不复制、隐去敏感信息、按参数裁剪焦点），并按其 `agents/openai.yaml`
+约定禁用 Codex 隐式触发。上游「交接文档存系统临时目录」一条明确不采；正文以本仓库为准。

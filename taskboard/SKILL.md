@@ -21,11 +21,17 @@ taskctl 不在 PATH。本机（SeraCC）：
 - 服务与 CLI 目前仅在 SeraCC；其他机器等多机部署（看板上有卡跟踪此事）。
 - 命令语法用到哪节读哪节：[references/cli.md](references/cli.md)（上游原文，含术语表）。
 
-## 写操作的会话归属
+## 写操作的会话归属与写入方标识
 
 每个 issue/comment 写操作必须归属到一个会话：Codex 内 taskctl 自动读
-`CODEX_THREAD_ID`；Claude/Cursor 里显式传 `--thread-id <当前 session UUID>`，
-取不到 UUID 就用 `claude-YYYYMMDDHHMM` 一次性 id，同一会话从一而终。读操作不需要。
+`CODEX_THREAD_ID`；Claude Code 内自动读 `CLAUDE_CODE_SESSION_ID`（两者都无需
+显式传）；Cursor 等两者都取不到的环境显式传 `--thread-id <当前 session UUID>`，
+再取不到就用 `claude-YYYYMMDDHHMM` 一次性 id，同一会话从一而终。读操作不需要。
+
+写入方标识（看板按它区分 Claude/Codex 图标与深链，TODOHUB-11 落地）：
+`--agent codex|claude`，未传时自动判——有 `CODEX_THREAD_ID` 记 codex，
+有 `CLAUDE_CODE_SESSION_ID` 记 claude，都没有默认 codex。Codex 与 Claude Code
+内零配置即正确；**Cursor 会话必须显式带 `--agent claude`**，否则会被记成 Codex。
 
 ## 核心流程（纪律，逐条执行）
 

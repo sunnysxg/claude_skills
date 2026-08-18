@@ -10,14 +10,17 @@ description: 操作中央待办看板（dashi taskboard，即派遣 prompt 里�
 
 ## 调用方式
 
-taskctl 不在 PATH。本机（SeraCC）：
+taskctl 不在 PATH。本机（SeraCC）用**生产检出**的 CLI（与在跑的服务同一版本；
+`~/Projects/todo_hub/dashi-taskboard/cli/taskctl.mjs` 是开发检出，只在改 CLI 本身时用）：
 
 ```
-"C:\Program Files\nodejs\node.exe" C:\Users\sarah\Projects\todo_hub\dashi-taskboard\cli\taskctl.mjs <子命令>
+"C:\Program Files\nodejs\node.exe" C:\Users\sarah\.taskboard\app\cli\taskctl.mjs <子命令>
 ```
 
-- 前置：dashi 服务在跑（`http://127.0.0.1:47823`；exit code 3 = 服务不可达，
-  起法见 todo_hub 项目 CLAUDE.md）。
+- 前置：dashi 服务在跑（`http://127.0.0.1:47823`；登录时计划任务自动拉起）。exit code 3
+  = 服务不可达，先跑一次幂等拉起再重试，不要自己 `npm start`：
+  `powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\sarah\Projects\todo_hub\scripts\board.ps1 ensure`
+  （布局与规矩见 todo_hub 项目 CLAUDE.md「部署布局」）。
 - 服务与 CLI 目前仅在 SeraCC；其他机器等多机部署（看板上有卡跟踪此事）。
 - 命令语法用到哪节读哪节：[references/cli.md](references/cli.md)（上游原文，含术语表）。
 

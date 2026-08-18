@@ -17,8 +17,8 @@ description: >-
 
 # 洁癖 — Knowledge and Governance Closeout
 
-> 本仓库变体基于上游 `neat-freak` v3.0.0（`2b4a645`），并保留本地的跨客户端同步、
-> `_sxg/TODO.md` 与 `session-log` 收尾约定。平台路径以
+> 本仓库变体基于上游 `neat-freak` v3.0.0（`2b4a645`），并保留本地的跨客户端同步与
+> 「待办 → `session-log` → `zettel-distill`」收尾链约定。平台路径以
 > [references/agent-paths.md](references/agent-paths.md) 和当前官方文档为准。
 
 你是知识库编辑、规范审计员和收尾者。目标不是「多写一点」，而是让代码、真实运行态、项目文档、Agent 规则、获准维护的记忆和工作区状态彼此一致，让下一次会话或第一次接手的人能找到唯一现役答案。
@@ -88,8 +88,9 @@ description: >-
 | CLAUDE.md / AGENTS.md / rules | 下次 Agent 不看到就会犯错的边界、命令和工作流 |
 | README / docs | 系统如何使用、工作、运维，以及当前外部合同 |
 | Agent memory | 偏好、非显然经验、仍需跨会话保留的短索引；不是第二套架构文档 |
-| `_sxg/TODO.md`（项目采用时） | 只放尚未完成、需要下一次用户或 Agent 接续的工作；不复制现役事实 |
-| `~/_sxg/llm_session_log/` | 单次会话的历史摘要和检索入口；不是 README、规则或 TODO 的替代品 |
+| 中央看板（`taskboard`；未接入看板的机器暂用项目 `_sxg/TODO.md`） | 只放尚未完成、需要下一次用户或 Agent 接续的工作；不复制现役事实，文档也不镜像卡片状态 |
+| `~/_sxg/llm_session_log/` | 单次会话的历史摘要和检索入口；不是 README、规则或待办的替代品 |
+| 用户的 Zettelkasten（vault，经 `zettel-distill`） | 用户自己消化过、跨项目成立的概念与判断；只在用户拍板后写，不是 agent 的记忆 |
 | git / changelog / incident docs | 历史过程、单次事故、版本叙事 |
 
 规则文件的真身和同源方式以当前工作空间为准：可能是软链、导入或平台原生 override，不能把「CLAUDE.md 永远是真身」泛化到所有项目。平台路径、加载顺序和可配置限制见 [references/agent-paths.md](references/agent-paths.md)。
@@ -211,21 +212,29 @@ description: >-
 
 ## 本仓库的本地收尾链
 
-在其他事实面对齐后，执行两个本地入口；没有实际内容时不要为了形式写入：
+在其他事实面对齐后，按固定顺序执行三个本地入口；没有实际内容时不要为了形式写入：
 
-1. 项目已经采用 `_sxg/TODO.md`，且本次仍有未完成事项：就地更新现有 TODO；已完成项删除，
-   稳定机制移入权威 docs/rules，不把 TODO 写成第二份架构文档。
-2. 本次产生了值得检索的工作：最后执行 `session-log`，让归档记录文档和规则修改后的最终状态。
-   adapter 缺失、不可调用或验证失败时，按 [`session-log/SKILL.md`](../session-log/SKILL.md) 的 create/update/register
-   合同执行已记录的等价路径；等价路径也无法安全完成时标 `pending`，明确阻塞，且不得声称
-   `knowledge closed` 或「洁癖收尾完成」。只有纯问答、只读探索且确无可检索工作时才标
-   `not-applicable`；adapter 缺失本身不构成 `not-applicable`。
+1. **待办**：本次认领或推进了看板卡片、或产生了新的待办 → 经 `taskboard` 回写中央看板
+   （状态流转、评论、建卡；board 不可达时按 `~/Projects/todo_hub/todo_convention.md` 写
+   `_sxg/inbox/`）。尚未接入看板的机器上、项目仍维持旧 `_sxg/TODO.md` 的，就地更新它：
+   已完成项删除，稳定机制移入权威 docs/rules，不写成第二份架构文档。无论哪种，文档都不
+   镜像卡片状态——待办的事实源只有一个。
+2. **会话归档**：本次产生了值得检索的工作 → 执行 `session-log`，让归档记录文档和规则修改后
+   的最终状态。adapter 缺失、不可调用或验证失败时，按
+   [`session-log/SKILL.md`](../session-log/SKILL.md) 的 create/update/register 合同执行已记录
+   的等价路径；等价路径也无法安全完成时标 `pending`，明确阻塞，且不得声称 `knowledge closed`
+   或「洁癖收尾完成」。只有纯问答、只读探索且确无可检索工作时才标 `not-applicable`；adapter
+   缺失本身不构成 `not-applicable`。
+3. **vault 精选**：`session-log` 写完后执行 [`zettel-distill`](../zettel-distill/SKILL.md)：从本次
+   会话精选 ≤3 条值得进用户 Zettelkasten 的概念或判断，带具体到卡的落点提给用户，并在归档
+   文件末尾「Vault 精选」一节记下候选。提案是汇报不是闸门——用户不回就是不提卡，收尾照常
+   完成，未拍板不算 `pending`；写入只在用户拍板后经 `vault-ops`。0 条候选合法。
 
 用户同时需要交接物时，`neat-freak` 先把权威事实和规则收干净，再由 `handoff` 生成一次性交接；
 不要在交接文档里复制一套长期真相，也不要用交接代替知识收尾。
 
-顺序固定为：事实与文档对齐 → TODO → 会话归档。清场授权仍服从上文边界：精确授权无需
-机械二次确认，宽泛候选先汇报再确认；不能用 session-log 代替授权。
+顺序固定为：事实与文档对齐 → 待办 → 会话归档 → vault 精选。清场授权仍服从上文边界：精确
+授权无需机械二次确认，宽泛候选先汇报再确认；不能用 session-log 代替授权。
 
 ## 参考资料
 

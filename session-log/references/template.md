@@ -82,8 +82,15 @@ git_commits: []
 ## 相关路径
 
 - `path/to/file`
-- `_sxg/TODO.md`
+
+## Vault 精选
+
+- [候选] 命题 → 落点（作者）
 ```
+
+`## Vault 精选` 是**文件末尾的保留位**，由 `zettel-distill` 在 session-log 写完之后追加和维护
+（`[候选]` → 用户拍板后 `[已写入]` / `[未提]`；0 条时是一行 `- 本次无候选`）。session-log 自己
+**不写这一节**；create 时不加它，update 时若已存在则原样保留在末尾。
 
 ---
 

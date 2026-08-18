@@ -182,6 +182,16 @@
         "cursor": "compatible",
         "codex": "compatible"
       }
+    },
+    {
+      "name": "zettel-distill",
+      "source": "zettel-distill",
+      "platforms": ["windows", "linux"],
+      "targets": ["cursor", "codex"],
+      "compatibility": {
+        "cursor": "compatible",
+        "codex": "compatible"
+      }
     }
   ],
   "aliases": []

@@ -140,6 +140,8 @@ Codex 查找必须按 rollout **文件名**精确匹配 UUID，禁止全文 grep
 2. 保留 `session_id`、`date`（开始日不变）
 3. 更新 `time`、`last_active_at`、`logged_at`、`summary`、正文各节
 4. **禁止** rename 文件
+5. 文件末尾若有 `## Vault 精选` 一节，原样保留在末尾——它由 `zettel-distill` 维护，
+   session-log 不写、不删、不改（见 `references/template.md` 末尾说明）
 
 ## 5. 更新 index
 
@@ -210,6 +212,7 @@ Desktop `--ccd-pending` 补历史遗留标题（见第 7 步）的数据来源�
 |------|------|
 | **session-log**（本 skill） | 归档「这次 chat 做了什么」，方便人类回顾、找 session |
 | **handoff** | 给**下一个 agent** 接手的待办与上下文 |
+| **zettel-distill** | 归档写完后在其末尾「Vault 精选」记候选，用户拍板后写进**用户的** Zettelkasten |
 | **项目 changelog** | 产品/代码变更史（另议，不在本 skill 范围） |
 
 若用户既要关 session 又要交接，先完成 session-log，再询问是否另跑 `/handoff`。

@@ -197,7 +197,8 @@ def is_substantive_claude_user(payload: dict) -> bool:
     if text.startswith(CLAUDE_SYNTHETIC_PREFIXES):
         return False
 
-    return prompt_source in {None, "typed", "queued"}
+    # "sdk": Claude Code Desktop >= 1.32352 tags typed user turns this way
+    return prompt_source in {None, "typed", "queued", "sdk"}
 
 
 def extract_claude_user_timestamps(transcript_path: Path) -> list[datetime]:

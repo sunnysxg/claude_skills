@@ -234,6 +234,8 @@ def load_times_json(path: Path | None, inline: str | None) -> dict:
 
 
 def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # chat titles are non-ASCII; Windows consoles default to cp1252
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--uuid", required=True, help="Chat/task session UUID")
     parser.add_argument("--log-dir", type=Path, default=None, help="Archive directory")

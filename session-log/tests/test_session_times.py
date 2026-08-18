@@ -95,6 +95,13 @@ class SessionTimesTest(unittest.TestCase):
                 {
                     "type": "user",
                     "sessionId": SESSION_ID,
+                    "timestamp": "2026-07-23T09:30:00Z",
+                    "promptSource": "sdk",
+                    "message": {"role": "user", "content": "CCD 新版用户输入"},
+                },
+                {
+                    "type": "user",
+                    "sessionId": SESSION_ID,
                     "timestamp": "2026-07-23T10:00:00Z",
                     "promptSource": "typed",
                     "message": {"role": "user", "content": "/session-log"},
@@ -110,8 +117,8 @@ class SessionTimesTest(unittest.TestCase):
 
         self.assertEqual(result["source"], "claude")
         self.assertEqual(result["date"], "2026-07-23")
-        self.assertEqual(result["time"], "17:00")
-        self.assertEqual(result["filename_ts"], "202607231700")
+        self.assertEqual(result["time"], "17:30")
+        self.assertEqual(result["filename_ts"], "202607231730")
         self.assertFalse(result["fallback"])
         self.assertEqual(session_times.infer_uuid(path, "claude"), SESSION_ID)
 

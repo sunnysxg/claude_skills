@@ -5,7 +5,8 @@
 
 命名与路径规范见 **[conventions.md](conventions.md)**：所有跨项目路径一律 `~` 开头，
 两台 Windows + Linux 集群共用同一份 skill；全局归档在 `~/_sxg/`（每台机器各一份）。
-仓库内 agent 的安全与并行约定见 [AGENTS.md](AGENTS.md)。
+仓库内 agent 的安全与并行约定见 [AGENTS.md](AGENTS.md)；本仓的决策记录（拍过板、有被否选项的）
+在 [docs/decisions.md](docs/decisions.md)，格式与门限见 conventions.md §13。
 
 ## Skills
 

@@ -5,8 +5,8 @@ description: 操作中央待办看板（dashi taskboard，即派遣 prompt 里�
 
 # taskboard — 操作中央待办看板
 
-待办事实源在中央看板（todo_hub 的 dashi fork）。一切读写走 `taskctl`，消费其 JSON
-输出；卡片编号以看板或 prompt 给出的为准，禁止猜测、派生或改写前缀。
+待办事实源在中央看板（todo_hub 仓 `dashi-taskboard/` 子目录里的 dashi fork）。一切读写走
+`taskctl`，消费其 JSON 输出；卡片编号以看板或 prompt 给出的为准，禁止猜测、派生或改写前缀。
 
 ## 调用方式
 
@@ -14,7 +14,7 @@ taskctl 不在 PATH。本机（SeraCC）用**生产检出**的 CLI（与在跑�
 `~/Projects/todo_hub/dashi-taskboard/cli/taskctl.mjs` 是开发检出，只在改 CLI 本身时用）：
 
 ```
-"C:\Program Files\nodejs\node.exe" C:\Users\sarah\.taskboard\app\cli\taskctl.mjs <子命令>
+"C:\Program Files\nodejs\node.exe" C:\Users\sarah\.taskboard\app\dashi-taskboard\cli\taskctl.mjs <子命令>
 ```
 
 - 前置：dashi 服务在跑（`http://127.0.0.1:47823`；登录时计划任务自动拉起）。exit code 3

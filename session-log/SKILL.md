@@ -165,7 +165,7 @@ index「日期」= session **开始日**。
 ```
 
 维护 `~/_sxg/llm_session_log/.session_map.json`（勿手改）。`--chat-title` 是 Claude Code
-Desktop 延迟补名（见第 7 步）的数据来源，所有客户端都带上，无害。
+Desktop `--ccd-pending` 补历史遗留标题（见第 7 步）的数据来源，所有客户端都带上，无害。
 
 ## 7. 回复用户
 
@@ -180,19 +180,19 @@ Desktop 延迟补名（见第 7 步）的数据来源，所有客户端都带上
      用户“任务已重命名为 `{suggested_chat_title}`”，不要再输出 `/rename` 或要求用户操作。
      Claude Code Desktop 是例外，见下一条。
    - Claude Code Desktop（`mcp__ccd_session_mgmt__*` 工具可见；deferred 时先用 ToolSearch
-     加载 `set_session_title`）**改不了当前 session**：`set_session_title` 只能改其他
-     session，对当前 session 实测拒绝（"Refusing to rename the current session from within
-     itself"）；让 subagent 发起同一调用也被同样拒绝——子 agent 共享宿主 session 的连接
-     身份；直接改 `claude-code-sessions` 注册 JSON 会被 app 内存态覆盖回去。三条路都
-     不要再试。改用**延迟补名**：register（第 6 步已含 `--chat-title`）之后运行
+     加载 `set_session_title`）：调用 `set_session_title(session_id="self",
+     title="{suggested_chat_title}")` 直接改当前 session（app ≥ 1.32352 支持）。
+     `session_id` **必须传字面量 `"self"`**：传自己的 `local_*` id 会被拒（"Refusing to
+     rename the current session from within itself"），经 subagent 转发或改
+     `claude-code-sessions` 注册 JSON 同样无效，不要再试。成功后告知用户已重命名。
+     再顺手运行
 
      ```text
      {PYTHON_CMD} "{SKILL_DIR}/scripts/session_resolve.py" --ccd-pending --uuid "{session_id}"
      ```
 
-     对输出 `pending` 中的每项调用 `set_session_title`（用户手动改过的标题该工具会自动
-     保留，不必预判）。回复时说明：本 chat 的标题会在下次任一 session 跑 session-log 时
-     自动补上，急用可在侧边栏手动改成 `{suggested_chat_title}`。
+     对输出 `pending` 中的每项调用 `set_session_title`，补上历史遗留未改名的其他
+     session（用户手动改过的标题会自动跳过）。
    - **只有**当前客户端已明确识别为 Claude、Cursor 或 Codex CLI/TUI，且确认该 surface
      支持 `/rename` 时，才在回复**最后一行**单独输出 `/rename {suggested_chat_title}`。
      Claude/Cursor 环境若已安装 Stop hook

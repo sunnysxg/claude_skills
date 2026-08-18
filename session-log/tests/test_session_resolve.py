@@ -91,7 +91,7 @@ class CcdPendingRenamesTest(unittest.TestCase):
 
             # other session, auto-titled and stale -> pending
             self._write_registry(ccd_dir, "local_other", OTHER_ID, "自动标题", "auto")
-            # current session -> excluded (host tool refuses self-rename)
+            # current session -> excluded (renamed directly via session_id="self")
             self._write_registry(ccd_dir, "local_current", CURRENT_ID, "自动标题", "auto")
             # user manually titled -> respected
             self._write_registry(ccd_dir, "local_user", OTHER_ID.replace("bbbbbbbb", "cccccccc"), "手动标题", "user")

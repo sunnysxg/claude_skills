@@ -185,7 +185,7 @@ def ccd_pending_renames(log_dir: Path, current_uuid: str, ccd_dir: Path | None =
     """List other CCD sessions whose title still differs from the archived chat_title.
 
     Convergence is stateless: once a session is renamed (or the user set a manual
-    title, which the host tool preserves anyway), it drops out of the pending list.
+    title, which this scan skips), it drops out of the pending list.
     """
     root = ccd_dir if ccd_dir else ccd_registry_root()
     if root is None or not root.is_dir():
@@ -207,7 +207,7 @@ def ccd_pending_renames(log_dir: Path, current_uuid: str, ccd_dir: Path | None =
             continue
         scanned += 1
         cli_uuid = str(data.get("cliSessionId") or "").lower()
-        # the host tool refuses to rename the current session from within itself
+        # the current session is renamed directly via session_id="self"; skip it here
         if not cli_uuid or cli_uuid == current_uuid.lower():
             continue
         want = desired.get(cli_uuid)

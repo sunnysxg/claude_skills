@@ -164,6 +164,16 @@
       }
     },
     {
+      "name": "steelman",
+      "source": "steelman",
+      "platforms": ["windows", "linux"],
+      "targets": ["cursor", "codex"],
+      "compatibility": {
+        "cursor": "compatible",
+        "codex": "compatible"
+      }
+    },
+    {
       "name": "taskboard",
       "source": "taskboard",
       "platforms": ["windows", "linux"],

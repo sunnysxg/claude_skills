@@ -23,6 +23,7 @@
 | `mmd-explain` | 用 Mermaid 图示解释（`.mmd` + PNG，默认输出到项目 `_sxg/diagram/`）；Windows/Linux 分别使用 PowerShell/Bash renderer |
 | `session-log` | 在 Cursor / Claude Code / Codex 归档并按 UUID upsert 同一 chat；Codex Desktop 在宿主工具可用时直接改任务名，Claude Code Desktop 延迟补名（下次 session-log 顺手补其他 chat 的标题），Claude/Cursor CLI 可选 Stop hook 执行标题建议 |
 | `session-search` | 按关键词、项目、时间检索已归档的 session 摘要 |
+| `steelman` | 双向钢人压力测试：复述用户立场（Rapoport 法则，不阻塞）→ 正反最强论证 → 关键变量 → 只问一题（等回答）→ 给判断；立场不清先转 grilling；反谄媚机制 |
 | `taskboard` | 操作中央待办看板（dashi taskboard/todo_hub）：读卡、认领、改状态、评论，全部走 `taskctl` CLI |
 
 ## 部署

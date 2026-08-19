@@ -17,8 +17,10 @@
   Linux，不为未验收的 macOS 暗示兼容性。
 - `sync.local.json` 是 machine-local override，保持 untracked。公共规则与机器私有内容分层，
   可逐客户端、逐 canonical skill 启停；不整文件同步用户级配置，也不因禁用自动删除链接。
-- 修改 skill 时完整读取其 `SKILL.md` 和本次涉及的 references/scripts；同步更新 README 与相关
-  设计文档，避免平台路径和兼容性说明漂移。
+- 修改 skill 时完整读取其 `SKILL.md` 和本次涉及的 references/scripts；删改任何一段前先
+  `git blame`（或 `git log -L`）看它是哪笔提交为什么加的——SKILL.md 是 prompt，放不下注释，
+  一句话存在的理由只在 commit 正文里；同步更新 README 与相关设计文档，避免平台路径和兼容性
+  说明漂移。带否决项的设计决策进 `docs/decisions.md`（`conventions.md` §13）。
 - 跨平台 skill 的公共 `SKILL.md` 只做平台路由；平台差异放直接引用的
   `references/windows.md`、`references/linux.md` 与对应脚本。优先运行时探测，机器路径只用
   本机环境变量覆盖，不硬编码 hostname、浏览器或字体位置。

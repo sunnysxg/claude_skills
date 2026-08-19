@@ -27,8 +27,11 @@ taskctl 不在 PATH。本机（SeraCC）用**生产检出**的 CLI（与在跑�
 ## 写操作的会话归属与写入方标识
 
 每个 issue/comment 写操作必须归属到一个会话：Codex 内 taskctl 自动读
-`CODEX_THREAD_ID`；Claude Code 内自动读 `CLAUDE_CODE_SESSION_ID`（两者都无需
-显式传）；Cursor 等两者都取不到的环境显式传 `--thread-id <当前 session UUID>`，
+`CODEX_THREAD_ID`；Claude Code 内自动读会话编号——桌面 App 里跑时优先取
+`CLAUDE_CODE_HOST_SESSION_ID`（App 侧栏那一行的编号，去掉 `local_` 前缀），终端裸跑
+才取 `CLAUDE_CODE_SESSION_ID`（CLI 转写文件的编号）；看板「查看对话」的
+`claude://resume?session=` 只有拿到前者才会打开原会话，拿后者会导入成一条无标题的重复
+记录（两者都无需显式传）。Cursor 等都取不到的环境显式传 `--thread-id <当前 session UUID>`，
 再取不到就用 `claude-YYYYMMDDHHMM` 一次性 id，同一会话从一而终。读操作不需要。
 
 写入方标识（看板按它区分 Claude/Codex 图标与深链，TODOHUB-11 落地）：

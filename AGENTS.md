@@ -29,6 +29,7 @@
   - session 开始：本仓库多机共用，动手前先 `git fetch` 对比远端；落后且可 fast-forward
     时直接 pull，有分叉或工作区不干净时报告后再定
   - commit：用户明确要求时执行，一次要求覆盖本轮连续、相关的改动
-  - push：仅在用户明确要求时执行
+  - push：用户验收通过、要求 commit 时随 commit 一并推送，无需单独授权；未经验收的
+    提交仍不推送（2026-08-20 Sarah 拍：多机共用仓晚推的分叉风险大于误推已验收内容的风险）
   - branch / pull_request：沿用现有流程，需要新建时询问
   - commit_message：`[模块][Tag] 中文摘要` 模板，模块名见 `conventions.md` 第 11 节

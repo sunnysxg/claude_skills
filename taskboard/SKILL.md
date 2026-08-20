@@ -1,6 +1,6 @@
 ---
 name: taskboard
-description: 操作中央待办看板（dashi taskboard，即派遣 prompt 里的 e-taskboard / manage-taskboard）：读卡、认领、改状态、评论、建卡、关联，全部走 taskctl CLI。当输入含看板卡片编号（如 TODOHUB-3）、被派遣「处理任务面板任务」、要把工作结果回写看板状态、或发现了值得记录的新任务/待办时使用——board API 可达时，新任务直接用本 skill 建卡，不写 `_sxg/inbox/` md 文件（那是够不到看板时的降级路径，见 todo_convention.md）。
+description: 操作中央待办看板（用户说todo，或派遣 prompt 里的 e-taskboard）：读卡、认领、改状态、评论、建卡、关联，全部走 taskctl CLI。当输入含看板卡片编号（如 TODOHUB-3）、被派遣「处理任务面板任务」、要把工作结果回写看板状态、或发现了值得记录的新任务/待办时使用本 skill 建卡
 ---
 
 # taskboard — 操作中央待办看板
@@ -65,7 +65,12 @@ taskctl <子命令>
    --worktree-path PATH --worktree-branch BRANCH`（只有分支时用 `--git-branch`）。
    卡已绑定 branch/worktree 时，该卡的活只在其中做。
 6. 做完并自验后：评论写清改动、验证方式、结果、遗留风险；重读卡片，带 version
-   挪到 `in_review`（等你确认）。
+   挪到 `in_review`（等你确认）。随后检查本次完成对旧卡的影响：本卡 `blocks` 的卡，
+   其全部 blocker 都已 done/canceled 且停在 `blocked` 的，挪 `todo` 并评论；
+   blocked_by 已清但停在 `backlog` 的只评论不挪（解锁≠立项授权）。再 `issue list`
+   速扫全板 open 卡标题，疑似已被本次工作顺带解决的：有硬证据（能指认具体改动
+   覆盖其需求）就在该卡评论证据并挪 `in_review` 等用户裁决，仅有怀疑只评论。
+   不替用户把别人的卡设 done/canceled。
 7. `done` 只在用户明确验收或明确要求完成后设，不从 `in_progress` 直接跳 `done`；
    干不下去用 `blocked`，不再做用 `canceled`。
 8. 等用户的卡必须停在用户会看的状态：等验收 = `in_review`，要用户输入/拍板才能继续 =

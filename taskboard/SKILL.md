@@ -10,18 +10,23 @@ description: 操作中央待办看板（dashi taskboard，即派遣 prompt 里�
 
 ## 调用方式
 
-taskctl 不在 PATH。本机（SeraCC）用**生产检出**的 CLI（与在跑的服务同一版本；
-`~/Projects/todo_hub/dashi-taskboard/cli/taskctl.mjs` 是开发检出，只在改 CLI 本身时用）：
+`taskctl` 已在 PATH（`board.ps1 install` 在生产检出跑 `npm link` 生成 shim；shim 是链接，
+指向生产检出的 CLI，与在跑的服务同一版本，`deploy` 拉新代码后自动生效）：
 
 ```
-"C:\Program Files\nodejs\node.exe" C:\Users\sarah\.taskboard\app\dashi-taskboard\cli\taskctl.mjs <子命令>
+taskctl <子命令>
 ```
 
+- `taskctl` 找不到 = 该机还没跑过 install（服务与 CLI 目前仅 SeraCC 落地，多机部署看板有卡
+  跟踪）。降级用显式路径，**路径一律写正斜杠**——Git Bash（Claude 的 Bash 工具）里无引号
+  反斜杠会被整段吃掉（`C:\Users\…` 变 `C:Users…`），路径尾反斜杠贴闭引号还会吃掉引号本身：
+  `node C:/Users/sarah/.taskboard/app/dashi-taskboard/cli/taskctl.mjs <子命令>`
+- `~/Projects/todo_hub/dashi-taskboard/cli/taskctl.mjs` 是开发检出的 CLI，只在改 CLI 本身时
+  显式路径调用。
 - 前置：dashi 服务在跑（`http://127.0.0.1:47823`；登录时计划任务自动拉起）。exit code 3
   = 服务不可达，先跑一次幂等拉起再重试，不要自己 `npm start`：
-  `powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\sarah\Projects\todo_hub\scripts\board.ps1 ensure`
-  （布局与规矩见 todo_hub 项目 CLAUDE.md「部署布局」）。
-- 服务与 CLI 目前仅在 SeraCC；其他机器等多机部署（看板上有卡跟踪此事）。
+  `powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo_hub/scripts/board.ps1 ensure`
+  （布局与规矩见 todo_hub 项目 CLAUDE.md「看板运维」）。
 - 命令语法用到哪节读哪节：[references/cli.md](references/cli.md)（上游原文，含术语表）。
 
 ## 写操作的会话归属与写入方标识

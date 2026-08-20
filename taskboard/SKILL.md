@@ -60,7 +60,10 @@ taskctl <子命令>
    或纯人工不想调 CLI）的降级路径，不是本机 session 的默认创建方式。建卡前先
    `context current` + 搜现有卡，能更新就不新建重复卡；琐碎请求不上板；粒度按
    todo_convention.md（一个 agent 一个 session 能完成为界）。
-5. 卡绑定了 branch/worktree 时，该卡的活只在其中做。
+5. 要改 git 仓库代码的卡，认领后先进独立 worktree/分支再动代码（并行纪律与生命周期见
+   git-workflow skill 的 git.md），并把它登记进卡的开发上下文：`issue update
+   --worktree-path PATH --worktree-branch BRANCH`（只有分支时用 `--git-branch`）。
+   卡已绑定 branch/worktree 时，该卡的活只在其中做。
 6. 做完并自验后：评论写清改动、验证方式、结果、遗留风险；重读卡片，带 version
    挪到 `in_review`（等你确认）。
 7. `done` 只在用户明确验收或明确要求完成后设，不从 `in_progress` 直接跳 `done`；

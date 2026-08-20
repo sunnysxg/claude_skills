@@ -1,8 +1,9 @@
 ---
 name: git-workflow
 description: >
-  执行 Git 写操作及相关远端变更，包括 stage、commit、amend、merge/rebase、分支或 tag 变更、
-  push 和创建 PR。任何任务即将改变本地仓库、提交历史或远端状态时使用；纯 status/diff/log 不使用。
+  执行 Git 写操作及相关远端变更，包括 stage、commit、amend、merge/rebase、分支、tag 或
+  worktree 变更、push 和创建 PR。任何任务即将改变本地仓库、提交历史或远端状态时使用；
+  纯 status/diff/log 不使用。
 ---
 
 # Git Workflow

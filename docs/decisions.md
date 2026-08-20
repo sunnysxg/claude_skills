@@ -16,3 +16,19 @@
 - 脚本门禁 / fork skill-creator：skill-creator 是桌面端内置插件，不能持久改；目前没有一起坐实的「误删有理由句子」事故，不为尚未出现的需要立规则。
 
 出处：CLAUDESKILLS-7；08-18 grilling（todo_hub 会话）；同日 todo_hub `docs/decisions.md`「CLAUDE.md 只留规则，决策进 docs/decisions.md」。
+
+## 2026-08-20 worktree 指派规则：托管树 + 合并纪律，上限默认 3 进项目指令文件
+
+状态：现行
+
+在「多 agent 并发处理看板卡，桌面 App 已自动为部分会话建 worktree 而无配套纪律，todo_hub 出现本地 main 与 origin/main 分叉、claude_skills 出现 8 天脏树」的场景下，面对「树和分支只生不灭、成果散落在树里回不了 main」的顾虑，选「worktree 优先用 Claude Code 托管机制，规则层只写纪律（完成 = 已合并回主分支或已开 PR；认领时把树/分支登记进卡的开发上下文；同仓并行树默认 ≤3，项目指令文件可覆盖），落 git-workflow 与 taskboard skill」，否「手工 worktree SOP」「只靠 cleanupPeriodDays 自动清扫」「规则正文进 COMMON」「上限默认 5-10」「上限配置放 `_sxg`」，以达「并发不打架、树用完即收、看板可查每卡在哪干活」，接受「Codex 侧进树机制未对齐（另卡跟踪）；上限执行点在派发侧，agent 只能自查不能强制」。
+
+否决理由：
+- 手工 SOP：重造桌面 App 已有的轮子（自动建树、退出清理、Auto-archive after PR merge、cleanupPeriodDays 清扫），且靠自律维护（机制不靠自律）。
+- 只靠自动清扫：有未提交/未推送工作的树永远被清扫跳过，claude_skills 的 8 天脏树即实例。
+- 规则进 COMMON：按 COMMON 收录三问细节归 skill；git-workflow 的触发条件天然覆盖 git 写操作。
+- 上限 5-10：瓶颈是 Sarah 的 review 带宽不是磁盘，社区共识 2-3 起步；定 3。
+- 上限放 `_sxg`：`_sxg` 定位即非现役项目事实的权威位置（COMMON 归档节）。
+- 关键事实：桌面深链派遣的会话不自动落 worktree（实测 TODOHUB-31 会话 cwd = 主检出；自动建树只覆盖 App 内新会话/任务 chip 路径）——这是纪律必须写进 skill 规则层、不能全托给桌面机制的原因。
+
+出处：CLAUDESKILLS-19（实测证据与最佳实践来源见该卡评论）；并发仓改分支流的项目级落地（todo_hub CLAUDE.md「开发直接在 main」改写）随该仓分叉调和后另行处理。

@@ -68,6 +68,9 @@ taskctl <子命令>
    挪到 `in_review`（等你确认）。
 7. `done` 只在用户明确验收或明确要求完成后设，不从 `in_progress` 直接跳 `done`；
    干不下去用 `blocked`，不再做用 `canceled`。
+8. 等用户的卡必须停在用户会看的状态：等验收 = `in_review`，要用户输入/拍板才能继续 =
+   `blocked`；共同讨论进行中（往来仍在会话里）留 `in_progress` 属正常。不得把等用户的
+   卡留在 `backlog` 指望被看到。
 
 ## 其他
 

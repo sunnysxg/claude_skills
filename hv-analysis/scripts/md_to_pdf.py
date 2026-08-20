@@ -383,9 +383,10 @@ def trusted_base(path):
 class OutputTarget:
     """保存已验证输出路径及其锚定父目录。"""
 
-    def __init__(self, path, parent_fd=None):
+    def __init__(self, path, parent_fd=None, parent_stat=None):
         self.path = path
         self.parent_fd = parent_fd
+        self.parent_stat = parent_stat
         self.existing_mode = None
 
     @property
@@ -462,7 +463,7 @@ def resolve_destination(value, suffix):
         raise ConversionError(f"输出目录不存在: {path.parent}") from exc
     if not parent.is_dir():
         raise ConversionError(f"输出父路径不是目录: {parent}")
-    return OutputTarget(parent / path.name)
+    return OutputTarget(parent / path.name, parent_stat=parent.stat())
 
 
 def _target_stat(target):
@@ -537,21 +538,32 @@ def validate_paths(input_value, output_value, html_output_value=None, force=Fals
 
 
 def _ensure_parent_unchanged(target):
-    if target.parent_fd is None:
+    if target.parent_fd is not None:
+        try:
+            current_fd = _open_directory_without_symlinks(target.path.parent)
+        except OSError as exc:
+            raise ConversionError(
+                f"输出目录在验证后发生变化: {target.path.parent}"
+            ) from exc
+        try:
+            if not os.path.samestat(os.fstat(target.parent_fd), os.fstat(current_fd)):
+                raise ConversionError(
+                    f"输出目录在验证后发生变化: {target.path.parent}"
+                )
+        finally:
+            os.close(current_fd)
+        return
+
+    if target.parent_stat is None:
         return
     try:
-        current_fd = _open_directory_without_symlinks(target.path.parent)
+        current_stat = os.stat(target.path.parent)
     except OSError as exc:
         raise ConversionError(
             f"输出目录在验证后发生变化: {target.path.parent}"
         ) from exc
-    try:
-        if not os.path.samestat(os.fstat(target.parent_fd), os.fstat(current_fd)):
-            raise ConversionError(
-                f"输出目录在验证后发生变化: {target.path.parent}"
-            )
-    finally:
-        os.close(current_fd)
+    if not os.path.samestat(current_stat, target.parent_stat):
+        raise ConversionError(f"输出目录在验证后发生变化: {target.path.parent}")
 
 
 def _open_output(target):
@@ -570,9 +582,18 @@ def _entry_stat(target, name):
         return None
 
 
-def _entry_matches_fd(target, name, fd):
+def _entry_matches_stat(target, name, expected_stat):
     entry_stat = _entry_stat(target, name)
-    return entry_stat is not None and os.path.samestat(entry_stat, os.fstat(fd))
+    return entry_stat is not None and os.path.samestat(entry_stat, expected_stat)
+
+
+def _require_entry_matches_stat(target, name, expected_stat):
+    if not _entry_matches_stat(target, name, expected_stat):
+        raise ConversionError(f"输出目录项在写入期间发生变化: {target.path}")
+
+
+def _entry_matches_fd(target, name, fd):
+    return _entry_matches_stat(target, name, os.fstat(fd))
 
 
 def _require_entry_matches_fd(target, name, fd):
@@ -620,6 +641,7 @@ def _write_output(target, data, force, binary):
 
     fd = None
     temp_name = None
+    written_stat = None
     try:
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
         for _attempt in range(100):
@@ -642,22 +664,30 @@ def _write_output(target, data, force, binary):
             stream.flush()
             os.fsync(stream.fileno())
         _require_entry_matches_fd(target, temp_name, fd)
+        # Windows 打开中的文件不可重命名，须先关句柄；替换后用保存的
+        # st_dev/st_ino 验证目录项仍是刚写入的文件。
+        written_stat = os.fstat(fd)
+        os.close(fd)
+        fd = None
         replace_target(temp_name)
         temp_name = None
-        _require_entry_matches_fd(target, target.name, fd)
+        _require_entry_matches_stat(target, target.name, written_stat)
         if target.parent_fd is not None:
             os.fsync(target.parent_fd)
         _ensure_parent_unchanged(target)
-        _require_entry_matches_fd(target, target.name, fd)
+        _require_entry_matches_stat(target, target.name, written_stat)
     finally:
-        if temp_name is not None and fd is not None:
+        if fd is not None:
             try:
-                if _entry_matches_fd(target, temp_name, fd):
+                written_stat = os.fstat(fd)
+            finally:
+                os.close(fd)
+        if temp_name is not None and written_stat is not None:
+            try:
+                if _entry_matches_stat(target, temp_name, written_stat):
                     unlink_target(temp_name)
             except FileNotFoundError:
                 pass
-        if fd is not None:
-            os.close(fd)
 
 
 def write_bytes(target, data, force):
@@ -666,6 +696,20 @@ def write_bytes(target, data, force):
 
 def write_text(target, data, force):
     _write_output(target, data, force, binary=False)
+
+
+def _utf8_streams():
+    """Windows 下 stdout/stderr 接管道或重定向时默认 locale 编码（如 cp1252），
+    中文提示直接 UnicodeEncodeError：成功信息把整次转换判成失败（退码 2），
+    错误信息在 except 里二次抛。统一切 UTF-8；不支持 reconfigure 的流跳过。"""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8")
+        except (OSError, ValueError):
+            pass
 
 
 def build_parser():
@@ -688,6 +732,7 @@ def build_parser():
 
 
 def main(argv=None):
+    _utf8_streams()
     normalized_argv = [str(value) for value in argv] if argv is not None else None
     args = build_parser().parse_args(normalized_argv)
 

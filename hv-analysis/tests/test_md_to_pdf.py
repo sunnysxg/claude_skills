@@ -166,8 +166,10 @@ class OutputSafetyTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertEqual(output_path.read_bytes(), b"%PDF-safe")
         self.assertEqual(html_path.read_text(encoding="utf-8"), "<html>safe</html>")
-        self.assertEqual(stat.S_IMODE(output_path.stat().st_mode), 0o600)
-        self.assertEqual(stat.S_IMODE(html_path.stat().st_mode), 0o640)
+        if os.name != "nt":
+            # Windows 无 POSIX 权限位，st_mode 恒为 0o666/0o444，无法断言保留。
+            self.assertEqual(stat.S_IMODE(output_path.stat().st_mode), 0o600)
+            self.assertEqual(stat.S_IMODE(html_path.stat().st_mode), 0o640)
 
     def test_html_sidecar_is_not_created_by_default(self):
         output_path = self.root / "report.pdf"
@@ -179,6 +181,7 @@ class OutputSafetyTests(unittest.TestCase):
         self.assertTrue(output_path.exists())
         self.assertFalse(html_path.exists())
 
+    @unittest.skipIf(os.name == "nt", "Windows 无 POSIX 权限位模型")
     def test_new_output_is_owner_only_by_default(self):
         output_path = self.root / "report.pdf"
 
@@ -215,6 +218,10 @@ class OutputSafetyTests(unittest.TestCase):
                 force=True,
             )
 
+    @unittest.skipIf(
+        os.name == "nt",
+        "Windows 不允许重命名已打开的文件，此攻击前提仅在 POSIX 成立",
+    )
     def test_new_output_entry_replacement_during_write_is_detected(self):
         output_path = self.root / "report.pdf"
         moved_path = self.root / "generated.pdf"
@@ -237,6 +244,10 @@ class OutputSafetyTests(unittest.TestCase):
         self.assertEqual(output_path.read_bytes(), b"ATTACKER")
         self.assertEqual(moved_path.read_bytes(), b"%PDF-safe")
 
+    @unittest.skipIf(
+        os.name == "nt",
+        "Windows 不允许重命名已打开的文件，此攻击前提仅在 POSIX 成立",
+    )
     def test_force_temp_entry_replacement_during_write_is_detected(self):
         output_path = self.root / "report.pdf"
         output_path.write_bytes(b"OLD")

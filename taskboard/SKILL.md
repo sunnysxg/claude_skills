@@ -64,15 +64,18 @@ taskctl <子命令>
    git-workflow skill 的 git.md），并把它登记进卡的开发上下文：`issue update
    --worktree-path PATH --worktree-branch BRANCH`（只有分支时用 `--git-branch`）。
    卡已绑定 branch/worktree 时，该卡的活只在其中做。
-6. 做完并自验后：评论写清改动、验证方式、结果、遗留风险；重读卡片，带 version
-   挪到 `in_review`（等你确认）。随后检查本次完成对旧卡的影响：本卡 `blocks` 的卡，
+6. 做完并自验后：评论写清改动、验证方式、结果、遗留风险；再按可验性分流（拍板见
+   todo_hub docs/decisions.md 2026-08-21）：改动能让用户通过网站可见行为或关键文档
+   （规则文件、决策文）的 diff 检验的，重读卡片带 version 挪到 `in_review`（等你确认）；
+   检验面只有代码、测试或用户不可见内部数据的，评论注明「按验收分流自通过」后直接走
+   收尾链挪 `done`；拿不准算哪类就挪 `in_review`。随后检查本次完成对旧卡的影响：本卡 `blocks` 的卡，
    其全部 blocker 都已 done/canceled 且停在 `blocked` 的，挪 `todo` 并评论；
    blocked_by 已清但停在 `backlog` 的只评论不挪（解锁≠立项授权）。再 `issue list`
    速扫全板 open 卡标题，疑似已被本次工作顺带解决的：有硬证据（能指认具体改动
    覆盖其需求）就在该卡评论证据并挪 `in_review` 等用户裁决，仅有怀疑只评论。
    不替用户把别人的卡设 done/canceled。
-7. `done` 只在用户明确验收或明确要求完成后设，不从 `in_progress` 直接跳 `done`；
-   干不下去用 `blocked`，不再做用 `canceled`。
+7. 验收分流自通过之外，`done` 只在用户明确验收或明确要求完成后设，不从 `in_progress`
+   直接跳 `done`；干不下去用 `blocked`，不再做用 `canceled`。
 8. 等用户的卡必须停在用户会看的状态：等验收 = `in_review`，要用户输入/拍板才能继续 =
    `blocked`；共同讨论进行中（往来仍在会话里）留 `in_progress` 属正常。不得把等用户的
    卡留在 `backlog` 指望被看到。

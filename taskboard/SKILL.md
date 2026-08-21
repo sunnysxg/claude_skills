@@ -59,7 +59,9 @@ taskctl <子命令>
    建卡，不写 `_sxg/inbox/` md 文件——md 是够不到看板 API 时（跨机器多机部署前、
    或纯人工不想调 CLI）的降级路径，不是本机 session 的默认创建方式。建卡前先
    `context current` + 搜现有卡，能更新就不新建重复卡；琐碎请求不上板；粒度按
-   todo_convention.md（一个 agent 一个 session 能完成为界）。
+   todo_convention.md（一个 agent 一个 session 能完成为界）。推进模式是卡字段：
+   `--mode deliver|discuss`（不传 = deliver 直接交付）；需要用户参与才能成形的卡建时就标
+   `discuss`——自动派发只领 deliver 的 todo，discuss 卡永远等人手动派。
 5. 要改 git 仓库代码的卡，认领后先进独立 worktree/分支再动代码（并行纪律与生命周期见
    git-workflow skill 的 git.md），并把它登记进卡的开发上下文：`issue update
    --worktree-path PATH --worktree-branch BRANCH`（只有分支时用 `--git-branch`）。

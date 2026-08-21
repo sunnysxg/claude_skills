@@ -108,6 +108,21 @@ message 文案。纯问答、代码审查和只读探索不进入 Git 流程。
 - 不擅自修改 `git config`。
 - PR 的创建时机、标题和合并方式以项目规范为准。
 
+### 远端连接
+
+- GitHub 远端统一用 HTTPS（`https://github.com/<owner>/<repo>.git`），凭据交给 Git Credential
+  Manager（GCM，Git for Windows 自带，`credential.helper=manager`）；新机器首次在交互终端跑
+  `git credential-manager github login` 走一次浏览器授权即可，之后免交互。原因：HTTPS 是原生
+  TLS 流量，在跨境代理链上比 `ssh.github.com:443` 这种「443 上跑非 TLS」的流量更少被中间盒掐；
+  而且它吃系统代理——SSH 不吃系统代理和 `HTTP(S)_PROXY`，只有开了 TUN（虚拟网卡全接管）的
+  机器 SSH 才走代理，仅系统代理模式的机器（如无影云）`git@` 远端是直连，境内连 GitHub 天然
+  不稳。发现仓库还是 `git@github.com:` 远端时用 `git remote set-url origin <https url>` 切过来。
+- 无影云这类只开系统代理的机器，git 的 libcurl 不读 Windows 系统代理设置，要另配
+  `git config --global http.proxy http://127.0.0.1:<混合端口>`。
+- push/fetch/pull 报 `Connection closed / reset / timed out` 时先原样重试 1～2 次再诊断：
+  代理链瞬断是常态，重试即愈的失败不代表配置、凭据或权限坏了；连续几分钟都失败通常是整条
+  代理链劣化，等链路恢复，不要改配置。
+
 ## 5. 安全边界
 
 - 不提交 secrets、credentials、私钥或不应共享的机器配置。

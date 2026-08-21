@@ -63,7 +63,8 @@ taskctl <子命令>
 5. 要改 git 仓库代码的卡，认领后先进独立 worktree/分支再动代码（并行纪律与生命周期见
    git-workflow skill 的 git.md），并把它登记进卡的开发上下文：`issue update
    --worktree-path PATH --worktree-branch BRANCH`（只有分支时用 `--git-branch`）。
-   卡已绑定 branch/worktree 时，该卡的活只在其中做。
+   卡已绑定 branch/worktree 时，该卡的活只在其中做。自己开的树名 = 卡号原样 + 随机后缀
+   （`TODOHUB-38-a1b2c3`），不用默认随机名；会话启动时就已在托管树里的不改名。
 6. 做完并自验后：评论写清改动、验证方式、结果、遗留风险；再按可验性分流（拍板见
    todo_hub docs/decisions.md 2026-08-21）：改动能让用户通过网站可见行为或关键文档
    （规则文件、决策文）的 diff 检验的，重读卡片带 version 挪到 `in_review`（等你确认）；

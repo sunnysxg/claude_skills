@@ -140,12 +140,33 @@ message 文案。纯问答、代码审查和只读探索不进入 Git 流程。
 
 - 并行的改代码任务各用独立 worktree + 独立分支，两个 agent 不写同一 checkout；主检出
   有他人未提交改动时不在主检出动手，开自己的 worktree。
-- 优先用托管机制（Claude Code 桌面会话自动创建的树、CLI `--worktree`、EnterWorktree
-  工具）；托管不可用或需要指定基线时手工创建：
-  `git worktree add .claude/worktrees/<名字> -b <分支名> <基线>`。
+- 优先用托管机制，两个主入口都能指定名字，托管与命名不冲突：会话内开树用 `EnterWorktree`
+  传 `name`，起新会话用 CLI `claude --worktree <名字>`（`-w, --worktree [name]`）。托管不可用
+  或需要指定基线时手工建 `git worktree add .claude/worktrees/<名字> -b <分支名> <基线>`，
+  再用 `EnterWorktree` 的 `path` 进去——这样进的树 `ExitWorktree` 不删（只会 `keep`），收树
+  走下面手工那条。
+- 树名 = 任务标识 + 随机后缀（如 `TODOHUB-38-a1b2c3`），不用默认随机名（名字不传才随机）：
+  每段限字母数字点下划线短横（大小写都收，卡号原样抄，不转小写）、总长 ≤64；`EnterWorktree`
+  建的分支自动为 `worktree-<name>`（`Agent` 的 isolation 树才是 `claude/<name>`）。唯一不给
+  命名口子的通道是 `Agent` 工具的 `isolation: "worktree"`，因此不用它派活——要并行就在待办
+  看板建卡，由新会话认领（taskboard skill）。
+- 会话一开局就已在托管树里、名字已定的，不改名。
 - 树的生命周期 = 任务的生命周期。任务「完成」的定义包含成果已合并回主分支或已开 PR，
-  不允许成果只停在 worktree 分支上；合并后用 `git worktree remove` 删树，不用 `rm -rf`
-  （残留元数据需 `git worktree prune` 兜底）。
+  不允许成果只停在 worktree 分支上；合并后当场收树，不留给「下个会话」——会话被
+  archive 或非正常退出时收尾链根本不跑。
+- 收树 = 清三样：磁盘目录、主仓 `.git/worktrees/<名字>/` 登记、分支。按人在哪儿选做法：
+
+  | 处境 | 做法 |
+  |---|---|
+  | 人在自己的托管树里 | `ExitWorktree` 传 `action: "remove"`：一步清三样并把 cwd 还回原目录。有未提交改动或未合并提交时它会拒绝并列出，确认后才加 `discard_changes: true` |
+  | 人在主检出，收别的会话留下的树 | `git worktree remove <路径>` 清目录与登记，再 `git branch -d <分支>` |
+  | 目录已消失，或被进程占住删不掉 | `git worktree prune` 清登记（只扫 `.git/worktrees/`，把指向已不存在目录的登记删掉；不动磁盘、不动分支），再 `git branch -D <分支>` |
+
+  判据是 `git worktree list` 不再列出它 = 收干净了。磁盘上剩的空目录无害（常见于目录被
+  某进程当 cwd 占着，Windows 上会报 `Device or resource busy`），留着，等该进程退出再删。
+- 不用 `rm -rf` 删树目录。人在自己树里时也不用 `git worktree remove`：托管树在 `worktree list`
+  里带 `locked` 标记，git 会直接拒绝；且 cwd 被 harness 每次工具调用重锚回树里，恒
+  Permission denied。
 - 同一仓库并行 worktree 默认不超过 3 个（含托管创建的）；超限先收完成的树再开新的。
   项目指令文件可覆盖此上限。
 - 发现陈旧树（基线过老或带未提交改动）不静默删除，报告给用户——脏树里可能是别的

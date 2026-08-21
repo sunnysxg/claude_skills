@@ -117,12 +117,13 @@ message 文案。纯问答、代码审查和只读探索不进入 Git 流程。
   而且它吃系统代理——SSH 不吃系统代理和 `HTTP(S)_PROXY`，只有开了 TUN（虚拟网卡全接管）的
   机器 SSH 才走代理，仅系统代理模式的机器（如无影云）`git@` 远端是直连，境内连 GitHub 天然
   不稳。发现仓库还是 `git@github.com:` 远端时用 `git remote set-url origin <https url>` 切过来。
-- git 走不走本机代理按机器定，写在全局 gitconfig 里：开了 TUN 的机器（vmcc）设
-  `git config --global http.proxy ""`，让 git 无视 `HTTPS_PROXY` 环境变量、直接被 TUN 接管——
-  经 mihomo 的 HTTP CONNECT 入站推送时，401→200→POST 这条复用连接上的 POST 会被掐断，curl 自动
-  重发撞上自己，每次 push 都报 `cannot lock ref ... is at <刚提交的 hash>` 且 rc=1，而推送其实
-  已落地（`git fetch` 核实即可，不要再推、更不要 force）。只开系统代理的机器（无影云）相反，
-  libcurl 不读 Windows 系统代理设置，要设 `http.proxy http://127.0.0.1:<混合端口>`。
+- 经代理链推送的机器（vmcc）全局设 `git config --global http.extraHeader "Connection: close"`：
+  默认 curl 复用 `GET info/refs` 的连接发 `POST git-receive-pack`，这条复用连接上的 POST 约一半
+  会在回包前被链路掐断，curl 当作陈旧连接自动重发、撞上已生效的自己，于是报
+  `cannot lock ref ... is at <刚提交的 hash>` 且 rc=1——推送其实已落地（`git fetch` 核实即可，
+  不要再推、更不要 force）。逐请求新建连接后 10/10 干净，代价是每次 push 多两次 TLS 握手。
+  只开系统代理的机器（无影云）另需 `http.proxy http://127.0.0.1:<混合端口>`（libcurl 不读
+  Windows 系统代理设置）。
 - push/fetch/pull 报 `Connection closed / reset / timed out` 时先原样重试 1～2 次再诊断：
   代理链瞬断是常态，重试即愈的失败不代表配置、凭据或权限坏了；连续几分钟都失败通常是整条
   代理链劣化，等链路恢复，不要改配置。

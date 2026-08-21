@@ -112,11 +112,12 @@ message 文案。纯问答、代码审查和只读探索不进入 Git 流程。
 
 - GitHub 远端统一用 HTTPS（`https://github.com/<owner>/<repo>.git`），凭据交给 Git Credential
   Manager（GCM，Git for Windows 自带，`credential.helper=manager`）；新机器首次在交互终端跑
-  `git credential-manager github login` 走一次浏览器授权即可，之后免交互。原因：HTTPS 是原生
-  TLS 流量，在跨境代理链上比 `ssh.github.com:443` 这种「443 上跑非 TLS」的流量更少被中间盒掐；
-  而且它吃系统代理——SSH 不吃系统代理和 `HTTP(S)_PROXY`，只有开了 TUN（虚拟网卡全接管）的
-  机器 SSH 才走代理，仅系统代理模式的机器（如无影云）`git@` 远端是直连，境内连 GitHub 天然
-  不稳。发现仓库还是 `git@github.com:` 远端时用 `git remote set-url origin <https url>` 切过来。
+  `git credential-manager github login` 走一次浏览器授权即可，之后免交互。原因有二：① 失败单元
+  小——SSH 一次 push 是一条长会话，代理链中途掐一下整个操作作废且 ssh 无应用层重试；HTTPS 是
+  几个独立短请求，掐掉一个 curl 自动换连接重发（实测链路对两者掐的概率相当，差别在能否自愈）；
+  ② 它吃系统代理——SSH 不吃系统代理和 `HTTP(S)_PROXY`，只有开了 TUN（虚拟网卡全接管）的机器
+  SSH 才走代理，仅系统代理模式的机器（如无影云）`git@` 远端是直连，境内连 GitHub 天然不稳。
+  发现仓库还是 `git@github.com:` 远端时用 `git remote set-url origin <https url>` 切过来。
 - 经代理链推送的机器（vmcc）全局设 `git config --global http.extraHeader "Connection: close"`：
   默认 curl 复用 `GET info/refs` 的连接发 `POST git-receive-pack`，这条复用连接上的 POST 约一半
   会在回包前被链路掐断，curl 当作陈旧连接自动重发、撞上已生效的自己，于是报

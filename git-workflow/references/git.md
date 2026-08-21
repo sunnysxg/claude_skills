@@ -164,6 +164,9 @@ message 文案。纯问答、代码审查和只读探索不进入 Git 流程。
 
   判据是 `git worktree list` 不再列出它 = 收干净了。磁盘上剩的空目录无害（常见于目录被
   某进程当 cwd 占着，Windows 上会报 `Device or resource busy`），留着，等该进程退出再删。
+  收树前先停掉树里跑着的服务，并解掉树内指向仓外的链接——Windows junction（如复用主仓
+  `node_modules` 的 `mklink /J`）要 `cmd /c rmdir <链接路径>` 单删链接本身，否则删树可能
+  递归进链接目标。
 - 不用 `rm -rf` 删树目录。人在自己树里时也不用 `git worktree remove`：托管树在 `worktree list`
   里带 `locked` 标记，git 会直接拒绝；且 cwd 被 harness 每次工具调用重锚回树里，恒
   Permission denied。

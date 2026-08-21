@@ -122,6 +122,9 @@ message 文案。纯问答、代码审查和只读探索不进入 Git 流程。
 - push/fetch/pull 报 `Connection closed / reset / timed out` 时先原样重试 1～2 次再诊断：
   代理链瞬断是常态，重试即愈的失败不代表配置、凭据或权限坏了；连续几分钟都失败通常是整条
   代理链劣化，等链路恢复，不要改配置。
+- push 报 `cannot lock ref ... is at <hash> but expected <hash>`，且 `is at` 后面就是你刚提交的
+  hash：推送其实已成功（服务端应用后回包被掐，git 自动重发撞上了自己），`git fetch` 核实即可，
+  不要再推、更不要 force。
 
 ## 5. 安全边界
 

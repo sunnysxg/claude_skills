@@ -89,10 +89,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
 - **agent 不改这个字段**：建卡时可设（不传 = 生产），之后觉得该改就评论提议，改不改她定。
 - 收口时机跟目的地走，见核心纪律第 6、7 条。
 
-> **过渡期（TODOHUB-90 实施中）**：字段与生产直上链路尚未上线，`--destination` 参数还不存在。
-> 落地前所有卡按「开发」语义交付：候选留住等她点完成，收口等完成 hook。本节先立语义，90 落地
-> 后删这条注记。
-
 ## 推进方式
 
 `advanceMode` 是卡片字段，和分区、目的地都正交：`deliver` 直接交付（默认）/ `discuss` 共同
@@ -128,6 +124,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
      可能打回迭代，提前收口白做。
    - 把本卡成果 commit 成干净候选并**保留工作树**；**不自行 merge / push / deploy / 收树**，两种
      目的地都由服务端落位，worker 动手会和它打架。
+   - 生产卡挪 `in_review` 之后**立刻退出候选树**（起过 dev 实例的先杀整棵进程树、`cmd /c rmdir` 单删
+     `node_modules` junction）：发布 saga 在交付当时就回收这棵树，会话还占着它就会一直收不掉。
    - 顺带速扫全板 open 卡标题：疑似被本次工作顺带解决的，能指认具体改动覆盖其需求就在那张卡
      评论证据并挪 `in_review` 等她裁决，仅有怀疑只评论。不替她把别人的卡设 done/canceled。
    - 交付评论固定头两行，然后逐验收项写结果与证据：
@@ -144,7 +142,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
      实施中新增过 `[Sarah]` 项的，先单列新增项和原因。
    - 重读卡片带 `version` 挪 `in_review`。
 
-7. **完成收尾**（开发卡；生产卡已在交付前收口，她点完成一般不再投递指令——过渡期若仍收到，
+7. **完成收尾**（开发卡；生产卡已在交付前收口，她点完成只是归档、不再投递指令——存量卡若仍收到，
    照常执行）：卡进 `done` 后看板把收尾指令自动投回**本对话**，手上的当前 turn 做完再处理。只在
    系统指定的候选树里执行收口链，把仓内改动 commit（没改动不造空提交），确认树完全干净，再原样
    执行系统给出的 ACK 命令（语法见 references/fork-cli.md）。**delivery id 只能用系统这次给的**，

@@ -23,8 +23,6 @@ taskctl issue update ID --mode deliver|discuss
 
 ## 目的地
 
-> TODOHUB-90 实施中，落地前该参数不存在。
-
 ```
 taskctl issue create ... --destination production|dev
 ```

@@ -138,8 +138,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
      不进正式帮助页；不用 Claude Artifact 或评论附件交验收材料（拍板见 todo_hub decisions.md）。
    - 把本卡成果 commit 成干净候选并**保留工作树**；**不自行 merge / push / deploy / 收树**，两种
      目的地都由服务端落位，worker 动手会和它打架。
-   - 生产卡挪 `in_review` 之后**立刻退出候选树**（起过 dev 实例的先杀整棵进程树、`cmd /c rmdir` 单删
-     `node_modules` junction）：发布 saga 在交付当时就回收这棵树，会话还占着它就会一直收不掉。
+   - 生产卡挪 `in_review` 之后**立刻退出候选树**（起过 dev 实例的先杀整棵进程树、**并等那个
+     PowerShell 包装进程自己退出**——`taskkill /T` 只杀掉子进程树，包装还握着目录句柄；再
+     `cmd /c rmdir` 单删 `node_modules` junction）：发布 saga 在交付当时就回收这棵树，会话还占着
+     它就会一直收不掉。
    - 顺带速扫全板 open 卡标题：疑似被本次工作顺带解决的，能指认具体改动覆盖其需求就在那张卡
      评论证据并挪 `in_review` 等她裁决，仅有怀疑只评论。不替她把别人的卡设 done/canceled。
    - 交付评论固定头两行，然后逐验收项写结果与证据：
@@ -162,10 +164,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
    执行系统给出的 ACK 命令（语法见 references/fork-cli.md）。**delivery id 只能用系统这次给的**，
    不猜、不复用、不从别处抄——服务端会校验卡、原会话、候选树／分支和 HEAD，对不上直接拒。不改
    卡状态、不 merge、不 push、不部署、不收树。送达不等于 ACK，ACK 也不等于已发布。
-   **ACK 成功后立刻退出候选树**：托管树挂着写有本会话的 git 锁，会话不退，服务端收树就一直
-   `cannot remove a locked working tree`，卡片卡在自动重试。Claude 用 `ExitWorktree` 传
+   **ACK 成功后立刻退出候选树**：会话还占着树，服务端就收不掉。症状有两种，别只认第一种——
+   `EnterWorktree` 建的托管树挂着 git 锁，报 `cannot remove a locked working tree, lock reason:
+   claude session <树名> (pid N)`（点名了是谁）；自己 `git worktree add` 建、再 `EnterWorktree`
+   传 `path` 进去的树**不加锁**，撞的是 Windows 文件占用，报的是裸的
+   `error: failed to delete '...': Permission denied`（不说是谁占的）。Claude 用 `ExitWorktree` 传
    `action: "keep"`——`remove` 会连分支一起删，服务端校验反而对不上；退出只是把工作目录还回
-   主检出，会话照常继续。
+   主检出，会话照常继续。**一个会话连做两张卡会撞到边界**：`EnterWorktree` 只允许持有一棵托管树
+   （第二次传 `name` 直接拒），而 `keep` 要还回去的那个目录可能已经随上一张卡被回收了。真要连做，
+   第二棵树自己 `git worktree add` + `EnterWorktree {path}`，并在交付／ACK 后手动 `cd` 出去。
+   收不掉不会再把卡钉住（服务端 30 分钟宽限期后收敛并在评论里点名），但留下的树要人手工删。
    随后检查旧卡影响：本卡 `blocks` 的卡，全部 blocker 都已 done/canceled 且停在 `blocked` 的，
    挪 `todo` 并评论；blocked_by 已清但停在 `backlog` 的只评论不挪——解锁不等于立项授权。
 

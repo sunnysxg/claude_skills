@@ -125,14 +125,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
    - 生产卡**先做知识收口**（`neat-freak` → `session-log` → `zettel-distill` 提案），把收口改动
      一并 commit——交付后系统直接上线，不会再回到这个会话；开发卡**不收口**，等完成 hook——她
      可能打回迭代，提前收口白做。
-   - 交付物的机制或原理不是一眼能懂、需要她理解才能验收（机制类、流程类、不可见的后端行为类）
-     时，做一页**原理留档页**：静态单页进看板仓 `dashi-taskboard/web/public/notes/`，文件名
-     snake_case 带卡号，视觉按帮助页 token、内联主题联动脚本（样板
-     `todohub_92_decisions_merge.html`），随候选同笔 commit——生产卡交付即随部署上线，链接立即
-     可用。交付评论给两条链接（本机 `http://127.0.0.1:47823/notes/…` + 手机
+   - 本卡改动同笔需要往 decisions.md 追加拍板节的，做一页**原理留档页**——即那节拍板的人话
+     展开版（行为边界、流程图、否决理由），并在验收标准新增「[Sarah] 看懂原理、确认边界」项
+     随之交付。没有拍板节、但确信她该把关行为边界的，按上面「实施中新增 [Sarah] 项」通道加项
+     并单列理由；拿不准一律不做，她问了再补。UI 效果类永远不做（效果本身可见）；不按
+     「机制类／流程类」之类的改动性质自行裁量触发。
+   - 留档页形式：静态单页进看板仓 `dashi-taskboard/web/public/notes/`，文件名 snake_case 带
+     卡号，视觉按帮助页 token、内联主题联动脚本（样板 `todohub_92_decisions_merge.html`），
+     随候选同笔 commit——生产卡交付即随部署上线。页内注明对应的 decisions.md 节。交付评论给
+     两条链接（本机 `http://127.0.0.1:47823/notes/…` + 手机
      `https://todo.54.153.185.138.sslip.io/notes/…`）和一两句结论摘要。留档页是单卡验收材料，
-     不进正式帮助页；UI 效果类改动不做——效果本身可见。不用 Claude Artifact 或评论附件交
-     验收材料（拍板见 todo_hub decisions.md）。
+     不进正式帮助页；不用 Claude Artifact 或评论附件交验收材料（拍板见 todo_hub decisions.md）。
    - 把本卡成果 commit 成干净候选并**保留工作树**；**不自行 merge / push / deploy / 收树**，两种
      目的地都由服务端落位，worker 动手会和它打架。
    - 生产卡挪 `in_review` 之后**立刻退出候选树**（起过 dev 实例的先杀整棵进程树、`cmd /c rmdir` 单删

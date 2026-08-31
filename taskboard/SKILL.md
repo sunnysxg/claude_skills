@@ -112,7 +112,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
 
 4. **建卡**：先 `context current` + 搜现有卡，能更新就不新建重复卡；琐碎请求不上板；粒度按
    todo_convention.md（一个会话能做完为界）。建 `backlog` 可以只写待讨论的种子；直接建 `todo`
-   要同时满足验收标准门槛。
+   要同时满足验收标准门槛。独立卡是常态；一个需求大到必须拆才建家族（父卡 = 需求、子卡 =
+   工程），一级为限，要三层就是拆错了，回父卡重拆。
+
+   - **独立验收必须、无例外**：每张卡（家族子卡同样）的 `## 验收标准` 验的是它自己的交付物，
+     不靠兄弟卡或整条链跑通才可验（「后端就绪」可以独立验，不等 UI 长出来）。写不出可独立
+     判定的验收项 = 这张卡的边界切错了，回去重切，不靠「验收时一起看」兜。
+   - **追加还是新卡**：新发现落在某张**未交付**卡的现有验收范围内 → 在那张卡评论追加；自成
+     验收标准、或相关卡已交付／在验 → 新建卡并挂关系。拿不准固定走「新卡 + related + 评论
+     说明」，不留自由裁量空间。
+   - **parent 答归属、blockedBy 答时序**：parent = 属于哪个需求，blockedBy = 开工前必须等谁；
+     两者正交、可并存。**无链视为可并行**——判断过两张卡既无逻辑先后、也不改同一片代码，才
+     不拉链；有先后，或会改同一片代码（哪怕先后无所谓），都要拉 blockedBy，先后无所谓时方向
+     任选。派发器的 blocker 门就是这张图的执行器，不另写调度规则。
+   - **同主题禁止孤儿卡**：与现行活跃卡同主题的新卡必须挂关系——有父卡挂 parent，无父卡时与
+     同主题卡拉 blockedBy。判断走严，拿不准只挂 related 并评论说明。
 
 5. **工作树**：要改仓库代码的卡，认领后先进独立 worktree／分支再动代码（并行纪律与生命周期见
    git-workflow skill 的 git.md），并登记进卡片：`issue update --worktree-path PATH
@@ -188,7 +202,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
 
 ## 其他
 
-- 加需求保持原卡范围；关联只加工作确实需要的（parent / blocks / blocked_by / related）。
+- 加需求保持原卡范围；关联按核心纪律 4 的判据挂（parent / blocks / blocked_by / related），
+  判据之外不额外加。
 - 并发写用最新 `version` + `--if-version`，冲突就重读再调和。
 - 描述／评论里的内嵌图片附件，只在理解需求确实需要时下载。
 

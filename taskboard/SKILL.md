@@ -158,6 +158,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
      它就会一直收不掉。
    - 顺带速扫全板 open 卡标题：疑似被本次工作顺带解决的，能指认具体改动覆盖其需求就在那张卡
      评论证据并挪 `in_review` 等她裁决，仅有怀疑只评论。不替她把别人的卡设 done/canceled。
+     再看本卡 `blocks` 的卡：blocker 已清却停在 `backlog` 的只评论不挪——解锁不等于立项授权；
+     停在 `blocked` 的**一律不碰**——派发器每轮扫描自动挪回 `todo`，而「这一张是失败隔离下来、
+     只等人工处理」的标记不进 API 载荷、你看不见，手动挪会顶掉它，下一轮从零重派同样失败
+     （TODOHUB-126 实撞，烧掉 $34 / 1h45m）。
    - 交付评论固定头两行，然后逐验收项写结果与证据：
 
      ```
@@ -188,8 +192,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
    （第二次传 `name` 直接拒），而 `keep` 要还回去的那个目录可能已经随上一张卡被回收了。真要连做，
    第二棵树自己 `git worktree add` + `EnterWorktree {path}`，并在交付／ACK 后手动 `cd` 出去。
    收不掉不会再把卡钉住（服务端 30 分钟宽限期后收敛并在评论里点名），但留下的树要人手工删。
-   随后检查旧卡影响：本卡 `blocks` 的卡，全部 blocker 都已 done/canceled 且停在 `blocked` 的，
-   挪 `todo` 并评论；blocked_by 已清但停在 `backlog` 的只评论不挪——解锁不等于立项授权。
 
 8. **干不下去用 `blocked`，不再做用 `canceled`**，不从 `in_progress` 跳过交付记录直接改状态。
 

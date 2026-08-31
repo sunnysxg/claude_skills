@@ -63,3 +63,16 @@ taskctl dispatch closeout ack <卡号> --delivery-id <delivery id>
 候选树／分支，以及当前 HEAD 是否干净且为冻结 HEAD 的后代，对不上直接拒。
 
 ACK 本身不改卡状态、不 merge、不 push。ACK 之后由派发器负责落位、push、部署和收树。
+
+## 评论回应落卡（reply）
+
+```
+taskctl dispatch reply <卡号> --delivery-id <delivery id> [--body-file PATH | --body TEXT]
+```
+
+Sarah 在看板上把评论标记「需要回应」后，系统会把回应指令投进这张卡的原会话；指令里带着
+精确的 delivery id 和这条命令的完整形态。**只在本对话实际收到系统的回应指令后原样执行**，
+delivery id 不猜、不复用。正文优先 `--body-file`（UTF-8 文件，防 shell 改写多行长文）；
+受限环境写不了文件时，把回复正文作为本轮唯一的最终输出，系统会代为落卡（仅后台会话有效）。
+服务端校验卡、原会话与 delivery id，落卡的同时把被标记评论翻成「已回应」。回应轮的行为边界
+（能否顺便干活）由指令按卡状态写明，照做即可；任何状态都不改卡状态、不 merge / push / deploy。

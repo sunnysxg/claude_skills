@@ -32,7 +32,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
 ```
 
 - 命令语法用到哪节读哪节：[references/cli.md](references/cli.md)（上游原文）
-- 本 fork 独有的命令与参数（`dispatch`、`--mode`、`--agent`…）：[references/fork-cli.md](references/fork-cli.md)
+- 本 fork 独有的命令与参数（`dispatch`、`--mode`、`--agent`…），以及本 fork 与 cli.md 行为不一致
+  之处：[references/fork-cli.md](references/fork-cli.md)。**两份冲突时以 fork-cli.md 为准**——
+  cli.md 是上游原文，不随本 fork 的改动更新
 - 分区语义与交付纪律以本文为准，cli.md 只管语法
 
 ## 会话归属与写入方标识
@@ -126,7 +128,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
      不拉链；有先后，或会改同一片代码（哪怕先后无所谓），都要拉 blockedBy，先后无所谓时方向
      任选。派发器的 blocker 门就是这张图的执行器，不另写调度规则。
    - **同主题禁止孤儿卡**：与现行活跃卡同主题的新卡必须挂关系——有父卡挂 parent，无父卡时与
-     同主题卡拉 blockedBy。判断走严，拿不准只挂 related 并评论说明。
+     同主题卡拉 blockedBy。判断走严，拿不准只挂 related 并评论说明。挂关系不改对方卡的会话
+     归属，别人正在做的卡照挂不误（见 references/fork-cli.md）。
 
 5. **工作树**：要改仓库代码的卡，认领后先进独立 worktree／分支再动代码（并行纪律与生命周期见
    git-workflow skill 的 git.md），并登记进卡片：`issue update --worktree-path PATH
@@ -136,6 +139,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
    看板上分支名带前缀属正常，不要去「修正」。会话启动时就已在托管树里的不改名。
 
 6. **交付**：做完自验后——
+   - 卡属于家族（有父卡）且本卡结论影响兄弟卡的拆分或顺序时，先跑一次
+     `taskctl dispatch family review <本卡号> --reason "<影响了什么>"`，系统把复查指令投回父卡
+     会话；**自己不去改兄弟卡的关系**（命令与边界见 references/fork-cli.md）。
    - 生产卡**先做知识收口**（`neat-freak` → `session-log` → `zettel-distill` 提案），把收口改动
      一并 commit——交付后系统直接上线，不会再回到这个会话；开发卡**不收口**，等完成 hook——她
      可能打回迭代，提前收口白做。

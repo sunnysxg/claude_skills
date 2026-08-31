@@ -81,3 +81,16 @@ blocked 卡的自动解锁全归派发器，skill 只留 backlog 半句〉取代
 - 留在纪律 7：纪律 7 只有开发卡走（生产卡在交付前收口、点完成不再投递指令），留在那里等于生产卡永远不做这项检查，与 2026-08-20 那节「每次完成即结清它对看板的影响」相悖。
 
 出处：CLAUDESKILLS-25（相关 TODOHUB-155；派发器实现见 todo_hub `dashi-taskboard/server/dispatcher.mjs` 的 `releaseUnblockedTasks`，每轮 `runPass` 无条件调用）。
+
+## 2026-09-01 fork 与上游的行为分歧写进 fork-cli.md，cli.md 保持上游原文一字不改
+
+状态：现行
+
+在「taskboard skill 的 `references/cli.md` 是 dashi 上游原文的镜像、保持不动只为对照上游 diff，而本 fork 已经改掉了它描述的部分行为（TODOHUB-114 让 `issue relation add/remove` 不再改写卡的 `threadId`），cli.md 那句 `Its singular threadId is the ... most recently created or changed the issue` 按字面读会让 agent 不敢给别人正在开发的卡挂关系」的场景下，面对「要么改 cli.md 让读者一次读对但污染上游 diff 基线，要么另写一处让基线干净但读者读不到」的顾虑，选「行为分歧与 fork 独有命令一律写 `references/fork-cli.md`，并在 SKILL.md 的路由段明写『两份冲突时以 fork-cli.md 为准』、在会触发犹豫的纪律条目（纪律 4 挂关系、纪律 6 家族复查）各补一句指针」，否「直接改 cli.md 对应行（TODOHUB-161 卡面原话）」「在 cli.md 里插带标记的 fork 注记」「只写 fork-cli.md 不动 SKILL.md」，以达「cli.md 仍能一条 diff 看清上游改了什么，同时 agent 沿 SKILL.md 的既有路由必然读到正确行为」，接受「读者要读两份文件才拿到完整语义；上游哪天自己也改了这个行为，fork-cli.md 里的对照段要手工回收」。
+
+否决理由：
+- 改 cli.md：SKILL.md「来源与漂移」一节写死了 cli.md 保持上游原文，git log 也显示它自 161b3c7 导入后一次没动过；一旦开始就地打补丁，下次上游更新时分不清哪些差异是上游的、哪些是我们自己写的，这份镜像的唯一用途就没了。
+- 带标记的 fork 注记：污染程度低一些，但仍要求每次 diff 时人肉跳过我们的 hunk，而 fork-cli.md 这个分册机制（8d8f388 建立）本来就是为这件事存在的，不必再造第二套。
+- 只写 fork-cli.md 不动 SKILL.md：SKILL.md 原来的路由只说 fork-cli.md 装「本 fork 独有的命令与参数」，agent 读到 cli.md 那句错的话不会想到去别处求证——分册机制要成立，路由必须先说清楚谁覆盖谁。
+
+出处：TODOHUB-161（相关 TODOHUB-114 行为变更、TODOHUB-127 家族三触发器；`retainThread` 实现见 todo_hub `dashi-taskboard/server/database.mjs` 的 `#touchTask`）。

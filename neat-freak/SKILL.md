@@ -87,7 +87,7 @@ description: >-
 |---|---|
 | CLAUDE.md / AGENTS.md / rules | 下次 Agent 不看到就会犯错的边界、命令和工作流；不放拍板日期、否决过的方案、交付流水 |
 | README / docs | 系统如何使用、工作、运维，以及当前外部合同 |
-| 项目 `docs/decisions.md` | 拍了板且有被否选项的决策：状态行 + Y-statement + 否决理由 + 出处，只追加（模板与门限见 `conventions.md` §13）；用途只有防重议 |
+| 项目决策记录（`docs/decisions.md` 单文件，或 `docs/decisions/` 一决策一文件——照该项目已有的形态写） | 拍了板且有被否选项的决策：状态行 + Y-statement + 否决理由 + 出处，只追加（形态、模板与门限见 `conventions.md` §13）；用途只有防重议 |
 | Agent memory | 偏好、非显然经验、仍需跨会话保留的短索引；不是第二套架构文档 |
 | 中央看板（`taskboard`；未接入看板的机器暂用项目 `_sxg/TODO.md`） | 只放尚未完成、需要下一次用户或 Agent 接续的工作；不复制现役事实，文档也不镜像卡片状态 |
 | `~/_sxg/llm_session_log/` | 单次会话的历史摘要和检索入口；不是 README、规则或待办的替代品 |

@@ -8,9 +8,11 @@
 - 一律**全小写 snake_case**：目录、文件、frontmatter 字段、slug。
   例：`llm_session_log/`、`qa_log.md`、`project_path`
 - 缩写也小写：`llm` 不写 `LLM`。
-- **唯一例外**：skill 名（= slash command 名）用 kebab-case——Claude Code 平台要求，
+- **例外一**：skill 名（= slash command 名）用 kebab-case——Claude Code 平台要求，
   name 字段只允许小写字母、数字、连字符。例：`session-log`、`mmd-explain`。
   平台与通行固定名照抄，不套本规范：`SKILL.md`、`CLAUDE.md`、`README.md`、`LICENSE`。
+- **例外二**：`docs/decisions/` 下的决策文件用 kebab-case（`<12 位时间戳>-<英文 slug>.md`，
+  见 §13）——时间戳与 slug 之间已经是连字符，全名一种分隔符才读得顺。
 - **废弃别名**：只有确认仍有真实调用方时，才在 `skills.manifest.json` 的 `aliases` 中
   临时声明，由同步脚本在客户端创建 junction/symlink；迁移完成后删除。仓库内只维护
   canonical 目录的内容，不提交 Git symlink，也不为别名单独写 `SKILL.md`。
@@ -96,16 +98,17 @@ todo 创建约定随 todo_hub 项目维护：见 `~/Projects/todo_hub/todo_conve
 （入口 `_sxg/inbox/` 一条一文件，事实源在中央看板；原 `_sxg/TODO.md` 语法退役，
 2026-08-14 Sarah 拍）。
 
-## 13. 项目决策记录 `docs/decisions.md`
+## 13. 项目决策记录
 
-每个项目一份、git 跟踪、只追加的决策日志（本仓库自己的在 `docs/decisions.md`）。用途只有一个：
-**防重议**——让下一个不知情的会话不把被否的方案再提一遍。规则文件（CLAUDE.md / AGENTS.md）只放
-规则和操作事实，「为什么这么定、否决过什么」写这里；「Sarah 某日拍」不进规则文件——写进规则文件
-即已拍，拍板日期与过程归这里。
+每个项目一套、git 跟踪、只追加的决策日志。用途只有一个：**防重议**——让下一个不知情的会话不把被否
+的方案再提一遍。规则文件（CLAUDE.md / AGENTS.md）只放规则和操作事实，「为什么这么定、否决过什么」
+写这里；「Sarah 某日拍」不进规则文件——写进规则文件即已拍，拍板日期与过程归这里。
 
-- **写入触发**：决策包拍板、grilling 定稿。项目还没有这个文件就当场新建；首次新建时顺手在该项目的
-  规则文件（CLAUDE.md / AGENTS.md）加一行指针「为什么这么定、否决过什么见 docs/decisions.md」——
-  读取端只有这一根线，没有它文件写了也没人翻。
+落盘有两种形态（单文件 / 一决策一文件），节的写法完全一样，见下面「形态」。
+
+- **写入触发**：决策包拍板、grilling 定稿。项目还没有决策记录就当场新建（默认单文件）；首次新建时
+  顺手在该项目的规则文件（CLAUDE.md / AGENTS.md）加一行指针「为什么这么定、否决过什么见
+  〈实际路径〉」——读取端只有这一根线，没有它文件写了也没人翻。
 - **门限**：不记的话，下一个不知情的会话会不会把被否方案再提一遍？会才记。写不出「否〈选项〉」的不
   够格；只有一个方案的点头确认、措辞/命名/粒度类单点可改的、代码注释与 commit 正文已承载的实现细节，
   都不记。
@@ -117,4 +120,24 @@ todo 创建约定随 todo_hub 项目维护：见 `~/Projects/todo_hub/todo_conve
   4. 出处：卡号 / commit / 会话归档文件名。
 - 不写：卡片状态、交付流水、实现细节（git log 与看板已有）。
 
-样本：`~/Projects/todo_hub/docs/decisions.md`。
+**形态**——同一套写法，两种落盘方式；动笔前先看这个项目已经是哪种，照它写，不要在一个项目里混用：
+
+- **单文件**（默认）：全部节按时间顺序追加在 `docs/decisions.md` 里。
+- **一决策一文件**：事实源是 `docs/decisions/` 目录，一个文件放一节，文件名
+  `<12 位时间戳>-<英文 slug>.md`（时间戳取动手写的当下，slug 用小写字母、数字和连字符，见 §1）；
+  写决策 = 新建一个文件，**不往任何共享文件里追加**。通读靠脚本聚合出的时间线视图（如 todo_hub 的
+  `docs/decisions_timeline.md`）：只读、不进 git、不可手工编辑，改了下次生成即被覆盖——事实源永远是
+  `docs/decisions/` 下的子文件。此形态下的 `docs/decisions.md` 若存在，只是「怎么写、写到哪」的说明
+  页，不放决策正文。
+- **判形态**：有 `docs/decisions/` 目录就是一决策一文件；只有 `docs/decisions.md` 就是单文件；都没有
+  就当场新建单文件。
+- **什么时候升级到一决策一文件**：判据是这个仓有没有**多会话并发写**（开了自动派发、或经常并行开
+  worktree），不是决策条数多少。单文件是共享文件，每张卡都往同一个结尾追加，冲突概率不由改动重叠面
+  决定，而是随并发卡数趋近 1（todo_hub 在 TODOHUB-87/78/92/97 各实撞一次，每次都卡住发布流程）；
+  拆开后各分支写各的新文件，没有共同锚点，冲突归零。单人串行的仓不必拆，单文件更省事。升级是一次性
+  改造：已有各节切成子文件、`docs/decisions.md` 改写成说明页、规则文件里的指针改到目录、补一个聚合
+  脚本，代价是通读要靠生成产物。本仓（claude_skills）也开了自动派发但仍是单文件：真撞上冲突再升级，
+  不预先改造，也不要把这条当成待办去「修」。
+
+样本：单文件见本仓 `docs/decisions.md`；一决策一文件见 `~/Projects/todo_hub/docs/decisions/`（写法说明
+与聚合视图的约定在 `~/Projects/todo_hub/docs/decisions.md`）。

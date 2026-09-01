@@ -94,3 +94,16 @@ blocked 卡的自动解锁全归派发器，skill 只留 backlog 半句〉取代
 - 只写 fork-cli.md 不动 SKILL.md：SKILL.md 原来的路由只说 fork-cli.md 装「本 fork 独有的命令与参数」，agent 读到 cli.md 那句错的话不会想到去别处求证——分册机制要成立，路由必须先说清楚谁覆盖谁。
 
 出处：TODOHUB-161（相关 TODOHUB-114 行为变更、TODOHUB-127 家族三触发器；`retainThread` 实现见 todo_hub `dashi-taskboard/server/database.mjs` 的 `#touchTask`）。
+
+## 2026-09-01 决策记录两种形态并存：单文件是默认，一决策一文件按「有没有多会话并发写」升级
+
+状态：现行
+
+在「conventions.md §13 只描述单文件 `docs/decisions.md`，而样本项目 todo_hub 已在 TODOHUB-116 改成一决策一文件（正文在 `docs/decisions/<12 位时间戳>-<slug>.md`，通读靠不进 git 的生成视图 `docs/decisions_timeline.md`），照 §13 去看样本的会话看到的是另一套」的场景下，面对「要么把 todo_hub 的治法上提成全局默认、要么让 §13 继续只认单文件由各项目自行升级」的顾虑，选「§13 明写两种形态并存：写法完全一样，落盘方式两种；判形态看项目里已有的是哪种（有 `docs/decisions/` 目录就是拆文件，只有 `docs/decisions.md` 就是单文件，都没有就新建单文件），升级判据是这个仓有没有多会话并发写而不是决策条数」，否「上提为全局默认拆文件」「§13 保持单文件、只改样本指针」，以达「指针与样本一致，且两种项目的 agent 读同一节都能照做」，接受「§13 变长了一小节；跨项目不再有唯一形态，agent 每次要先看一眼项目现状」。
+
+否决理由：
+- 上提为全局默认拆文件：拆文件解决的是共享文件并发追加的冲突，而这条只在多会话并发写同一个仓时才咬人（目前只有 todo_hub 与 claude_skills 开了自动派发）；对单人串行的项目，通读要多一个聚合脚本和一个不进 git 的生成产物，成本没有对应收益。Sarah 2026-09-01 直接拍「不上提，让指针一致就好」。
+- 只改样本指针、§13 继续只认单文件：drift 是修掉了，但下一个开并发的项目仍会踩 todo_hub 踩过的坑（TODOHUB-87/78/92/97 各实撞一次共享文件冲突，每次都让发布 saga 卡住），而那时 §13 里没有可照抄的形态描述。Sarah 同一条要求里补了「conventions 不能都支持吗」，即两种都写进去。
+- 顺带的次级取舍：`docs/decisions/` 下文件名沿用 todo_hub 存量的 kebab-case（`<12 位时间戳>-<英文 slug>.md`）而不是 §1 的 snake_case，写成 §1 的第二条例外——否则要么样本再次违规、要么回改 todo_hub 四十多个文件名。
+
+出处：CLAUDESKILLS-28（drift 由 TODOHUB-116 造成，TODOHUB-163 收口时发现；拆分理由的原文见 todo_hub `docs/decisions.md`「为什么拆成一卡一文件」一节）。

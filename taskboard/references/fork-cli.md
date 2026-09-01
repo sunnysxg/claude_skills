@@ -79,6 +79,39 @@ taskctl dispatch closeout ack <卡号> --delivery-id <delivery id>
 
 ACK 本身不改卡状态、不 merge、不 push。ACK 之后由派发器负责落位、push、部署和收树。
 
+## 候选冲突重解（resolve）
+
+```
+taskctl dispatch closeout resolve <卡号> --delivery-id <delivery id>
+                                         [--absorbed | --give-up --reason-file FILE]
+```
+
+候选成果要上线时叠到最新 main 撞了**真冲突**，系统不替你解——它把冲突现场投回**原会话**，因为最懂
+这个 diff 的是当初写它的那段对话（原会话永久回不来时才起 fresh 会话兜底，指令里会标明本轮非原
+worker）。和另外三条同一条纪律：**只在本对话实际收到系统的重解指令后原样执行**，delivery id 用
+系统这次给的，不猜、不复用、不从别处抄。
+
+三个互斥出口，指令正文连着现场一起给：
+
+- **普通重解**：在指令点名的候选树里 rebase、逐个解冲突、commit，然后不带旗标 ACK。解的标准是
+  两边的意图都保住，不是「取我这边／取它那边」。
+- `--absorbed`：rebase 后你的提交全被判为已应用（patch-equal 丢弃），HEAD 落在点名的 main 上、
+  相对它零内容差异——说明 main 上已经有等价改动。这时**必须显式声明**，普通 ACK 撞到空内容一律
+  被拒。
+- `--give-up --reason-file FILE`：两边意图真的互斥、需要产品决策时，写一个 UTF-8 文件说明卡在
+  哪、试过什么、要谁拍什么板，把球交回 Sarah。**宁可交回也不要瞎解**——解错会静默上线错误内容。
+
+纪律：只用指令点名的那个 main 提交，**不要自己去取最新 main**（那个 SHA 投出后不可变，正是为了
+不让解冲突期间又动的 main 拒掉诚实干活的你）；动手前先 `git rebase --abort`、
+`git cherry-pick --abort` 清掉残留中间态；确认分支头正是指令里的「重解前候选提交」，**对不上就
+停手回报**，别在别人的中间态上接着解。
+
+边界：不改卡状态、不 merge、不 push、不部署、不收树，也不改写重解前那个候选提交之前的历史。ACK
+通过后由服务端把候选身份受控重冻到你的新提交，继续走落位、测试闸、push、部署、收树。
+
+轮次上限、护栏计数与重冻规格不在这里，事实源是 todo_hub 的 `server/closeout-conflict.mjs`
+（`conflictResolveInstruction`）与该仓 `CLAUDE.md`「候选撞冲突投回原 worker 重解」一段。
+
 ## 评论回应落卡（reply）
 
 ```

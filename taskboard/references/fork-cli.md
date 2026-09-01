@@ -50,7 +50,7 @@ taskctl issue create ... --destination production|dev
 
 ```
 taskctl dispatch status [--json]
-taskctl dispatch enable  <项目 id> [--agent claude|codex] [--merge auto|main]
+taskctl dispatch enable  <项目 id> [--agent claude|codex] [--merge dev|main]
                                    [--post-merge <命令>] [--deploy <命令>]
 taskctl dispatch disable <项目 id>
 taskctl dispatch tick

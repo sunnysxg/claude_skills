@@ -17,7 +17,7 @@
 | `handoff` | 写交接文档到 `~/_sxg/handoff/{project}.md`，供下一个 session/agent 接手 |
 | `hv-analysis` | 用横纵分析法研究产品、公司、概念或人物，产出带来源的 Markdown 报告，并在环境已有依赖时安全生成 PDF；不自动触发，用 `/hv-analysis` 显式调用 |
 | `leader` | 将一句话需求整理成有边界、验收和断点续跑机制的 agent 任务书 |
-| `pickup` | 读取交接文档并继续（兼容旧式项目根 `HANDOFF.md`） |
+| `pickup` | 接手上次工作：待办事实源读中央看板（只读，不认领），交接文档补上次会话上下文（兼容旧式项目根 `HANDOFF.md`） |
 | `lq` | 把当前问答记录到项目的 `_sxg/qa_log.md` |
 | `playground` | 在 `playground/` 下新建实验项目 |
 | `neat-freak` | 会话收尾时整理文档与记忆，与代码对齐 |

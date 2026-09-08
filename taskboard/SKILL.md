@@ -153,10 +153,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
      「机制类／流程类」之类的改动性质自行裁量触发。
    - 留档页形式：静态单页进看板仓 `dashi-taskboard/web/public/notes/`，文件名 snake_case 带
      卡号，视觉按帮助页 token、内联主题联动脚本（样板 `todohub_92_decisions_merge.html`），
-     随候选同笔 commit——生产卡交付即随部署上线。页内注明对应的决策记录节。交付评论给
-     两条链接（本机 `http://127.0.0.1:47823/notes/…` + 手机
-     `https://todo.54.153.185.138.sslip.io/notes/…`）和一两句结论摘要。留档页是单卡验收材料，
-     不进正式帮助页；不用 Claude Artifact 或评论附件交验收材料（拍板见 todo_hub `docs/decisions/`）。
+     随候选同笔 commit——生产卡交付即随部署上线。页内注明对应的决策记录节。交付评论里的留档页
+     入口只给**一条相对 Markdown 链接**（`[一句话标题](./notes/xxx.html)`）加一两句结论摘要：
+     评论渲染保留相对地址，她在电脑上点它落到本机实例、在手机 web app 上点它落到公网、在
+     `/dev/` 下点它留在开发实例，所以不并列「本机一条 + 手机一条」，也不写 `/` 开头的绝对路径
+     或写死的域名端口（页内引用同理，闸门与理由见 todo_hub `CLAUDE.md` 的 `web/public/notes/`
+     一条）。留档页是单卡验收材料，不进正式帮助页；不用 Claude Artifact 或评论附件交验收材料
+     （拍板见 todo_hub `docs/decisions/`）。
      **留档页强制节：**凡新建或改写机制类留档页，必须用固定二级标题**「会发生几次 · 波及谁 · 什么时候会再来一次」**
      单列一节，按具体走查说明而不是只列抽象机制：至少设本仓三张卡 A、B、C，写清
      A 先触发什么、B/C 在当下各自看到什么和是否要动手、A 成功/交回后 B/C 如何恢复或继续被挡；再写

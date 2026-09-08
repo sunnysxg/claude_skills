@@ -79,19 +79,25 @@ taskctl dispatch closeout ack <卡号> --delivery-id <delivery id>
 
 ACK 本身不改卡状态、不 merge、不 push。ACK 之后由派发器负责落位、push、部署和收树。
 
-## 候选冲突重解（resolve）
+## 冲突重解（resolve）
 
 ```
 taskctl dispatch closeout resolve <卡号> --delivery-id <delivery id>
-                                         [--absorbed | --give-up --reason-file FILE]
+                                         [--absorbed | --merged | --give-up --reason-file FILE]
 ```
 
-候选成果要上线时叠到最新 main 撞了**真冲突**，系统不替你解——它把冲突现场投回**原会话**，因为最懂
-这个 diff 的是当初写它的那段对话（原会话永久回不来时才起 fresh 会话兜底，指令里会标明本轮非原
-worker）。和另外三条同一条纪律：**只在本对话实际收到系统的重解指令后原样执行**，delivery id 用
-系统这次给的，不猜、不复用、不从别处抄。
+同一条命令服务**两种冲突轮**，指令正文会写明本轮是哪一种：**候选轮**（这张卡的候选成果要上线时叠到
+最新 main 撞了真冲突）与**归并轮**（本机 main 与 `origin/main` 归并撞了冲突）。两轮的现场、动作和
+出口都不一样，**走错出口一律 409 并点名正确的那条命令**——先看清本轮是哪一种，别混用现场、
+delivery id、rebase 与 merge。
 
-三个互斥出口，指令正文连着现场一起给：
+系统都不替你解，而是把冲突现场投回**原会话**，因为最懂这个 diff 的是当初写它的那段对话（原会话
+永久回不来时才起 fresh 会话兜底，指令里会标明本轮非原 worker）。和另外三条同一条纪律：**只在本对话
+实际收到系统的重解指令后原样执行**，delivery id 用系统这次给的，不猜、不复用、不从别处抄。
+
+### 候选轮：候选叠到最新 main
+
+现场是这张卡登记的候选工作树，动作是 rebase。三个互斥出口，指令正文连着现场一起给：
 
 - **普通重解**：在指令点名的候选树里 rebase、逐个解冲突、commit，然后不带旗标 ACK。解的标准是
   两边的意图都保住，不是「取我这边／取它那边」。
@@ -109,8 +115,32 @@ worker）。和另外三条同一条纪律：**只在本对话实际收到系统
 边界：不改卡状态、不 merge、不 push、不部署、不收树，也不改写重解前那个候选提交之前的历史。ACK
 通过后由服务端把候选身份受控重冻到你的新提交，继续走落位、测试闸、push、部署、收树。
 
-轮次上限、护栏计数与重冻规格不在这里，事实源是 todo_hub 的 `server/closeout-conflict.mjs`
-（`conflictResolveInstruction`）与该仓 `CLAUDE.md`「候选撞冲突投回原 worker 重解」一段。
+### 归并轮：本机 main 并 origin/main（`--merged`）
+
+本机 main 与 GitHub 上的 main 各有对方没有的提交、自动归并撞冲突时开这一轮。冲突属于**仓库**、不属于
+某张卡，投给「本机未推提交里最新那张带卡号 trailer 的卡」的原 worker（它最懂本机这半边的 diff）。
+**窗口开着 = 本机所有卡的落位与推送都停着**，所以值得优先做完。
+
+- **现场是 saga 新开的短命工作树**（已经停在冻结的本机 main 上），不是候选树，也不许在主检出里做。
+  动手前先确认那棵树的 `git rev-parse HEAD` 正是指令里冻结的本机 main 提交，**对不上就停手**并在卡上
+  评论，别在别人的中间态上接着解。
+- **动作是 `git merge <指令点名的那个 origin/main 提交>`，不是 rebase**：远端那几笔已经发布，一个
+  字节都不许改写，归并只能新造一笔合并提交。同样只用点名的那个 SHA，**不要自己去 fetch 最新的**。
+  解的标准仍是两边意图都保住。
+- 解完 `git commit`（保留 git 生成的 merge 信息即可），确认工作树完全干净（含未跟踪文件），在这棵短命
+  树里执行 `... resolve <卡号> --delivery-id <id> --merged`。
+- 校验：新提交必须**同时是**冻结的本机 main 与点名的 `origin/main` 的后代，且树干净。通过后系统把本机
+  main **只快进**（`merge --ff-only`）到你这笔归并提交、当场回收短命树，被暂停的卡自己接着落位、过
+  测试闸、push、部署；候选身份一列都不动——这一轮换的是 main。
+- 解不动只有 `--give-up --reason-file FILE` 一个出口（写法同候选轮；`--absorbed` 是候选轮的，用了会被
+  拒）。用本轮指令给的那条完整命令，**不能猜 delivery id**。
+
+边界：不改卡状态、不 push、不部署、不收树，不动主检出和任何候选工作树，**也不要 rebase 本机 main**
+——那会改写已落位提交的 SHA，让在途 saga 判定自己没落位。
+
+轮次上限、护栏计数与重冻规格不在这里，事实源是 todo_hub 的
+`dashi-taskboard/server/closeout-conflict.mjs`（候选轮 `conflictResolveInstruction`、归并轮
+`mainMergeResolveInstruction`）与该仓 `CLAUDE.md`「候选撞冲突投回原 worker 重解」一段。
 
 ## 评论回应落卡（reply）
 

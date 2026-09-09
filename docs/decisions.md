@@ -32,7 +32,10 @@
 
 ## 2026-08-20 等用户的卡必须停在用户会看的状态（in_review / blocked）
 
-状态：现行
+状态：现行；其中「要用户输入/拍板才能继续挪 blocked」那半已被 todo_hub〈2026-09-09 讨论完的卡
+进「等你确认」等拍板，blocked 判据收窄〉（`docs/decisions/202609091125-discussion-cards-wait-in-review.md`，
+来源 TODOHUB-205）取代——等拍板同样进 `in_review`，`blocked` 收窄为「等下去有代价且系统自愈
+手段已用尽」。「不得停在 backlog」那半仍现行。
 
 在「agent 把活做完或推进到需要用户才能继续，卡却停在 backlog，『等你』只存在于评论散文里、按状态查不到」的场景下（实例：CLAUDESKILLS-12 的活已随 -6 做完并提交，卡仍停 backlog），面对「用户的验收队列不可查询、跨会话积压隐身」的顾虑，选「等验收挪 in_review、要用户输入/拍板才能继续挪 blocked、共同讨论进行中留 in_progress 属正常；不得把等用户的卡留在 backlog 指望被看到」，否「不立约定、靠各会话收尾汇报口头补偿」，以达「in_review + blocked 两列即用户的待办队列，一条查询可见」，接受「in_progress 里仍混有等用户回复的共同讨论卡，靠会话往来本身承载，状态列不完全等于队列」。
 

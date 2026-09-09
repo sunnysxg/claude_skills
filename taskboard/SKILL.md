@@ -63,8 +63,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
 | `backlog` | 待立项 | 还没获授权的想法，允许不完整，可以只是一句话种子 | Sarah |
 | `todo` | 等待认领 | 已授权、描述里的 `## 验收标准` 自包含、现在就能开工 | 下一个会话 |
 | `in_progress` | 处理中 | 已绑定某个具体会话，那个会话正在做 | 那个会话 |
-| `in_review` | 等你确认 | 成果已交付：生产卡已上线等她过目，开发卡候选待她放行 | Sarah |
-| `blocked` | 遇到阻碍 | 做不下去，要外部输入才能继续：等她拍板、等外部依赖、等 blocker 卡 | Sarah 或外部 |
+| `in_review` | 等你确认 | 直接交付卡成果已交付（生产卡已上线等她过目，开发卡候选待她放行）；共同讨论卡讨论材料已交回，等她接着讨论或拍板 | Sarah |
+| `blocked` | 遇到阻碍 | 等下去有代价（占树 / 占并发 / main 分叉 / 后面的卡排队）且系统的自愈手段已用尽，只剩人能解——要她拍板的不放这里 | Sarah 或外部 |
 | `done` | 完成 | 她点过「完成」；对开发卡这一下同时是放行上线 | 无 |
 | `canceled` | 取消 | 不做了 | 无 |
 
@@ -79,9 +79,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
   散在评论里的先归并回描述，评论留作历史。
 - **`backlog` 可以只是种子**，门槛只在进 `todo` 或获得实施授权前生效。授权是她明确说的，
   assignee 是谁不算授权。
-- **等她的卡必须停在她会看的列**：等确认 = `in_review`，要她拍板才能继续 = `blocked`。不要把等
-  她的卡留在 `backlog` 指望被看到。共同讨论往来还在会话里时留 `in_progress` 属正常；但会话要
-  结束而球在她手上时，挪 `blocked` 并评论——别指望那个对话她还开着。
+- **等她的卡必须停在她会看的列**：等确认 = `in_review`，要她拍板才能继续 = 同样 `in_review`。
+  不要把等她的卡留在 `backlog` 指望被看到。共同讨论往来还在会话里时留 `in_progress` 属正常；但
+  会话要结束而球在她手上时，讨论卡挪 `in_review` 并评论——别指望那个对话她还开着。
 
 ## 目的地：成果去哪
 
@@ -99,6 +99,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
 `advanceMode` 是卡片字段，和分区、目的地都正交：`deliver` 直接交付（默认）/ `discuss` 共同
 讨论。建出来的卡默认 `deliver`；需要她参与才能成形的，建卡时用 `--mode discuss` 标成共同讨论
 ——自动派发只领 `deliver` 的 `todo`，`discuss` 卡永远等人手动派。
+
+讨论告一段落的 `discuss` 卡停 `in_review` 等她拍板：进这一列不排发布、不动代码，她点完成纯归档。
+要转实施就把推进方式改成 `deliver` 再挪回 `todo`（或原会话直接续做）。
 
 ## 核心纪律
 
@@ -139,6 +142,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
    看板上分支名带前缀属正常，不要去「修正」。会话启动时就已在托管树里的不改名。
 
 6. **交付**：做完自验后——
+   - **共同讨论卡（`discuss`）的交付 = 把讨论材料交回**：结论、取舍、还等她拍的问题写进评论，
+     已成共识的归并回描述，然后重读卡片带 `version` 挪 `in_review`。不做知识收口（没有成果要
+     上线），也没有候选树要求。下面几条只管直接交付卡。
    - 卡属于家族（有父卡）且本卡结论影响兄弟卡的拆分或顺序时，先跑一次
      `taskctl dispatch family review <本卡号> --reason "<影响了什么>"`，系统把复查指令投回父卡
      会话；**自己不去改兄弟卡的关系**（命令与边界见 references/fork-cli.md）。
@@ -214,6 +220,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
    收不掉不会再把卡钉住（服务端 30 分钟宽限期后收敛并在评论里点名），但留下的树要人手工删。
 
 8. **干不下去用 `blocked`，不再做用 `canceled`**，不从 `in_progress` 跳过交付记录直接改状态。
+   `blocked` 按上表判据走——等下去有代价且自愈手段已用尽；只是要她拍板才能继续的，走 `in_review`。
 
 9. **拍板要回写卡片**：会话里讨论出的结论，把「拍了什么、落在哪些文件、这张卡还剩哪半没做」
    写回卡片评论或描述——只写进 decisions.md 或规则文件，从看板上看等于什么都没发生，下次只能

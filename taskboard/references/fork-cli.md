@@ -27,6 +27,20 @@ itself` 按字面读会让人不敢挂链，本 fork 已经不是这样了。
 写关系仍要带会话归属（`--thread-id` / 自动读环境变量）——归属用于追加关联对话，只是不再改写
 `threadId`。
 
+## 评论正文走文件（与 cli.md 不同）
+
+```
+taskctl comment add    <卡号>   [--body-file PATH | --body TEXT]
+taskctl comment update <评论 id> [--body-file PATH | --body TEXT] --if-version N
+```
+
+cli.md 只写了 `--body TEXT`，本 fork 两条命令都收 `--body-file`（UTF-8 文件，与
+`issue create --description-file`、`dispatch reply --body-file` 同一条语义）。**交付评论这类
+多行长正文一律用 `--body-file`**：经 shell 传参会被静默改写（Bash 工具吃反斜杠，Windows
+PowerShell 5.1 吃双引号并在引号内空格处裂参），两者都不报错。两个选项同时给报 usage error。
+
+服务端对评论正文一律 trim 首尾空白（`--body` 也一样），所以文件末尾的换行不会落到卡上。
+
 ## 推进方式
 
 ```

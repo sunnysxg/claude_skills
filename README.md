@@ -26,6 +26,7 @@
 | `session-search` | 按关键词、项目、时间检索已归档的 session 摘要 |
 | `steelman` | 双向钢人压力测试：复述用户立场（Rapoport 法则，不阻塞）→ 正反最强论证 → 关键变量 → 只问一题（等回答）→ 给判断；立场不清先转 grilling；反谄媚机制 |
 | `taskboard` | 操作中央待办看板（dashi taskboard/todo_hub）：读卡、认领、改状态、评论，全部走 `taskctl` CLI；生产交付前收口，机制留档页按固定验收结构写 |
+| `ui-options` | 用户要比较 UI 呈现 / 交互设计方案时，用项目自己的设计 token 在项目 `_sxg/` 生成一页本地 HTML 对比（几个方案 × 几种情形 × 宽度），侧栏渲染让她选，选定后回写看板；不用 Artifact |
 | `zettel-distill` | 收尾时从本次会话精选 ≤3 条值得进用户 Zettelkasten 的概念/判断，给具体到卡的落点提案，用户拍板后经本机 `vault-ops` 写入并回填 session log；默认由 `neat-freak` 收尾链在 `session-log` 之后触发，用户不回即不提卡 |
 
 ## 部署

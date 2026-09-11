@@ -108,11 +108,40 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
 ## 推进方式
 
 `advanceMode` 是卡片字段，和分区、目的地都正交：`deliver` 直接交付（默认）/ `discuss` 共同
-讨论。建出来的卡默认 `deliver`；需要她参与才能成形的，建卡时用 `--mode discuss` 标成共同讨论
-——自动派发只领 `deliver` 的 `todo`，`discuss` 卡永远等人手动派。
+讨论。建出来的卡默认 `deliver`；需要她参与才能成形的，建卡时用 `--mode discuss` 标成共同讨论。
+**建卡时可设，建完 agent 就改不动**（服务端 403，与 `destination`、`bundleRelease` 同边界）：它
+是一条会触发动作的开关，agent 改得动就等于 agent 能替她拍板。觉得该改就在评论里提议。
 
-讨论告一段落的 `discuss` 卡停 `in_review` 等她拍板：进这一列不排发布、不动代码，她点完成纯归档。
-要转实施就把推进方式改成 `deliver` 再挪回 `todo`（或原会话直接续做）。
+`discuss` 的 `todo` 卡**也会被自动认领**，卡级闸与直接交付卡相同（在 `todo` 列、blocker 清完、
+没有在跑的会话、项目开着自动派发），只是起的那一轮是**只调查不实施的预调研轮**：
+
+- **不建树**，工作目录是项目工作区、只读：不改任何文件、不提交、不建树切分支，也不做方案决策。
+- 产出固定三节的一条评论——**已查清的事实**（带出处）／**我替你定掉的可逆项**（改错代价很小的
+  那些）／**只有你能答的问题**（逐题编号，每题带推荐和选错的代价）——然后卡挪 `in_review`，
+  不排发布、无发布凭据。逐节要求写在那一轮的 prompt 里（「自动预调研会话须知」），
+  references/dispatch.md 那份只管标准工作轮。
+- `backlog` 的讨论卡一张都不动（那一列 = 还没授权）；SSH 执行目标的项目暂不跑这一轮，卡上会留
+  一条预检说明，仍走手动派遣。
+- 卡停在 `in_review` 期间不会再自动起第二轮；她要它再查什么就在评论里「叫人回应」，真把卡挪回
+  `todo` 才算新一轮。
+
+停在 `in_review` 的讨论卡分两态，卡面照此显示，而看板**只认 agent 自己的声明、不从旁证推**——
+所以每轮结束时声明一次：
+
+- headless 回应轮跟回复一起交（分两条命令会变成「回复落了、声明没落」）：
+  `taskctl dispatch reply <卡号> --delivery-id <id> --body-file PATH
+  --outcome pending|settled [--outcome-note TEXT | --outcome-note-file PATH]`。
+- 桌面对话里回完她之后：`taskctl issue update <卡号> --discussion settled --discussion-note
+  "<成果去向>"`。两条路写同一份字段，选项细节见 references/fork-cli.md。
+- `pending`「等你拍板」是默认；成果都去了别处才用 `settled`「可归档」（子卡已建、结论已写进
+  描述、或结论就是不做），且**必须带一句成果去向**，缺了报错。声明只对停在 `in_review` 的讨论卡
+  有效，也只对这一轮有效——她再点一次「叫人回应」就回到 `pending`。忘了声明只是多显示一次
+  「等你拍板」，所以拿不准一律 `pending`。
+
+**转实施是她的动作**：她在 `in_review` 列上把图标点成直接交付就等于拍板，看板据此续起原讨论
+会话开一轮标准工作轮，卡自己进 `in_progress`。**前提是描述里已经有一节 `## 验收标准`**，没有就
+拒绝这一下、卡和字段一个都不变——所以讨论一成共识就把结论归并回描述的这一节，别只留在评论里。
+她也可以直接点完成：讨论卡从来没有要发布的成果，点完成纯归档。
 
 ## 核心纪律
 
@@ -154,8 +183,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
 
 6. **交付**：做完自验后——
    - **共同讨论卡（`discuss`）的交付 = 把讨论材料交回**：结论、取舍、还等她拍的问题写进评论，
-     已成共识的归并回描述，然后重读卡片带 `version` 挪 `in_review`。不做知识收口（没有成果要
-     上线），也没有候选树要求。下面几条只管直接交付卡。
+     已成共识的归并回描述的 `## 验收标准` 一节（她拍板转实施时看板会检查这一节在不在），然后
+     重读卡片带 `version` 挪 `in_review`；挪完（`--discussion` 只对停在这一列的讨论卡有效）再按
+     「推进方式」那一节声明这一轮是 `pending` 还是 `settled`。
+     不做知识收口（没有成果要上线），也没有候选树要求。下面几条只管直接交付卡。
    - 卡属于家族（有父卡）且本卡结论影响兄弟卡的拆分或顺序时，先跑一次
      `taskctl dispatch family review <本卡号> --reason "<影响了什么>"`，系统把复查指令投回父卡
      会话；**自己不去改兄弟卡的关系**（命令与边界见 references/fork-cli.md）。

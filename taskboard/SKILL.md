@@ -45,11 +45,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
 - Claude Code 内：桌面 App 里跑时取 `CLAUDE_CODE_HOST_SESSION_ID`（侧栏那行编号去掉 `local_`
   前缀），终端裸跑才取 `CLAUDE_CODE_SESSION_ID`。两者都不用显式传。**顺序不能反**——
   `claude://resume?session=` 只认宿主 id，拿 CLI id 会导入成一条无标题的重复记录。
-- 取不到的环境（Cursor 等）显式传 `--thread-id <当前会话 UUID>`；再取不到就用
+- Cursor 内自动读 `CURSOR_CONVERSATION_ID`（派发器起 `cursor-agent` 时注入；Cursor IDE 的聊天
+  窗口没有）。
+- 再取不到的环境显式传 `--thread-id <当前会话 UUID>`；连 UUID 都没有就用
   `claude-YYYYMMDDHHMM` 一次性 id，同一会话从一而终。
-- 写入方标识 `--agent codex|claude` 决定看板画哪个图标、深链怎么开。有 `CODEX_THREAD_ID` 自动记
-  codex，有 `CLAUDE_CODE_SESSION_ID` 自动记 claude，都没有默认 codex——所以 **Cursor 会话必须
-  显式带 `--agent claude`**。
+- 写入方标识 `--agent codex|claude|cursor` 决定看板画哪个图标、深链怎么开。有
+  `CODEX_THREAD_ID` 自动记 codex，有 `CLAUDE_CODE_SESSION_ID` 自动记 claude，有 `CURSOR_AGENT=1`
+  或 `CURSOR_CONVERSATION_ID` 自动记 cursor，都没有默认 codex——所以 **Cursor IDE 的聊天窗口这类
+  三个都取不到的环境必须显式带 `--agent cursor`**，别记成 claude（看板会拿 `claude://` 深链去开
+  一条不存在的 Claude 会话）。
 
 读操作不需要归属。
 

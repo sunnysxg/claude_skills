@@ -6,12 +6,15 @@
 ## 全局参数
 
 ```
---agent codex|claude
+--agent codex|claude|cursor
 ```
 
 写入方标识，决定看板画哪个图标、「查看对话」用哪种深链打开。不传时自动判：有
-`CODEX_THREAD_ID` 记 codex，有 `CLAUDE_CODE_SESSION_ID` 记 claude，都没有默认 codex。
-所以 Cursor 这类两个变量都取不到的环境必须显式带 `--agent claude`，否则会被记成 Codex。
+`CODEX_THREAD_ID` 记 codex，有 `CLAUDE_CODE_SESSION_ID` 记 claude，有 `CURSOR_AGENT=1` 或
+`CURSOR_CONVERSATION_ID` 记 cursor，都没有默认 codex。所以 Cursor IDE 聊天窗口这类三个变量都
+取不到的环境必须显式带 `--agent cursor`（连同 `--thread-id`），否则会被记成 Codex；**也别记成
+claude**——那会让「查看对话」发 `claude://resume?session=` 去导一条不存在的 Claude 会话，而记成
+cursor 时看板知道自己打不开、只提示去 Cursor 侧栏找。
 
 ## 关系写不改会话归属（与 cli.md 不同）
 
@@ -50,21 +53,28 @@ taskctl issue update ID --mode deliver|discuss
 
 设卡片字段 `advanceMode`，不传 = `deliver`。语义见 SKILL.md「推进方式」。
 
+`issue update --mode` 仍收这个选项，但**改值的 agent 来源写入会被服务端 403**
+（`ADVANCE_MODE_AGENT_FORBIDDEN`）：推进方式与 `destination`、`bundleRelease` 同边界——建卡可设
+初值，之后只有 Sarah 改。agent 觉得该改就评论提议。
+
 ## 目的地
 
 ```
 taskctl issue create ... --destination production|dev
 ```
 
-设卡片字段 `destination`，不传 = `production`（项目级默认可配）。**只在建卡时可设**——
-`issue update` 改这个字段的 agent 来源写入会被服务端拒绝，觉得该改就评论提议。语义见 SKILL.md
-「目的地」。
+设卡片字段 `destination`，不传 = 项目的 `defaultDestination`（见下「自动派发」的
+`--default-destination`，没配就是 `production`）。**只在建卡时可设**——`issue update` 根本不收
+这个选项（报 `Unknown option --destination`），改这个字段的 agent 来源写入服务端也一律 403，
+觉得该改就评论提议。语义见 SKILL.md「目的地」。
 
 ## 自动派发
 
 ```
 taskctl dispatch status [--json]
-taskctl dispatch enable  <项目 id> [--agent claude|codex] [--merge dev|main]
+taskctl dispatch enable  <项目 id> [--agent claude|codex|cursor] [--fallback <agent>|none]
+                                   [--model <模型>] [--effort <强度>] [--service-tier <档>]
+                                   [--default-destination production|dev]
                                    [--post-merge <命令>] [--deploy <命令>]
 taskctl dispatch disable <项目 id>
 taskctl dispatch tick
@@ -72,7 +82,20 @@ taskctl dispatch stop <运行 id>
 ```
 
 按项目开关。配置与护栏落在生产数据目录的 `dispatch.json`，改了即生效。`status` 里的
-`integration` 说明晋升为什么暂停，`pendingDeploys` 是排队中或正在跑的部署。
+`readiness` 说明这个项目为什么没被派，`integration` 说明晋升为什么暂停，`pendingDeploys` 是
+排队中或正在跑的部署。
+
+`enable` 的 `--agent` 是**派给谁执行**，与上面那个同名的写入方标识不是一回事（这条命令不写卡，
+不涉及会话归属）。`--fallback` 是额度熔断期改派给谁（TODOHUB-215），`--fallback none` 或空串
+清掉备用。`--model` / `--effort` / `--service-tier` 按 agent 分别保存，所以**必须和 `--agent`
+同时给**，单给报 usage error；空串 = 清掉该项、回到那个 CLI 自己的默认。取值现查
+`dashi-taskboard/shared/dispatch-agent-options.mjs` 的目录表：`--service-tier` 只有 codex 有
+（`default|priority`），`--effort` cursor 没有，`--model` 给的只是建议值、字段本身收那个 CLI 认的
+任何别名或全名。`--default-destination` 是这个项目新建卡的目的地默认值。
+
+**没有 `--merge`**：落位目标由卡自己的 `destination` 决定（见上「目的地」），服务端对未知字段
+直接 400。选项白名单的事实源是 `dashi-taskboard/cli/taskctl.mjs` 的 `COMMAND_OPTIONS` 表（服务端
+另有一份 `assertAllowedKeys`），本节现查现写，不照抄别处。
 
 todo_hub 自己的偏好：
 
@@ -84,20 +107,31 @@ todo_hub 自己的偏好：
 ## 收尾确认（ACK）
 
 ```
-taskctl dispatch closeout ack <卡号> --delivery-id <delivery id>
+taskctl dispatch closeout ack    <卡号> --delivery-id <delivery id>
+taskctl dispatch closeout report <卡号> --delivery-id <delivery id> (--reason-file PATH | --reason TEXT)
 ```
 
-开发卡进 `done` 后，看板把这条命令连同一个精确的 delivery id 投回原会话。**只在本对话实际收到
+开发卡进 `done` 后，看板把 `ack` 这条命令连同一个精确的 delivery id 投回原会话。**只在本对话实际收到
 系统指令后原样执行**，不猜、不复用、不从别处抄——服务端会校验卡、原会话的 agent 与 session、
 候选树／分支，以及当前 HEAD 是否干净且为冻结 HEAD 的后代，对不上直接拒。
 
 ACK 本身不改卡状态、不 merge、不 push。ACK 之后由派发器负责落位、push、部署和收树。
 
+`report` 是收口**真的做不下去**时唯一正确的出口（TODOHUB-198），替代「静默结束」和「把卡标
+blocked」；身份链与 ACK 完全相同，理由多行时优先 `--reason-file`（UTF-8 文件）。它只有一档：
+记下原因、交给 Sarah、**绝不重投**（TODOHUB-238）——同一份指令送回同一段对话，第二次面对的
+现场和第一次一模一样。所以这是工程兜底，正常收口不该走到它：没做到卡上的验收标准就自己做完、
+和别的卡改了同一处交给自动合并／候选重解／落位闸、要在两个方案之间拍板应当在**干活途中**挪
+`blocked`、**ACK 被拒不是 blocked**（按错误改完原样重跑）。收口指令里逐条写了这些替代路径，
+照它走。
+
 ## 冲突重解（resolve）
 
 ```
 taskctl dispatch closeout resolve <卡号> --delivery-id <delivery id>
-                                         [--absorbed | --merged | --give-up --reason-file FILE]
+                                         [--absorbed | --merged
+                                          | --give-up --reason-file FILE
+                                          | --resume --reason-file FILE]
 ```
 
 同一条命令服务**三种轮**，指令正文会写明本轮是哪一种：**候选轮**（这张卡的候选成果要上线时叠到
@@ -120,6 +154,10 @@ main 零冲突，但落位测试闸跑出了 main 基线上没有的红）。三
   被拒。
 - `--give-up --reason-file FILE`：两边意图真的互斥、需要产品决策时，写一个 UTF-8 文件说明卡在
   哪、试过什么、要谁拍什么板，把球交回 Sarah。**宁可交回也不要瞎解**——解错会静默上线错误内容。
+第四个旗标 `--resume --reason-file FILE` 不是出口而是**回头路**：上面那条 `--give-up` 交回之后，
+她授权继续、阻断也解除了，原 worker 在冻结的 cwd 用**原 delivery id** 加 `--resume` 恢复同一轮
+（保留原 SHA、目标 main 与失败计数），之后照常解、照常 ACK。只有候选轮有它，归并轮与修正轮用了
+一律 409。四个旗标互斥，同时给两个直接报 usage error。
 
 纪律：只用指令点名的那个 main 提交，**不要自己去取最新 main**（那个 SHA 投出后不可变，正是为了
 不让解冲突期间又动的 main 拒掉诚实干活的你）；动手前先 `git rebase --abort`、
@@ -168,8 +206,8 @@ main 零冲突，但落位测试闸跑出了 main 基线上没有的红）。三
 - 校验：新提交必须**同时是**冻结的本机 main 与点名的 `origin/main` 的后代，且树干净。通过后系统把本机
   main **只快进**（`merge --ff-only`）到你这笔归并提交、当场回收短命树，被暂停的卡自己接着落位、过
   测试闸、push、部署；候选身份一列都不动——这一轮换的是 main。
-- 解不动只有 `--give-up --reason-file FILE` 一个出口（写法同候选轮；`--absorbed` 是候选轮的，用了会被
-  拒）。用本轮指令给的那条完整命令，**不能猜 delivery id**。
+- 解不动只有 `--give-up --reason-file FILE` 一个出口（写法同候选轮；`--absorbed` / `--resume` 是候选轮
+  的，用了会被拒）。用本轮指令给的那条完整命令，**不能猜 delivery id**。
 
 边界：不改卡状态、不 push、不部署、不收树，不动主检出和任何候选工作树，**也不要 rebase 本机 main**
 ——那会改写已落位提交的 SHA，让在途 saga 判定自己没落位。
@@ -183,6 +221,8 @@ worker 重解」及「落位测试闸拦下候选投回原 worker 追加修正�
 
 ```
 taskctl dispatch reply <卡号> --delivery-id <delivery id> [--body-file PATH | --body TEXT]
+                              [--outcome pending|settled
+                               [--outcome-note TEXT | --outcome-note-file PATH]]
 ```
 
 Sarah 在看板上把评论标记「需要回应」后，系统会把回应指令投进这张卡的原会话；指令里带着
@@ -192,12 +232,21 @@ delivery id 不猜、不复用。正文优先 `--body-file`（UTF-8 文件，防
 服务端校验卡、原会话与 delivery id，落卡的同时把被标记评论翻成「已回应」。回应轮的行为边界
 （能否顺便干活）由指令按卡状态写明，照做即可；任何状态都不改卡状态、不 merge / push / deploy。
 
+回的是停在 `in_review` 的**共同讨论卡**时，用 `--outcome` 跟着回复一起交这一轮的声明
+（分两条命令就会出现「回复落了、声明没落」）：`pending` = 还等她拍板，`settled` = 可归档，
+且必须用 `--outcome-note` / `--outcome-note-file` 带一句成果去向。只给 note 不给 `--outcome`
+报 usage error；声明只对这一轮有效，拿不准一律 `pending`。桌面对话里回完她之后是
+`taskctl issue update <卡号> --discussion settled --discussion-note "<成果去向>"`，两条路写的是
+同一份字段。
+
 ## 家族复查与收口（family）
 
 ```
 taskctl dispatch family review <卡号> [--reason TEXT | --reason-file FILE]
-taskctl dispatch family ack    <父卡号> --delivery-id <delivery id> [--body-file PATH | --body TEXT]
+taskctl dispatch family ack    <父卡号> --delivery-id <delivery id> (--body-file PATH | --body TEXT)
 ```
+
+`ack` 的正文不可省（两个选项二选一，都不给报 usage error）；`review` 的理由可省，见下。
 
 家族（父卡 + 子卡）的拆分和顺序会随子卡的结论过时，而更新不经 Sarah 的手。系统有三个触发器把
 一条指令投回**父卡的会话**：子卡进 `blocked`（自动）、家族全清即子卡全部 done/canceled/归档

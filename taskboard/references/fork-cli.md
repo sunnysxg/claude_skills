@@ -100,10 +100,10 @@ taskctl dispatch closeout resolve <卡号> --delivery-id <delivery id>
                                          [--absorbed | --merged | --give-up --reason-file FILE]
 ```
 
-同一条命令服务**两种冲突轮**，指令正文会写明本轮是哪一种：**候选轮**（这张卡的候选成果要上线时叠到
-最新 main 撞了真冲突）与**归并轮**（本机 main 与 `origin/main` 归并撞了冲突）。两轮的现场、动作和
-出口都不一样，**走错出口一律 409 并点名正确的那条命令**——先看清本轮是哪一种，别混用现场、
-delivery id、rebase 与 merge。
+同一条命令服务**三种轮**，指令正文会写明本轮是哪一种：**候选轮**（这张卡的候选成果要上线时叠到
+最新 main 撞了真冲突）、**归并轮**（本机 main 与 `origin/main` 归并撞了冲突）与**修正轮**（候选叠到
+main 零冲突，但落位测试闸跑出了 main 基线上没有的红）。三轮的现场、动作和出口都不一样，**走错出口一律
+409 并点名正确的那条命令**——先看清本轮是哪一种，别混用现场、delivery id、rebase 与 merge。
 
 系统都不替你解，而是把冲突现场投回**原会话**，因为最懂这个 diff 的是当初写它的那段对话（原会话
 永久回不来时才起 fresh 会话兜底，指令里会标明本轮非原 worker）。和另外三条同一条纪律：**只在本对话
@@ -128,6 +128,28 @@ delivery id、rebase 与 merge。
 
 边界：不改卡状态、不 merge、不 push、不部署、不收树，也不改写重解前那个候选提交之前的历史。ACK
 通过后由服务端把候选身份受控重冻到你的新提交，继续走落位、测试闸、push、部署、收树。
+
+### 修正轮：落位测试闸拦下候选（普通交回 / `--give-up`）
+
+候选叠到最新 main **没有冲突**，但在落位现场跑仓库自己声明的快层测试时，出了 main 基线上没有的红。
+指令里给的是：候选工作树、修正前的候选提交、闸门对照的那个 main 提交、新增红的用例名（套件 :: 用例）、
+要跑的套件命令与目录、闸门原文。现场是这张卡登记的候选工作树，动作是**追加修正提交**——不是 rebase。
+
+- 先在候选树里复现（可以只跑红的那个文件）。红可能是候选自己的错，也可能是**合起来才红**：别的卡改了你
+  依赖的东西。看 main 那边改了什么用 `git diff <修正前候选>...<点名的 main>`；要在合成品上复现可以
+  `git merge <点名的 main>`——那也是追加一笔提交，不改写历史。**不要 rebase。**
+- 修正，把红的套件整套跑绿，commit。**只能追加**：不 amend、不 rebase、不 reset，不改写修正前那个
+  候选提交之前的任何历史——服务端只认「新 HEAD 是修正前候选的后代且不等于它」，改写了交回会被拒
+  （`CONFLICT_HISTORY_REWRITTEN`），什么都没追加也会被拒（`CONFLICT_NO_FIX`）。
+- 树干净后在候选工作树根目录不带旗标交回。通过后候选身份不变，只把要上线的提交推进到你的新 HEAD，
+  闸门重跑；绿了照常 ff main、push、部署、收树。
+- 红不是候选造成的（基线环境、闸门误判）或确实修不了 → `--give-up --reason-file FILE`，写清红在哪、
+  试过什么、要谁拍什么板。**这一轮没有 `--absorbed` / `--merged`，也没有 `--resume`**：交回之后被动门
+  一直开着（任何人在候选树追加一笔修正，下一轮落位就自动采纳），不需要恢复窗口。
+
+纪律与候选轮相同：只在本对话实际收到系统的修正指令后原样执行，delivery id 用系统这次给的；不改卡状态、
+不 merge 进 main、不 push、不部署、不收树、不动主检出。修正窗口开着时**不要**重新 `closeout ack`——
+会被 409 拒（`CLOSEOUT_RESOLVE_PENDING`），追加的提交只能经 `resolve` 交回。
 
 ### 归并轮：本机 main 并 origin/main（`--merged`）
 
@@ -154,7 +176,8 @@ delivery id、rebase 与 merge。
 
 轮次上限、护栏计数与重冻规格不在这里，事实源是 todo_hub 的
 `dashi-taskboard/server/closeout-conflict.mjs`（候选轮 `conflictResolveInstruction`、归并轮
-`mainMergeResolveInstruction`）与该仓 `CLAUDE.md`「候选撞冲突投回原 worker 重解」一段。
+`mainMergeResolveInstruction`、修正轮 `landingGateFixInstruction`）与该仓 `CLAUDE.md`「候选撞冲突投回原
+worker 重解」及「落位测试闸拦下候选投回原 worker 追加修正」两段。
 
 ## 评论回应落卡（reply）
 

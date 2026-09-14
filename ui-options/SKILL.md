@@ -2,9 +2,10 @@
 name: ui-options
 description: >
   用户要比较 UI 呈现 / 交互设计方案（「比较一下方案」「参考一下设计」「给我看看样式」「出几个排法
-  让我选」）时，用项目自己的设计 token 在项目 `_sxg/` 生成一页本地 HTML 对比：几个方案 × 几种情形
-  × 需要的宽度，侧栏渲染让她选，选定后回写看板卡片。不用 Claude Artifact。她没说要比较时不触发：
-  直接交付、自选最合理的一版，交付里把可逆的 UI 决策点单列出来并附一句「要比较方案就说」。
+  让我选」）时，用项目自己的设计 token 在项目草稿目录 `_sxg/artifacts/<卡号小写>/` 生成一页本地
+  HTML 对比：几个方案 × 几种情形 × 需要的宽度，侧栏渲染让她选，选定后回写看板卡片。不用 Claude
+  Artifact。她没说要比较时不触发：直接交付、自选最合理的一版，交付里把可逆的 UI 决策点单列出来
+  并附一句「要比较方案就说」。
 ---
 
 # ui-options — 本地对比页让她选样式
@@ -19,8 +20,13 @@ description: >
 
 ## 产物与位置
 
-- 一页静态 HTML，放**项目 `_sxg/`**（gitignored），文件名 `<卡号小写>_<slug>.html`，
-  如 `todohub_211_blocker_layout_options.html`；没有卡就用 `<日期 YYYYMMDD>_<slug>.html`。
+- 一页静态 HTML，放**项目草稿目录** `_sxg/artifacts/<卡号小写>/<slug>.html`（`_sxg/` 被 git
+  忽略；卡号里的 `-` 换成 `_`），如 `_sxg/artifacts/todohub_302/blocker_layout_options.html`。
+  没有卡的对话放 `_sxg/artifacts/<agent>_<12 位时间戳 YYYYMMDDHHMM>/<slug>.html`，看板给了具体
+  目录名就用它的。目录第一次写文件时才建。
+- 草稿目录对「只读」会话同样可写（共同讨论预调研轮、评论回应只读轮、看板 AI 对话只读档），所以
+  讨论卡可以带着对比页来讨论；目录之外仍然只读。约定原文见 todo_hub `todo_convention.md`
+  「草稿目录」一节。
 - 不用 Artifact、不起服务、不开新端口：`SendUserFile` 带 `display: "render"` 让桌面端侧栏直接
   渲染，同时给出路径。她在别的客户端时直接开文件。
 - 页面自包含：CSS / JS / 图标全部内联，不引外部资源。
@@ -46,4 +52,4 @@ description: >
 
 - 把方案名、她的选择与附加条件回写到卡片评论（拍板要回写卡片）；页面路径也写进去。
 - 有被否方案且下个会话可能再提的，按项目的决策记录约定（`conventions.md` §13）记一条。
-- 页面留在 `_sxg/` 不删；它不进 git，也不当验收材料。
+- 页面留在草稿目录不删；它不进 git，也不当验收材料。

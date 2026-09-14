@@ -225,11 +225,22 @@ def ccd_pending_renames(log_dir: Path, current_uuid: str, ccd_dir: Path | None =
     return {"pending": pending, "registry_root": str(root), "scanned": scanned}
 
 
+def git_worktree_root(path: Path) -> Path | None:
+    """Return the enclosing Git work tree root (`.git` dir or worktree `.git` file), if any."""
+    for parent in path.expanduser().resolve().parents:
+        if (parent / ".git").exists():
+            return parent
+    return None
+
+
 def load_times_json(path: Path | None, inline: str | None) -> dict:
+    """Read the times JSON; a --times-json file is consumed (deleted) right after reading."""
     if inline:
         return json.loads(inline)
     if path:
-        return json.loads(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+        path.unlink()
+        return json.loads(text)
     return {}
 
 
@@ -274,6 +285,23 @@ def main() -> int:
         print(json.dumps({"registered": True, "entry": entry}, ensure_ascii=False, indent=2))
         return 0
 
+    if args.times_json:
+        # an untracked temp file inside a delivery candidate makes the release saga refuse the dirty tree
+        repo = git_worktree_root(args.times_json)
+        if repo is not None:
+            print(
+                json.dumps(
+                    {
+                        "error": "times_json_inside_git_worktree",
+                        "message": "Save the times JSON under the OS temp dir (session_times.py --save-temp), then delete this file",
+                        "times_json": str(args.times_json),
+                        "git_worktree": str(repo),
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 1
     times = load_times_json(args.times_json, args.times_inline)
     result = resolve(args.uuid, times, log_dir, args.project, args.slug)
     if result.get("error"):

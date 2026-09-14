@@ -76,7 +76,7 @@ PATH 没有 Python 时，用 workspace dependencies 返回的 bundled Python 绝
 从当前 `SKILL.md` 的目录解析为 `{SKILL_DIR}`，不要猜客户端安装根：
 
 ```text
-{PYTHON_CMD} "{SKILL_DIR}/scripts/session_times.py" --transcript "{当前 session transcript 的绝对路径}"
+{PYTHON_CMD} "{SKILL_DIR}/scripts/session_times.py" --transcript "{当前 session transcript 的绝对路径}" --save-temp
 ```
 
 transcript 路径（按优先级）：
@@ -89,7 +89,16 @@ Codex 查找必须按 rollout **文件名**精确匹配 UUID，禁止全文 grep
 即使正文带 root UUID 也不能冒充 root session。
 
 保留输出 JSON（含 `session_id`、`date`、`time`、`filename_ts`、`started_at`、
-`last_active_at`、`logged_at`），并原样保存到临时 `{TIMES_JSON_PATH}`。
+`last_active_at`、`logged_at`）。`--save-temp` 让脚本自己把同一份 JSON 写进操作系统临时
+目录（Python `tempfile`，三平台通用），路径在输出的 `times_json_path` 字段，记为
+`{TIMES_JSON_PATH}`。
+
+**`{TIMES_JSON_PATH}` 只能在操作系统临时目录或 `~/_sxg/llm_session_log/`，绝不能写进项目树
+或 Git 候选 / worktree**：不要用 shell 重定向、Write 工具或手写文件落到 cwd。生产卡的候选里
+多出一个未跟踪文件，交付 saga 会判脏树拒绝落位并反复重试（TODOHUB-291 实撞
+`.tmp_session_times.json`，删掉后才自动恢复）。`session_resolve.py` 对落在 Git 工作树里的
+`--times-json` 直接报 `times_json_inside_git_worktree` 并退出——撞到就删掉那个文件，改用
+`--save-temp` 重跑。
 
 | 字段 | 用途 |
 |------|------|
@@ -124,6 +133,9 @@ Codex 查找必须按 rollout **文件名**精确匹配 UUID，禁止全文 grep
 | `index_action: insert_row` | index 表头下插入新行 |
 | `index_action: replace_row` | **替换**含 `({target_file})` 的那一行 |
 | `index_line_match` | replace 时用于 StrReplace 的整行原文 |
+
+`session_resolve.py` 读完 `--times-json` 立即删掉该文件（第一次运行即消费，重跑 resolve 要
+先重跑 `session_times.py --save-temp`）；后续步骤用的时间字段取自 3.1 已保留的输出。
 
 `session_times.py` 会按 transcript 自动区分 Cursor / Claude / Codex；
 `session_resolve.py` 的 UUID upsert 逻辑三端共用。若 `fallback: true`，才允许人工核对并填写时间。
@@ -170,6 +182,10 @@ index「日期」= session **开始日**。
 Desktop `--ccd-pending` 补历史遗留标题（见第 7 步）的数据来源，所有客户端都带上，无害。
 
 ## 7. 回复用户
+
+若本次在 Git 候选 / worktree 里收口（尤其生产卡：交付后系统直接落位上线），把卡移入
+`in_review`、或结束会话交给派发器触发交付 saga 之前，先跑 `git -C "{候选树}" status --short`
+确认输出为空；有残留就删掉或 commit 进候选再交付，不留给 saga 撞脏树。
 
 第 4–6 步全部成功后，再用简短中文告知：
 

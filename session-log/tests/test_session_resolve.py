@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -132,6 +135,65 @@ class CcdPendingRenamesTest(unittest.TestCase):
             )
             self.assertEqual(result["pending"], [])
             self.assertEqual(result["warning"], "ccd_registry_not_found")
+
+
+class TimesJsonHygieneTest(unittest.TestCase):
+    """The temp times JSON must never be left inside a Git candidate (TODOHUB-291)."""
+
+    SCRIPTS = Path(__file__).parents[1] / "scripts"
+    FIXTURE = Path(__file__).parent / "fixtures" / "codex_rollout.jsonl"
+
+    def _run(self, script: str, *args: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [sys.executable, str(self.SCRIPTS / script), *args],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+
+    def test_save_temp_then_resolve_consumes_file(self) -> None:
+        times_run = self._run("session_times.py", "--transcript", str(self.FIXTURE), "--save-temp")
+        self.assertEqual(times_run.returncode, 0, times_run.stderr)
+        times = json.loads(times_run.stdout)
+        times_path = Path(times["times_json_path"])
+        self.assertTrue(times_path.is_file())
+        self.assertEqual(times_path.parent.resolve(), Path(tempfile.gettempdir()).resolve())
+        self.assertIsNone(session_resolve.git_worktree_root(times_path))
+
+        with tempfile.TemporaryDirectory() as log_dir:
+            resolve_run = self._run(
+                "session_resolve.py",
+                "--uuid", SESSION_ID,
+                "--times-json", str(times_path),
+                "--project", "claude_skills",
+                "--slug", "hygiene",
+                "--log-dir", log_dir,
+            )
+        self.assertEqual(resolve_run.returncode, 0, resolve_run.stdout)
+        self.assertEqual(json.loads(resolve_run.stdout)["mode"], "create")
+        self.assertFalse(times_path.exists())
+
+    def test_times_json_inside_git_worktree_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "candidate"
+            (repo / "sub").mkdir(parents=True)
+            # a linked worktree has a `.git` file, not a directory
+            (repo / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
+            times_path = repo / "sub" / ".tmp_session_times.json"
+            times_path.write_text('{"filename_ts": "202609141200"}', encoding="utf-8")
+
+            run = self._run(
+                "session_resolve.py",
+                "--uuid", SESSION_ID,
+                "--times-json", str(times_path),
+                "--project", "claude_skills",
+                "--slug", "hygiene",
+                "--log-dir", str(Path(temp_dir) / "log"),
+            )
+
+            self.assertEqual(run.returncode, 1)
+            self.assertEqual(json.loads(run.stdout)["error"], "times_json_inside_git_worktree")
+            self.assertFalse((Path(temp_dir) / "log").exists())
 
 
 if __name__ == "__main__":

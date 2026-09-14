@@ -191,7 +191,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
      `taskctl dispatch family review <本卡号> --reason "<影响了什么>"`，系统把复查指令投回父卡
      会话；**自己不去改兄弟卡的关系**（命令与边界见 references/fork-cli.md）。
    - 生产卡**先做知识收口**（`neat-freak` → `session-log` → `zettel-distill` 提案），把收口改动
-     一并 commit——交付后系统直接上线，不会再回到这个会话；开发卡**不收口**，等完成 hook——她
+     一并 commit，再确认候选 `git status --short` 为空——交付后系统直接上线，不会再回到这个
+     会话，树里残留的未跟踪文件（TODOHUB-291 是 session-log 的时间 JSON）会让发布 saga 判脏树
+     反复重试；开发卡**不收口**，等完成 hook——她
      可能打回迭代，提前收口白做。
    - 本卡改动同笔需要往项目决策记录追加拍板节的（`docs/decisions.md` 或 `docs/decisions/`，
      形态见 `conventions.md` §13），做一页**原理留档页**——即那节拍板的人话

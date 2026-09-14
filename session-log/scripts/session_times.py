@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -494,6 +495,14 @@ def compute_times(
     }
 
 
+def save_temp_times_json(result: dict) -> str:
+    # never next to the cwd: an untracked file in a delivery candidate makes the saga refuse the dirty tree
+    fd, path = tempfile.mkstemp(prefix="session_times_", suffix=".json")
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
+    return path
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -509,6 +518,11 @@ def main() -> int:
         "--meta",
         type=Path,
         help="Optional Cursor path to ~/.cursor/chats/.../{uuid}/meta.json",
+    )
+    parser.add_argument(
+        "--save-temp",
+        action="store_true",
+        help="Also save the JSON under the OS temp dir and report it as times_json_path",
     )
     args = parser.parse_args()
 
@@ -531,6 +545,8 @@ def main() -> int:
     meta = args.meta or (find_meta_json(session_uuid) if source == "cursor" else None)
     result = compute_times(transcript, meta, source=source)
     result["session_id"] = session_uuid
+    if args.save_temp:
+        result["times_json_path"] = save_temp_times_json(result)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 

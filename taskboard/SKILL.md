@@ -195,12 +195,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
      会话，树里残留的未跟踪文件（TODOHUB-291 是 session-log 的时间 JSON）会让发布 saga 判脏树
      反复重试；开发卡**不收口**，等完成 hook——她
      可能打回迭代，提前收口白做。
-   - 本卡改动同笔需要往项目决策记录追加拍板节的（`docs/decisions.md` 或 `docs/decisions/`，
-     形态见 `conventions.md` §13），做一页**原理留档页**——即那节拍板的人话
-     展开版（行为边界、流程图、否决理由），并在验收标准新增「[Sarah] 看懂原理、确认边界」项
-     随之交付。没有拍板节、但确信她该把关行为边界的，按上面「实施中新增 [Sarah] 项」通道加项
+   - **只对看板仓（todo_hub）自己的卡**：本卡改动同笔需要往项目决策记录追加拍板节的
+     （`docs/decisions.md` 或 `docs/decisions/`，形态见 `conventions.md` §13），做一页
+     **原理留档页**——即那节拍板的人话展开版（行为边界、流程图、否决理由），并在验收标准新增
+     「[Sarah] 看懂原理、确认边界」项随之交付。没有拍板节、但确信她该把关行为边界的，按上面「实施中新增 [Sarah] 项」通道加项
      并单列理由；拿不准一律不做，她问了再补。UI 效果类永远不做（效果本身可见）；不按
      「机制类／流程类」之类的改动性质自行裁量触发。
+     别的项目的卡（候选树不在 todo_hub）追加拍板节**不做留档页**、也不因此加「[Sarah] 看懂原理」
+     项，拍板节本身就是记录：页只能随候选同笔进 `web/public/notes/`，别的仓的候选里没有这个目录，
+     也不为它去 todo_hub 另开提交或建卡。交付评论里不必说明「跳过留档页」。
    - 留档页形式：静态单页进看板仓 `dashi-taskboard/web/public/notes/`，文件名 snake_case 带
      卡号，视觉按帮助页 token、内联主题联动脚本（样板 `todohub_92_decisions_merge.html`），
      随候选同笔 commit——生产卡交付即随部署上线。页内注明对应的决策记录节。交付评论里的留档页

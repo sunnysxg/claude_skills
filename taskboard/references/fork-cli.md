@@ -68,6 +68,35 @@ taskctl issue create ... --destination production|dev
 这个选项（报 `Unknown option --destination`），改这个字段的 agent 来源写入服务端也一律 403，
 觉得该改就评论提议。语义见 SKILL.md「目的地」。
 
+## 建卡即挂关系（cli.md 没有）
+
+```
+taskctl issue create ... [--parent <卡号>]
+                         [--blocked-by <卡号>]... [--blocks <卡号>]... [--related <卡号>]...
+```
+
+cli.md 只有建完卡再 `issue relation add`。本 fork 让 `issue create` 直接带关系，服务端在**建卡的
+同一个 SQLite 事务**里落库（TODOHUB-275）。**建卡时已知的关系一律这样一次给**：分两次调用时，
+中间那张 `todo` 卡看起来就是一张没人挡的可派卡，事件驱动的派发器几秒内就认领开工——TODOHUB-280
+建成到被认领只隔 3.8 秒，挂链的第二条命令还没发出去，会话已经开出去拽不回来了。
+`issue relation add` 留给给已经存在的卡补挂。
+
+- 值收卡 id 或卡号（`TODOHUB-1`）；空串报 usage error
+  `Option --blocked-by requires an issue id or identifier`（换成对应选项名）。
+- **`--blocked-by` / `--blocks` / `--related` 可以给多次**（`--blocked-by A --blocked-by B`，
+  `--blocked-by=B` 的等号写法同样算一次）。**`--parent` 只能给一次**——一张卡只有一个父卡，给两次
+  是 usage error `Option --parent may only be specified once`、退出码 2，一个请求都不发。
+- 方向与 `issue relation add` 相同：`--blocks X` = 新卡挡住 X，`--blocked-by X` = X 挡住新卡。
+- **挂不上就整笔建卡回滚，库里不留半张卡**：目标解析不出来 404 `RELATION_TASK_NOT_FOUND`（原文
+  点名是哪个值：`关系目标 '<值>' 不存在，建卡整笔取消`）；指向自己 400 `SELF_RELATION`；父卡跨项目
+  400 `CROSS_PROJECT_RELATION`；一笔两个父卡 400 `INVALID_FIELD`（CLI 那一关通常先拦）；关系超过
+  50 条 400 `INVALID_FIELD`。报错后照原因改完**重跑整条建卡命令**，不用去删什么。
+- 同一笔里重复给同一条关系按集合收敛成一条，**不报错**——和 `issue relation add` 撞上库里已有
+  关系时的 409 `RELATION_EXISTS` 不是一回事。
+- 这是卡的出生状态：卡读回来 **`version` 仍是 1**（没有第二次写），活动流里也没有「谁在什么时候
+  挂上的」那条关系记录。
+- **云端伴生后端（todo_hub 的 `cloud/`）没有这个字段**，对着它建卡仍要分两次调用。
+
 ## 自动派发
 
 ```

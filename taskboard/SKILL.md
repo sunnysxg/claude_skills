@@ -173,6 +173,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
    - **同主题禁止孤儿卡**：与现行活跃卡同主题的新卡必须挂关系——有父卡挂 parent，无父卡时与
      同主题卡拉 blockedBy。判断走严，拿不准只挂 related 并评论说明。挂关系不改对方卡的会话
      归属，别人正在做的卡照挂不误（见 references/fork-cli.md）。
+   - **关系跟着建卡一起给，不建完再挂**：建卡时已知的关系一律用 `issue create` 的
+     `--parent` / `--blocked-by` / `--blocks` / `--related` 一次带上，服务端与建卡同一个事务落库。
+     分两次调用，中间那张 `todo` 卡就是一张没人挡的可派卡，派发器几秒内就认领开工
+     （TODOHUB-268、TODOHUB-280 实撞，最快 3.8 秒）；建 `backlog` 同样一起给，免得挪 `todo` 前
+     忘了补。`issue relation add` 只留给**给已经存在的卡补挂关系**。选项细节见
+     references/fork-cli.md「建卡即挂关系」。
 
 5. **工作树**：要改仓库代码的卡，认领后先进独立 worktree／分支再动代码（并行纪律与生命周期见
    git-workflow skill 的 git.md），并登记进卡片：`issue update --worktree-path PATH

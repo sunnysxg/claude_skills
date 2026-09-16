@@ -42,6 +42,18 @@
   ],
   "skills": [
     {
+      "name": "article-ingest",
+      "source": "article-ingest",
+      "platforms": ["windows", "linux"],
+      "targets": ["cursor", "codex"],
+      "compatibility": {
+        "cursor": "compatible",
+        "codex": "compatible",
+        "windows": "ssh_fetch_only",
+        "linux": "local_fetch"
+      }
+    },
+    {
       "name": "git-workflow",
       "source": "git-workflow",
       "platforms": ["windows", "linux"],

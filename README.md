@@ -12,6 +12,7 @@
 
 | Skill | 说明 |
 |-------|------|
+| `article-ingest` | 文章（主要是公众号）入 Obsidian 主库：按 URL 查库 → curl + Chrome UA 抓 → 分正文页/短内容/验证页/已删 → defuddle 转 Markdown 并剪页面残渣 → 经 Lightsail 上只新建不覆盖的 gate 写 `_raw/` 与 REF 骨架；Windows 本机不抓国内站，经 ssh 借 Lightsail / sera 出网；依赖本机私有的 gate 链路，没有它的机器不适用 |
 | `git-workflow` | 执行 Git 写操作；按项目指令文件里的 Git 规则执行，没有规则时用保守默认并问一次 |
 | `grilling` | 把一个计划/想法组织成设计树，按轮追问用户直到达成共同理解；每题带推荐答案，事实自查不问用户 |
 | `handoff` | 写交接文档到 `~/_sxg/handoff/{project}.md`，供下一个 session/agent 接手 |

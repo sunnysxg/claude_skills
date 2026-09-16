@@ -123,3 +123,16 @@ blocked 卡的自动解锁全归派发器，skill 只留 backlog 半句〉取代
 - 未采纳的变体：CLAUDESKILLS-28 评论提出把触发条件从「有没有追加拍板节」改成「拍的板有没有只看规则文本看不出边界的界面／流程行为」。Sarah 只拍了收窄到看板仓；换判据等于重开 todo_hub〈2026-08-27 留档页触发判据挂 decisions.md 门槛〉那节已否掉的「按改动性质裁量」，未拍不动。
 
 出处：CLAUDESKILLS-26（Sarah 2026-09-15 评论「按 1 来做」）。
+
+## 2026-09-16 抓文章不依赖第三方抓取服务，headless 不进公众号主路
+
+状态：现行
+
+在「公众号是用户约 60% 的信息输入，要把入库固定成 `article-ingest` 脚本流程，而 Hermes 旧流水线靠 Exa 代抓、声明的 headless 退路在 Lightsail 上起不来」的场景下，面对「抓取可靠性与『读什么不经别人服务器』两头都要」的顾虑，选「主路 curl + Chrome UA 取 HTML → defuddle（Obsidian Web Clipper 的提取引擎）转 Markdown；撞验证页等 60 秒重试一次，再换 sera 的家庭网络抓一次；都不行就报『抓不到 + 原因分类』」，否「Exa / Jina Reader / AnySearch 等第三方抓取服务做主路或退路」「headless 浏览器进公众号主路」「Hermes 旧的正则剥标签出纯文本」，以达「91% 的公众号链接拿到带标题层级、表格、图片的正文，且正文不经第三方」，接受「剩下的验证页和已删文章就是拿不到；知乎这类要登录或挡云 IP 的站不在主路里，另走 headless 路线」。
+
+否决理由：
+- Exa / Jina Reader / AnySearch：都是把正文经第三方服务器转一手。Jina 对公众号 8/8 撞验证页（服务本身活着，是微信把它当非浏览器请求拦下，和不带 UA 的 curl 撞同一堵墙）；Hermes 自己的记忆写着 Exa「对微信不 100% 稳」。三者都不比「换 sera 的网络再抓一次」可靠，还要把「读什么」送出去。
+- headless 进公众号主路：微信验证页按「像不像浏览器 + IP 信誉」判，headless 对公众号没有增量，Hermes 的记录里反而更容易触发验证。headless 只留给 JS 渲染 / 要登录的站（Lightsail 环境已修好，见 `article-ingest/references/headless.md`）。
+- 正则剥标签出纯文本：无标题层级、无图、无表格；五种生成办法对照里 defuddle 最好（TODOHUB-45 第二轮）。
+
+出处：TODOHUB-45（69 条公众号链接实测、五种 Markdown 生成办法对照；Sarah 2026-09-16「行，那该做的做吧」）；实施 CLAUDESKILLS-40。

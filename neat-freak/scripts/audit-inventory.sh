@@ -22,10 +22,12 @@ section() {
 
 file_size() {
   local file="$1"
-  local lines bytes
+  local lines chars bytes
   lines="$(wc -l < "$file" | tr -d ' ')"
+  # Resident budget is in characters; bytes overcount CJK text 3x.
+  chars="$(LC_ALL=C.UTF-8 wc -m < "$file" | tr -d ' ')"
   bytes="$(wc -c < "$file" | tr -d ' ')"
-  printf '%s\tlines=%s\tbytes=%s\n' "$file" "$lines" "$bytes"
+  printf '%s\tlines=%s\tchars=%s\tbytes=%s\n' "$file" "$lines" "$chars" "$bytes"
 }
 
 describe_rule_file() {
@@ -44,7 +46,7 @@ describe_rule_file() {
   fi
 }
 
-printf '# neat-freak inventory v2\n'
+printf '# neat-freak inventory v3\n'
 printf 'project_root=%s\n' "$PROJECT_ROOT"
 printf 'generated_at=%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 

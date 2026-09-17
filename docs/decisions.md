@@ -148,3 +148,14 @@ blocked 卡的自动解锁全归派发器，skill 只留 backlog 半句〉取代
 - 删 fork-cli.md 的命令说明：参考文档按需才读，不算噪声；命令已上线，没有说明就没人查得到。
 
 出处：CLAUDESKILLS-44；看板仓同一判断见 todo_hub `docs/decisions/202609171520-partial-comment-read-not-in-prompts.md`（TODOHUB-374 第二轮，Sarah 2026-09-17）。
+
+## 2026-09-17 常驻规则预算挂 neat-freak 收口检查，不进 COMMON
+
+状态：现行
+
+在「todo_hub 的 CLAUDE.md 一个月长到 2,622 行 / 17 万字符，根因之一是 neat-freak『知识放在哪里』表只写了 docs 装『系统如何工作』，项目没有架构文档时收口最顺手的落点就是规则文件」的场景下，面对「以后别的项目的规则文件同样无声长回去」的顾虑，选「neat-freak『知识放在哪里』写明常驻预算（一条常驻链 200 行 / 24,000 字符，口径与 todo_hub 夜测 `scripts/resident_rules_report.mjs` 相同）；收口改了规则文件就量，超了新增内容进 docs、规则只加路由，汇报给读数」，否「写进 `global/COMMON.md` 成全局规则」，以达「收口这个最常往规则文件里写东西的环节自己挡住膨胀」，接受「不经 neat-freak 直接改规则文件的会话不受检查，靠 todo_hub 夜测兜底报警」。
+
+否决理由：
+- 进 COMMON：同样的膨胀目前只在 todo_hub 发生过一次，COMMON 的新增门槛是有真实踩坑；等别的项目第二次出现再上提。
+
+出处：TODOHUB-388（Sarah 批注）；实施 CLAUDESKILLS-45。

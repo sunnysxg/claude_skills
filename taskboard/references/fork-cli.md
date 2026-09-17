@@ -51,9 +51,6 @@ taskctl comment list <卡号> --last <N>
 taskctl comment get  <评论 id>
 ```
 
-只看某张卡最近几条评论用 `--last`，看某一条用 `comment get`，不必把整张卡的评论都读进来
-（TODOHUB-374）。
-
 - `--last N`：N 须是正整数，否则 usage error `--last must be a positive integer`。评论按创建时间
   升序，取的是**最后 N 条**；输出比不带时多一个 `total`（这张卡评论总数），据此判断是否漏看。
   截尾在 CLI 本地做——服务端照旧回整张卡的评论，省的是读的人的上下文，不是网络，所以对云端伴生

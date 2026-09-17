@@ -136,3 +136,15 @@ blocked 卡的自动解锁全归派发器，skill 只留 backlog 半句〉取代
 - 正则剥标签出纯文本：无标题层级、无图、无表格；五种生成办法对照里 defuddle 最好（TODOHUB-45 第二轮）。
 
 出处：TODOHUB-45（69 条公众号链接实测、五种 Markdown 生成办法对照；Sarah 2026-09-16「行，那该做的做吧」）；实施 CLAUDESKILLS-40。
+
+## 2026-09-17 taskboard SKILL.md 不教 agent 只读部分评论，命令只留在 fork-cli.md
+
+状态：现行
+
+在「TODOHUB-374 给 taskctl 加了 `comment list --last N` 与 `comment get <评论 id>`，CLAUDESKILLS-43 随即在 SKILL.md 核心纪律 1 和 fork-cli.md 里写了『只需要最近几条时用它、接手开工前仍读全』」的场景下，面对「教它的规则正文在派发指令、CLAUDE.md、skill 各写一份，加起来未必比省下的评论 token 少，且是低信息量的噪声」的顾虑，选「SKILL.md 正文不提这两条命令；fork-cli.md 保留命令与选项说明，但不写劝用句」，否「SKILL.md 继续教、只收窄成『查别的卡用 --last、本卡读全』」「连 fork-cli.md 的命令说明一起删掉」，以达「每次触发 skill 都要读的正文不背这条规则」，接受「agent 不主动知道这两条命令，要用时从 fork-cli.md 查」。
+
+否决理由：
+- SKILL.md 继续教（哪怕收窄）：省下的评论本身是相关上下文，规则正文却每次都读；收窄还要多写「本卡读全」一句。
+- 删 fork-cli.md 的命令说明：参考文档按需才读，不算噪声；命令已上线，没有说明就没人查得到。
+
+出处：CLAUDESKILLS-44；看板仓同一判断见 todo_hub `docs/decisions/202609171520-partial-comment-read-not-in-prompts.md`（TODOHUB-374 第二轮，Sarah 2026-09-17）。

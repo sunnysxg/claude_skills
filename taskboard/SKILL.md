@@ -165,6 +165,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
 
 1. **已有卡先 `issue get` + `comment list`**，读完描述和最新评论再决定动不动——评论是现行需求，
    含打回重做。评论说等待／别执行时，停下汇报，不改状态。
+   只需要最近几条时（回看读过的卡有什么新动态、查旁卡近况）用 `taskctl comment list <卡号> --last <N>`，
+   引用或复查某一条用 `taskctl comment get <评论 id>`，不必把整张卡的评论都读进来；但接手一张卡
+   开工前仍读全，打回重做可能在任何一条里。选项细节见 references/fork-cli.md。
 
 2. **认领**：可开工的 `todo` 带当前 `version` 挪 `in_progress`，成功之前不继续。已是
    `in_progress` 的卡只有绑定当前会话才继续，**别的会话认领的卡永远不碰**——两个会话同时写同
@@ -318,6 +321,18 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
 9. **拍板要回写卡片**：会话里讨论出的结论，把「拍了什么、落在哪些文件、这张卡还剩哪半没做」
    写回卡片评论或描述——只写进 decisions.md 或规则文件，从看板上看等于什么都没发生，下次只能
    翻会话转写才找得回来。
+
+10. **正文里提到别的卡写 @ 链接**：评论与卡片描述里提到别的卡，一律写成 @ 链接
+    `[@<卡号>](?project=<那张卡的项目 id>&issue=<卡号>)`（例：
+    `[@CLAUDESKILLS-43](?project=claude-skills&issue=CLAUDESKILLS-43)`），Sarah 点得开；git trailer、
+    命令参数、文件名里照旧写裸卡号。
+    - 项目 id 取那张卡 `issue get` 里的 `projectId`，**不是卡号前缀改小写**（`CLAUDESKILLS` 的项目
+      是 `claude-skills`）；拼错了点开落到错误的项目里。
+    - 链接是相对查询串，照原样写，不补 `http://…` 或 `/` 开头——本机、公网、`/dev/` 下点开才都落在
+      同一个实例上。
+    - 看板派发／回应指令里自带这句，人手起的会话只能靠本条。原文的事实源是 todo_hub
+      `dashi-taskboard/shared/card-mention.mjs` 的 `cardMentionNote`；两边对不上时以模块为准，
+      改措辞先改模块再照抄过来。
 
 **自动派发的工作会话**（prompt 含「自动派发会话须知」）另见
 [references/dispatch.md](references/dispatch.md)。

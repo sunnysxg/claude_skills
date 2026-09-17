@@ -44,6 +44,23 @@ PowerShell 5.1 吃双引号并在引号内空格处裂参），两者都不报�
 
 服务端对评论正文一律 trim 首尾空白（`--body` 也一样），所以文件末尾的换行不会落到卡上。
 
+## 只读部分评论（cli.md 没有）
+
+```
+taskctl comment list <卡号> --last <N>
+taskctl comment get  <评论 id>
+```
+
+只看某张卡最近几条评论用 `--last`，看某一条用 `comment get`，不必把整张卡的评论都读进来
+（TODOHUB-374）。
+
+- `--last N`：N 须是正整数，否则 usage error `--last must be a positive integer`。评论按创建时间
+  升序，取的是**最后 N 条**；输出比不带时多一个 `total`（这张卡评论总数），据此判断是否漏看。
+  截尾在 CLI 本地做——服务端照旧回整张卡的评论，省的是读的人的上下文，不是网络，所以对云端伴生
+  后端同样可用。
+- `comment get` 走 `GET /api/comments/:id`，返回 `{"comment": {...}}`，带 `version`，可直接接
+  `comment update --if-version`。评论 id 从 `comment list` 的输出里拿。
+
 ## 推进方式
 
 ```

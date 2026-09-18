@@ -3,7 +3,7 @@
 
 Pipeline (see ../SKILL.md): lookup vault by URL -> fetch HTML with curl + Chrome UA -> classify
 (article / short / verify / deleted) -> defuddle to Markdown -> trim page residue -> drafts with the
-vault frontmatter -> the agent fills TODO_AGENT markers -> `write` creates _raw + REF (never overwrites).
+vault frontmatter -> the agent checks the tail for residue -> `write` creates _raw + REF (never overwrites).
 
 Subcommands (all print one JSON object on stdout; progress goes to stderr):
   fetch URL [--work DIR]   lookup + fetch + classify + convert + drafts
@@ -53,7 +53,6 @@ CACHE = Path.home() / ".cache" / "article_ingest"
 REMOTE_SCRIPT = ".cache/article_ingest/article_ingest.py"   # relative to the remote home
 DEFAULT_GATE_CLIENT = "~/.hermes/article_archive/scripts/obsidian_gate.py"
 LOOKUP_FOLDERS = ("_raw", "Clippings")
-TODO = "TODO_AGENT"
 META_MARK = "ARTICLE_INGEST_META"
 LINK_STATES = {"unreachable", "obsidian_offline", "obsidian_timeout", "obsidian_error",
                "backup_unhealthy", "busy", "wrong_vault", "not_indexed", "gate_error", "gate_client_missing"}
@@ -469,11 +468,11 @@ def build_drafts(meta: dict, body: str) -> dict:
     ref_path = f"2-Zettelkasten-References/REF-{slug(meta['title'], 24)}-{slug(account, 24)}.md"
     common = ["categories: \"[[articles]]\"", f"author: \"[[{author}]]\"", f"source: {yaml_str(meta['link'])}"]
     raw = "\n".join([
-        "---", f"date: {pub:%Y-%m-%d}", "tags:", f"  - {TODO}", f"id: ref_{pub:%Y%m%d%H%M%S}", *common,
+        "---", f"date: {pub:%Y-%m-%d}", "tags:", f"id: ref_{pub:%Y%m%d%H%M%S}", *common,
         f"created: \"{stamp}\"", f"updated: \"{stamp}\"", "---", "", f"# {meta['title']}", "", body, ""])
-    # The vault constitution keeps REF cards in the owner's own words: the one-liner stays empty for her.
+    # Skeleton only (vault constitution rule 2): no topic tags, the one-liner stays empty for her.
     ref = "\n".join([
-        "---", f"date: {pub:%Y-%m-%d}", "tags:", "  - zettelkastenReference", f"  - {TODO}",
+        "---", f"date: {pub:%Y-%m-%d}", "tags:", "  - zettelkastenReference",
         "topics:", f"id: zettelkastenReference{now:%Y%m%d%H%M%S}", *common, "rating:",
         f"created: \"{stamp}\"", f"updated: \"{stamp}\"", "---", "", f"# REF · {meta['title']}", "",
         "**一句话**：", "",
@@ -570,8 +569,6 @@ def validate(work: Path) -> tuple[dict, str, str]:
     if not (fp.startswith("2-Zettelkasten-References/") and fp.endswith(".md")):
         problems.append("ref_path must be 2-Zettelkasten-References/*.md")
     for name, text in (("raw.md", raw), ("ref.md", ref)):
-        if TODO in text:
-            problems.append(f"{name} still has {TODO} markers")
         if not re.match(r"^---\n.*?\n---\n", text, re.S):
             problems.append(f"{name} has no frontmatter")
         if not ({k for u in note_urls(text) for k in url_keys(u)} & url_keys(info["link"])):

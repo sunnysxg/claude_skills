@@ -8,9 +8,8 @@ description: >
 
 # article-ingest — 文章入库
 
-流程固定在 `scripts/article_ingest.py` 里（只用标准库），agent 只做两件脚本做不了的事：给草稿
-打主题 tag、扫一眼头尾有没有脚本没剪掉的账号专属页脚。每一步的判定都以脚本输出的 JSON 为准，
-不要自己另起抓取。
+流程固定在 `scripts/article_ingest.py` 里（只用标准库），agent 只做一件脚本做不了的事：扫一眼
+头尾有没有脚本没剪掉的账号专属页脚。每一步的判定都以脚本输出的 JSON 为准，不要自己另起抓取。
 
 **前提**：本 skill 依赖 Lightsail 上的 Obsidian 受限入口（gate，库在 sera，经 Tailscale）。
 没有这条链路的机器不适用——`doctor` 会报出来，别绕过 gate 直接写库。
@@ -48,31 +47,25 @@ Reader 之类第三方抓取服务**（为什么见 `docs/decisions.md`「抓文
 `kind` 是 `article`（正文页）、`short`（公众号短内容，正文在页面数据里）或 `page`（非公众号页面）。
 `attempts` 记录每次抓取走的哪条出网、结果和耗时，汇报时带上成功的那条。
 
-## 3. 补草稿（agent 唯一要判断的地方）
+## 3. 看草稿（agent 唯一要判断的地方）
 
 `work_dir` 里三个文件：`raw.md`（原文）、`ref.md`（REF 卡骨架）、`meta.json`（`raw_path` /
-`ref_path` 等）。
+`ref_path` 等）。草稿按库宪法（`_hermes/claude-code-guide.md`「笔记体系核心规则」第 2 条）只建
+骨架，agent 不往里加内容，只做下面两件：
 
-1. **tag**：把两份文件里的 `TODO_AGENT` 各换成 3～5 个主题 tag（照库里已有写法：英文小写
-   kebab-case，如 `context-engineering`、`factor-model`；两份用同一组，`ref.md` 保留
-   `zettelkastenReference`）。
-2. **扫头尾残渣**：脚本已剪掉阅读器横幅、「知道了 / 微信扫一扫」页脚、常见推广块和「阅读原文」。
+1. **扫头尾残渣**：脚本已剪掉阅读器横幅、「知道了 / 微信扫一扫」页脚、常见推广块和「阅读原文」。
    账号专属的签名块（如「以上，既然看到这里了…三连」、商务合作邮箱）若还在文末，删掉；**只删
    页面残渣，不改正文一个字**。拿不准的留着。
-3. **路径（可选）**：默认文件名是全标题。想短一点就改 `meta.json` 的 `raw_path` / `ref_path`
+2. **路径（可选）**：默认文件名是全标题。想短一点就改 `meta.json` 的 `raw_path` / `ref_path`
    （照库里现有 `_raw/作者-短标题-YYYYMMDD.md`、`REF-短标题-作者.md`），并同步改 `ref.md`
    「## 原文存档」下的 `[[…]]`——`write` 会校验两者一致。
-4. **REF 卡只留骨架**：`**一句话**：` 留空给用户自己写——库宪法规定 REF 卡（A 类卡）只放用户
-   自己的话、不放 AI 摘要。只有用户在这次请求里明说要 AI 写摘要，才写，并按库内「AI 标记约定」
-   加 `cc/<当前模型>` tag。
 
 ## 4. 写：`{PY} {SCRIPT} write <work_dir> --gate …`
 
 先建 `_raw/` 再建 REF。按 `status` 分流：
 
 - `written`：两份的结果是 `created` 或 `existed`（同路径同内容，重跑无副作用），成功。
-- `invalid_draft`：按 `problems` 改草稿再跑（还有 `TODO_AGENT`、`[[…]]` 与 `raw_path` 不一致、
-  source 对不上等）。
+- `invalid_draft`：按 `problems` 改草稿再跑（`[[…]]` 与 `raw_path` 不一致、source 对不上等）。
 - `conflict`：该路径已有**不同内容**的笔记。gate 永不覆盖；报给用户，由她决定改名重写还是放弃。
   前一步已建成的 `_raw` 不回滚（REF 可以换名再写）。
 - 退出码 2（`backup_unhealthy`、`obsidian_offline`、`unreachable` 等）：链路没就绪，草稿留在
@@ -82,7 +75,7 @@ Reader 之类第三方抓取服务**（为什么见 `docs/decisions.md`「抓文
 ## 5. 汇报
 
 一两句：入库了哪篇（标题、公众号、发布日期）、两个 vault 路径、走的哪条出网；抓不到的给原因
-分类。REF 卡「一句话」留空要提醒她补。
+分类。
 
 ## 退出码
 

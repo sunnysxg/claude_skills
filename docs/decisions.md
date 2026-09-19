@@ -39,7 +39,7 @@
 
 在「agent 把活做完或推进到需要用户才能继续，卡却停在 backlog，『等你』只存在于评论散文里、按状态查不到」的场景下（实例：CLAUDESKILLS-12 的活已随 -6 做完并提交，卡仍停 backlog），面对「用户的验收队列不可查询、跨会话积压隐身」的顾虑，选「等验收挪 in_review、要用户输入/拍板才能继续挪 blocked、共同讨论进行中留 in_progress 属正常；不得把等用户的卡留在 backlog 指望被看到」，否「不立约定、靠各会话收尾汇报口头补偿」，以达「in_review + blocked 两列即用户的待办队列，一条查询可见」，接受「in_progress 里仍混有等用户回复的共同讨论卡，靠会话往来本身承载，状态列不完全等于队列」。
 
-出处：CLAUDESKILLS-17（Sarah 2026-08-20 批复「要让我看的要么在 blocked 要么在 in_review；共同推进的在 in_progress 是正常的」）；规则落 taskboard skill 核心流程第 8 条、neat-freak 收尾链待办步。
+出处：CLAUDESKILLS-17（Sarah 2026-08-20 批复「要让我看的要么在 blocked 要么在 in_review；共同推进的在 in_progress 是正常的」）；规则落 taskboard skill「分区」一节的流转规则（原核心流程第 8 条）、neat-freak 收尾链待办步。
 
 ## 2026-08-20 worktree 指派规则：托管树 + 合并纪律，上限默认 3 进项目指令文件
 
@@ -159,3 +159,16 @@ blocked 卡的自动解锁全归派发器，skill 只留 backlog 半句〉取代
 - 进 COMMON：同样的膨胀目前只在 todo_hub 发生过一次，COMMON 的新增门槛是有真实踩坑；等别的项目第二次出现再上提。
 
 出处：TODOHUB-388（Sarah 批注）；实施 CLAUDESKILLS-45。
+
+## 2026-09-19 taskboard skill 按轮次拆成路由 + references，自动轮规矩只认派发须知
+
+状态：现行
+
+在「`taskboard/SKILL.md` 长到 348 行、每轮都整份读，大半只对某一类轮次有用；CLAUDESKILLS-42 里 skill 写『挪 in_review』、派发须知写『不要挪』，两句同进一个会话」的场景下，面对「互不相干的轮次规矩摊在一个文件里，既占注意力又互相打架」的顾虑，选「方案 C：SKILL.md 只留每轮都用的内容和一张按 prompt 原文判定的路由表；人手交付、交付评论、讨论卡交回、完成收尾、原理留档页、自动轮补充各进一份 reference（一层深）；自动工作轮与预调研轮的规矩以须知原文为唯一源，skill 只写『照须知做』，须知缺的只在 reference 留一份并建卡提议补进须知」，否「最小修：只删和须知重复的段落、不拆文件」「只按轮次拆、skill 仍复述须知里的规矩」「原理留档页迁进 todo_hub 的 `docs/agent/`」，以达「每轮只读自己用得上的规矩，一条规矩只住一处」，接受「人手派会话若没按路由表去读 reference 会漏掉交付评论模板；须知补全前，自动轮仍要读一份 reference」。
+
+否决理由：
+- 最小修：打架消了，但人手交付、ACK、留档页仍每轮都进上下文。
+- 拆但仍复述须知：复述就是下一次打架的来源（CLAUDESKILLS-42），路由判断也该交给已经确知轮次的派发器。
+- 留档页迁进 todo_hub：规矩对 todo_hub 的人手会话同样要用，而人手会话不读 `docs/agent/` 的保证不比读 skill reference 强；本卡也不跨仓改。
+
+出处：TODOHUB-424 预调研与 Sarah 批注（2026-09-19，description 取「调和版」、拆法取方案 C）；实施 CLAUDESKILLS-48。

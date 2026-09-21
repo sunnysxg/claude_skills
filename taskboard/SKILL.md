@@ -19,7 +19,7 @@ JSON，`JSON.parse` 成功不代表写进去了。管道里包一层解析脚本
 
 | 这一轮的指令原文里有 | 是哪一轮 | 照什么做 |
 |---|---|---|
-| 【自动派发会话须知】（含「无仓库项目」「冻结 SSH 目标」两个变体） | 自动工作轮 | 照须知做；另读 [auto-work.md](references/auto-work.md) 与 [delivery-comment.md](references/delivery-comment.md) |
+| 【自动派发会话须知】（含「无仓库项目」「冻结 SSH 目标」两个变体） | 自动工作轮 | 照须知做，这一轮的规矩以须知原文为准；交付评论另读 [delivery-comment.md](references/delivery-comment.md) |
 | 【自动预调研会话须知】 | 讨论卡预调研轮 | 照须知做，不读别的 |
 | 【看板完成钩子】 | 完成收尾轮 | 照指令做；另读 [closeout.md](references/closeout.md) |
 | 【看板评论回应】【看板家族复查】【看板家族收口】【看板候选冲突重解】【看板 main 归并冲突】【看板落位测试闸修正】等系统投来的【看板…】指令 | 系统指令轮 | 照指令做，不读别的；本卡状态只按指令改（家族收口指令让挪的是**父卡**） |

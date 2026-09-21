@@ -82,6 +82,50 @@ taskctl issue create ... --destination production|dev
 这个选项（报 `Unknown option --destination`），改这个字段的 agent 来源写入服务端也一律 403，
 觉得该改就评论提议。语义见 SKILL.md「目的地」。
 
+## 卡级定时（cli.md 没有）
+
+```
+taskctl issue create ... --dispatch-after <时间>
+taskctl issue update ID --dispatch-after <时间>|none
+```
+
+设卡片字段 `dispatchAfter`（存库与 `issue get` 读回都是 ISO UTC 瞬时，`null` = 不定时），语义是
+**这个时刻之前自动派发不认领这张卡**：派发器的卡级闸多一条 hold `scheduled`（排在 `blocked_by`
+之后、`agent_override` 之前，卡面上看得见）。到点之后这条 hold 自己消失、由周期 tick（最多 60
+秒）自然认领，字段留在卡上不清，不用人回来擦。**它只挡自动派发**——立刻派发照常绕过，手动派遣、
+把卡拖进「处理中」也都不看它。
+
+写法一律**按 UTC+8 解析，且解析发生在服务端**（taskctl 把字符串原样发过去）：判到没到点的是
+派发器的钟，不是你终端的，服务端跑在别的时区时自己换算：
+
+| 写法 | 含义 |
+|---|---|
+| `2026-09-21 14:00` | 那个挂钟时刻；`T` 分隔、带秒、只写 `2026-09-21`（= 当天 00:00）都收 |
+| `14:00` | 下一个这个钟点（今天还没过就是今天，过了就明天）；可带秒 `14:00:30` |
+| `+2h` / `+30m` / `+1d` | 相对现在，只有分/时/天三个单位 |
+| 带时区的 ISO（`…Z`、`…+08:00`） | 按它自己写的时区 |
+| `none`（或空串） | 清掉定时 |
+
+不带时区的其他写法（`2026/09/21 14:00`、`Sep 21 2026`）一律 400 `INVALID_FIELD`，**不交给
+`Date.parse` 猜**——各引擎口径不同，猜错就是把定时挪走几小时；超过 64 字符同样 400。已经过去的
+时刻收得下，只是 hold 当场就不成立，等于没定时。
+
+**这一项 agent 也改得动**，与 `--destination` / `--mode` / `--bundle-release` 相反（那三项建完
+之后 agent PATCH 一律 403）：定时不决定成果去哪、什么时候上线，只回答「从几点起可以开工」，而
+「等额度重置再做」正是 agent 先知道；改动进活动流、写在卡面上，不会悄悄发生。
+
+所以撞上额度上限、要等到点才能做的活，直接建成定时的 `todo` 卡，**不要建 `backlog` 靠人记得挪
+回来**：
+
+```
+taskctl issue create --project claude-skills --title "…" --description-file /tmp/d.md \
+  --status todo --dispatch-after 14:00
+```
+
+- **云端伴生后端（todo_hub 的 `cloud/`）没有这个字段**，对着它别带。
+- 事实源是 todo_hub 的 `dashi-taskboard/shared/task-schedule.mjs`（写法解析与到点判定只此一份）
+  与 `docs/agent/dispatch.md`「卡级定时」一节。
+
 ## 建卡即挂关系（cli.md 没有）
 
 ```

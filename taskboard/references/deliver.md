@@ -25,7 +25,7 @@ skill 的 git.md），并登记进卡片：`issue update --worktree-path PATH --
 2. **收口跟目的地走**：生产卡**先做知识收口**（`neat-freak` → `session-log` → `zettel-distill`
    提案），把收口改动一并 commit，再确认候选 `git status --short` 为空——交付后系统直接上线，不会
    再回到这个会话，树里残留的未跟踪文件（TODOHUB-291 是 session-log 的时间 JSON）会让发布 saga
-   判脏树反复重试。开发卡**不收口**，等完成钩子（见 closeout.md）——她可能打回迭代，提前收口白做。
+   判脏树反复重试。存量开发卡（目的地 `dev` 已停用，TODOHUB-493）**不收口**，等完成钩子（见 closeout.md）——她可能打回迭代，提前收口白做。
 3. **干净候选、保留工作树**：把本卡成果 commit 成干净候选（todo_hub 自己的卡要做原理留档页的，
    页随候选同笔，见 notes-page.md）；**不自行 merge / push / deploy /
    收树**，两种目的地都由服务端落位，worker 动手会和它打架。

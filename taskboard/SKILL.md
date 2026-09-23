@@ -125,7 +125,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
   收口时机跟着它走（见 deliver.md、closeout.md）。
 - **推进方式**（`advanceMode`）：`deliver` 直接交付（默认）/ `discuss` 共同讨论。需要她参与才能
   成形的，建卡时用 `--mode discuss` 标成共同讨论。`todo` 列的讨论卡由派发器起只调查不实施的
-  预调研轮；她把讨论卡点成直接交付才转实施（见 discuss.md）。
+  预调研轮。改推进方式只改字段、不起会话；讨论卡要转实施，她先改成直接交付、再退回等待认领
+  （见 discuss.md）。
 
 ## 建卡
 

@@ -80,6 +80,9 @@
     3.9.16 的文件化 User Rule；同步器只管理这一文件，不接管整个 `rules/` 目录。
   - Codex：同步器只替换 `~/.codex/AGENTS.md` 的
     `<!-- BEGIN/END claude_skills:global-common -->` 标记区块，块外本机规则原样保留。
+  - Hermes（Lightsail 上的常驻助手）不归本仓同步器管：COMMON 由私有仓的脚本从管理机推进
+    它的 `SOUL.md`，skills 没有同步。接入评估与方案见
+    [docs/sync-design.md](docs/sync-design.md) §10。
 - 首次接线或 COMMON 更新后，用新 task 验证实际加载；Cursor 如未立即刷新，执行 Reload
   Window 后在 Settings → Rules 确认 `claude-skills-common` 出现在用户规则中。
 - 规则投影与 skill 链接分别计数。同步器遇到畸形标记、目录/reparse target，或同名但没有

@@ -270,7 +270,51 @@ commit/merge 协调。Handoff 可以在 Local、worktree 和匹配的 SSH host �
 | 同 task 跨 host session upsert | task ID 不变，记录 host history，私有传输后更新同一文件 | 需先定传输层 |
 | 两个 agent 并行 | 独立 worktree/branch，不共写 checkout | 流程约束 |
 
-## 10. 官方参考
+## 10. Hermes 接入（评估，未实施）
+
+Hermes（Nous Research 的 agent 框架）作为常驻助手跑在 Lightsail，经飞书对话。2026-09-23
+实查的现状与结论如下；是否实施待 Sarah 拍板，拍板后按 `conventions.md` §13 进
+`decisions.md`。
+
+**现状。**
+
+- 规则：COMMON 由私有仓 `lightsail-playground/hermes/sync_rules.ps1` 从管理机经 ssh 写进
+  `~/.hermes/SOUL.md` 的 `claude_skills:global-common` 标记区块——与本仓 Codex 投影同一套
+  标记，但要人在管理机上手动跑。实查时区块停在 2026-09-08，已落后 COMMON 一处改动。
+- skills：Lightsail 上没有本仓的 clone，Hermes 只认自己的 `~/.hermes/skills/`（按类别分目录，
+  手动拷来的放 `local/`）。`local/hv-analysis` 与本仓当前版本逐字节相同，是早先手动拷的。
+
+**格式不需要转换层。** Hermes 的技能就是目录 + `SKILL.md`（YAML frontmatter 的 `name` /
+`description`，另认 `platforms` 与 `metadata.hermes.*` 条件字段），与 Agent Skills 规范同一套；
+`references/`、`scripts/` 按渐进加载处理。它还原生支持 `config.yaml` 的
+`skills.external_dirs`：递归发现其中的 `SKILL.md`，跟随符号链接；外部目录视为「他人拥有」，
+Hermes 自主的技能维护（curator、后台复盘）不改它，只有用户当面让它改时才会写。与
+`~/.hermes/skills/` 重名时本地优先、静默遮蔽外部同名项。
+
+**建议做法（未实施）。**
+
+1. Lightsail 上 clone 本仓（公开仓，https 只读即可），manifest 新增 `hermes` 客户端，
+   `root` 设成一个专用目录（如 `~/.hermes/external-skills/claude_skills`），由 Linux 同步器照
+   现有语义逐 skill 建符号链接；`config.yaml` 的 `skills.external_dirs` 指向这个目录。只链
+   manifest 声明给 `hermes` 的 skill，不把整个 clone 挂进去——否则依赖 SeraCC 本机看板、
+   Claude/Codex transcript 或桌面宿主的 skill 也会出现在 Hermes 的技能列表里。
+2. COMMON 改由 Lightsail 上的 Linux 同步器以现有 `managed_block` 模式写 `SOUL.md`，同一套
+   标记，接替管理机上的手动脚本。
+3. 触发挂在 Lightsail 的定时任务上：`git pull --ff-only` 后跑同步；clone 脏了或不能快进时
+   只报错不动。触发点不能是「记得在管理机上跑一下」——上面那一处漂移就是这么来的。
+4. 接线后删掉 `~/.hermes/skills/local/` 里与本仓同名的旧拷贝，否则它们会静默遮蔽同步来的
+   新版本。
+
+候选的首批 skill：`article-ingest`（Linux 本机抓取，gate 客户端本来就在 Lightsail）、
+`hv-analysis`、`grilling`、`steelman`、`leader`、`git-workflow`。不给的：`taskboard`、
+`pickup`（看板只在 SeraCC 本机）、`session-log`、`session-search`、`neat-freak`（依赖三家客户端
+的 transcript 与归档）、`ui-options`（依赖桌面侧栏渲染）。
+
+**不做的代价与门槛。** 当下没有 Hermes 必须用的新 skill；按需把单个 skill 手动拷进
+`skills/local/` 仍然可行，代价是会像 SOUL.md 一样悄悄过期。触发实施的门槛：出现第二个要给
+Hermes 用的 skill，或 Sarah 重新把 Hermes 当主力入口用。
+
+## 11. 官方参考
 
 - [Codex skills：保存位置、symlink 与渐进加载](https://learn.chatgpt.com/docs/build-skills)
 - [Agent Skills 规范：SKILL.md frontmatter](https://agentskills.io/specification)

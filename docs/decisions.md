@@ -87,7 +87,7 @@ blocked 卡的自动解锁全归派发器，skill 只留 backlog 半句〉取代
 
 ## 2026-09-01 fork 与上游的行为分歧写进 fork-cli.md，cli.md 保持上游原文一字不改
 
-状态：现行
+状态：已被〈2026-09-23 taskboard skill 的命令参考与分区判据改由 taskctl help 出正文〉取代
 
 在「taskboard skill 的 `references/cli.md` 是 dashi 上游原文的镜像、保持不动只为对照上游 diff，而本 fork 已经改掉了它描述的部分行为（TODOHUB-114 让 `issue relation add/remove` 不再改写卡的 `threadId`），cli.md 那句 `Its singular threadId is the ... most recently created or changed the issue` 按字面读会让 agent 不敢给别人正在开发的卡挂关系」的场景下，面对「要么改 cli.md 让读者一次读对但污染上游 diff 基线，要么另写一处让基线干净但读者读不到」的顾虑，选「行为分歧与 fork 独有命令一律写 `references/fork-cli.md`，并在 SKILL.md 的路由段明写『两份冲突时以 fork-cli.md 为准』、在会触发犹豫的纪律条目（纪律 4 挂关系、纪律 6 家族复查）各补一句指针」，否「直接改 cli.md 对应行（TODOHUB-161 卡面原话）」「在 cli.md 里插带标记的 fork 注记」「只写 fork-cli.md 不动 SKILL.md」，以达「cli.md 仍能一条 diff 看清上游改了什么，同时 agent 沿 SKILL.md 的既有路由必然读到正确行为」，接受「读者要读两份文件才拿到完整语义；上游哪天自己也改了这个行为，fork-cli.md 里的对照段要手工回收」。
 
@@ -172,3 +172,18 @@ blocked 卡的自动解锁全归派发器，skill 只留 backlog 半句〉取代
 - 留档页迁进 todo_hub：规矩对 todo_hub 的人手会话同样要用，而人手会话不读 `docs/agent/` 的保证不比读 skill reference 强；本卡也不跨仓改。
 
 出处：TODOHUB-424 预调研与 Sarah 批注（2026-09-19，description 取「调和版」、拆法取方案 C）；实施 CLAUDESKILLS-48。
+
+## 2026-09-23 taskboard skill 的命令参考与分区判据改由 taskctl help 出正文
+
+状态：现行
+
+在「`references/fork-cli.md` 手抄本 fork 的命令与参数、SKILL.md 手抄分区判据表，看板每改一次命令或语义就要 Sarah 审一张 skill 对齐卡（claude_skills 55 张卡里 22 张是这类），落后时 agent 照旧文本犯错（CLAUDESKILLS-42、-51）；TODOHUB-492 已让 `taskctl help` / `help <资源> [动作]` / `help statuses` 从解析表和状态语义模块现生成、快层钉住」的场景下，面对「同一份语义在两个仓各写一遍、没有机制在 skill 漂移时报红」的顾虑，选「fork-cli.md 缩成指向 help 的一页，只留 help 打印不了的三句（cli.md 冲突以 help 为准、help 不对改 todo_hub、派发器实现细节的事实源）；SKILL.md 分区表换成 `taskctl help statuses` 加一段『球在谁手上』的 agent 视角读法；其余指向 fork-cli.md 的指针改指对应的 help 子命令」，否「删掉 fork-cli.md 整份文件」「连 `references/cli.md`（上游原文）一起删」「SKILL.md 保留分区表、只加测试或脚本比对」，以达「看板改命令或语义时只改 todo_hub 一处，skill 不再开对齐卡」，接受「agent 要多跑一条 help 才看得到判据和参数；离线（看板服务没跑）时 help 仍能跑，但 taskctl 本身不在 PATH 的机器上要走 SKILL.md 给的显式路径」。
+
+否决理由：
+- 删掉 fork-cli.md：cli.md 仍在，help 与 cli.md 冲突时谁为准这句 help 自己写不了（它不知道 skill 里有 cli.md），得有个地方放；原来指向 fork-cli.md 的路由也要有落点。
+- 删 cli.md：它存在的唯一用途是对照上游 diff（见〈2026-09-01 fork 与上游的行为分歧写进 fork-cli.md〉），这个用途没变；help 覆盖了语法，不覆盖「上游改了什么」。
+- 保留分区表加比对：比对要跨仓读 todo_hub 的模块，claude_skills 没有测试入口能挂；help 已经是同一份模块的现成打印，再抄一份只是多一个会漂的副本。
+
+〈2026-09-17 taskboard SKILL.md 不教 agent 只读部分评论〉的核心取舍不变（SKILL.md 正文仍不提 `--last` / `comment get`），只是命令说明的位置从 fork-cli.md 换成 `taskctl help comment list` / `comment get`。
+
+出处：2026-09-23 外部审计第 8 条（Sarah 认可「skill 只留路由与入口，规则正文由看板服务端出或测试钉住」）；前置 TODOHUB-492，实施 CLAUDESKILLS-55。

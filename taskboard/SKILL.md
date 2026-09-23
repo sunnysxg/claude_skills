@@ -47,11 +47,10 @@ exit code 3 = 看板服务没在跑。跑一次幂等拉起再重试，**不要�
 powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo_hub/scripts/board.ps1 ensure
 ```
 
-- 命令语法用到哪节读哪节：[references/cli.md](references/cli.md)（上游原文）
-- 本 fork 独有的命令与参数（`dispatch`、`--mode`、`--agent`…），以及本 fork 与 cli.md 行为不一致
-  之处：[references/fork-cli.md](references/fork-cli.md)。**两份冲突时以 fork-cli.md 为准**——
-  cli.md 是上游原文，不随本 fork 的改动更新
-- 分区语义与交付纪律以本 skill 为准，cli.md 只管语法
+- 命令、参数与取值现查 `taskctl help` / `taskctl help <资源> [动作]`（从 taskctl 解析表生成，
+  含本 fork 独有语义）；[references/cli.md](references/cli.md) 是上游原文，**两份冲突以 help 为准**，
+  help 打印不了的几句见 [references/fork-cli.md](references/fork-cli.md)
+- 交付纪律以本 skill 为准，cli.md 只管语法
 
 ## 会话归属与写入方标识
 
@@ -64,30 +63,18 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
 - Cursor 内自动读 `CURSOR_CONVERSATION_ID`（派发器起 `cursor-agent` 时注入；IDE 聊天窗口没有）。
 - 再取不到的环境显式传 `--thread-id <当前会话 UUID>`；连 UUID 都没有就用
   `claude-YYYYMMDDHHMM` 一次性 id，同一会话从一而终。
-- 写入方标识 `--agent codex|claude|cursor` 决定看板画哪个图标、深链怎么开。有
-  `CODEX_THREAD_ID` 自动记 codex，有 `CLAUDE_CODE_SESSION_ID` 自动记 claude，有 `CURSOR_AGENT=1`
-  或 `CURSOR_CONVERSATION_ID` 自动记 cursor，都没有默认 codex——所以 **Cursor IDE 的聊天窗口这类
-  三个都取不到的环境必须显式带 `--agent cursor`**，别记成 claude（看板会拿 `claude://` 深链去开
-  一条不存在的 Claude 会话）。
+- 写入方标识 `--agent codex|claude|cursor` 决定看板画哪个图标、深链怎么开，自动判定顺序见
+  `taskctl help` 的全局选项——**Cursor IDE 的聊天窗口必须显式带 `--agent cursor`**，别记成 claude。
 
 ## 分区：每一列装什么
 
-界面文案是上游的中文，字段值是英文，写命令用字段值。**判据一栏是归位的唯一依据**——只看判据
-就能定位，不靠「这个她大概想看吧」的感觉。
+挪状态前先跑 `taskctl help statuses`：打印七列的字段值、界面文案、判据与「球在谁手上」，直接读
+todo_hub 的状态语义模块，本文不抄。**判据一栏是归位的唯一依据**——只看判据就能定位，不靠「这个
+她大概想看吧」的感觉。
 
-| 字段值 | 界面 | 这一列装什么（判据） | 球在谁手上 |
-|---|---|---|---|
-| `backlog` | 待立项 | 还没获授权的想法，允许只是一句话种子；自动派发完全不看这一列 | Sarah |
-| `todo` | 等待认领 | 已授权、验收标准自包含，下一个会话现在就能带走；被 blocker 挡住的卡也停在这里 | 下一个会话 |
-| `in_progress` | 处理中 | 已绑定某个具体会话，那个会话正在做，或者它做完之后看板还在替它把成果推上线；父卡全程停在这里，不因为在等子卡而挪走 | 那个会话 |
-| `in_review` | 等你确认 | 直接交付卡的成果已交付（生产卡已上线等归档、开发卡候选在 dev 等放行），共同讨论卡的材料已交回、等接着讨论或拍板 | Sarah |
-| `blocked` | 遇到阻碍 | 等下去有代价（占树、占并发、main 分叉、后面的卡排队）且系统的自愈手段已用尽，只剩人能解；需要拍板的事不放这里 | Sarah 或外部 |
-| `done` | 完成 | 「完成」已经被点过；agent 永远不设这个状态 | 无 |
-| `canceled` | 取消 | 不做了；卡留在「其他任务」里，随时能拖回来 | 无 |
-
-「这一列装什么（判据）」一栏与 todo_hub 仓 `dashi-taskboard/shared/task-status-semantics.mjs` 的
-`criteria.zh` **逐句相同**，那一份是唯一权威：**要改状态语义先改那个模块**再照抄过来，对不上时
-以模块为准。「球在谁手上」是本文的 agent 视角，对应模块的 `holder` / `role`。
+「球在谁手上」按 agent 视角读：`todo` 一挪进去就等于放手，派发器几秒内就可能领走；
+`in_progress` 只有绑定的那个会话能动；写着 Sarah 的列是等她动手的地方，等她的卡必须停在那里
+（见下面流转规则）。
 
 流转规则（挪本卡状态之前先按「先认这一轮」确认这一轮归不归你挪）：
 
@@ -154,13 +141,13 @@ todo_convention.md（一个会话能做完为界）。独立卡是常态；一�
   任选。派发器的 blocker 门就是这张图的执行器，不另写调度规则。判据之外不额外挂关系。
 - **同主题禁止孤儿卡**：与现行活跃卡同主题的新卡必须挂关系——有父卡挂 parent，无父卡时与
   同主题卡拉 blockedBy。判断走严，拿不准只挂 related 并评论说明。挂关系不改对方卡的会话
-  归属，别人正在做的卡照挂不误（见 references/fork-cli.md）。
+  归属，别人正在做的卡照挂不误（见 `taskctl help issue relation`）。
 - **关系跟着建卡一起给，不建完再挂**：建卡时已知的关系一律用 `issue create` 的
   `--parent` / `--blocked-by` / `--blocks` / `--related` 一次带上，服务端与建卡同一个事务落库。
   分两次调用，中间那张 `todo` 卡就是一张没人挡的可派卡，派发器几秒内就认领开工
   （TODOHUB-268、TODOHUB-280 实撞，最快 3.8 秒）；建 `backlog` 同样一起给，免得挪 `todo` 前
-  忘了补。`issue relation add` 只留给**给已经存在的卡补挂关系**。选项细节见
-  references/fork-cli.md「建卡即挂关系」。
+  忘了补。`issue relation add` 只留给**给已经存在的卡补挂关系**。选项与报错见
+  `taskctl help issue create`。
 
 ## 正文里提到别的卡写 @ 链接
 
@@ -178,4 +165,5 @@ todo_convention.md（一个会话能做完为界）。独立卡是常态；一�
 ## 来源与漂移
 
 改写自 dashi fork 内 `skills/manage-taskboard`（上游 baseline-20260814），上游更新时对照合并。
-`references/cli.md` 保持上游原文以便 diff，fork 自己的命令一律写 `references/fork-cli.md`。
+`references/cli.md` 保持上游原文以便 diff；fork 自己的命令与分区判据由 `taskctl help` 出正文，
+看板改命令或语义时改的是 todo_hub，本 skill 不跟着开对齐卡。

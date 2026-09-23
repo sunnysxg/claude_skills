@@ -22,7 +22,7 @@
 所以每轮结束时声明一次：
 
 - 桌面对话里回完她之后：`taskctl issue update <卡号> --discussion settled --discussion-note
-  "<成果去向>"`。选项细节见 fork-cli.md。
+  "<成果去向>"`。选项细节见 `taskctl help issue update`。
 - `pending`「等你拍板」是默认；成果都去了别处才用 `settled`「可归档」（子卡已建、结论已写进
   描述、或结论就是不做），且**必须带一句成果去向**，缺了报错。
 - 声明只对停在 `in_review` 的讨论卡有效，也只对这一轮有效——她再点一次「叫人回应」就回到

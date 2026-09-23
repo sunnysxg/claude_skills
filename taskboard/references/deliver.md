@@ -21,7 +21,7 @@ skill 的 git.md），并登记进卡片：`issue update --worktree-path PATH --
 
 1. **家族复查**：卡属于家族（有父卡）且本卡结论影响兄弟卡的拆分或顺序时，先跑一次
    `taskctl dispatch family review <本卡号> --reason "<影响了什么>"`，系统把复查指令投回父卡
-   会话；**自己不去改兄弟卡的关系**（命令与边界见 fork-cli.md）。
+   会话；**自己不去改兄弟卡的关系**（命令与边界见 `taskctl help dispatch family`）。
 2. **收口跟目的地走**：生产卡**先做知识收口**（`neat-freak` → `session-log` → `zettel-distill`
    提案），把收口改动一并 commit，再确认候选 `git status --short` 为空——交付后系统直接上线，不会
    再回到这个会话，树里残留的未跟踪文件（TODOHUB-291 是 session-log 的时间 JSON）会让发布 saga

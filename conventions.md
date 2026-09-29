@@ -68,13 +68,19 @@
 ## 9. skill 写法
 
 - 结构：`{skill-name}/SKILL.md`（+ 可选 `references/`）。
-- description 用自然语言一两句话说清「做什么、什么时候用」；
-  触发场景融进句子，不罗列带引号的短语清单，不写「不要自动触发」这类否定指令。
+- **description 是索引，不是流程**：每个会话都常驻在上下文里，作用只是让 agent 判断「这个
+  skill 该不该用」。写能力名词、触发词和使用场景（用户会怎么说、prompt 里会出现什么字样），
+  不写步骤、先后顺序、数量或实现方式（工具名、目录路径等）——写了流程，agent 会照 description
+  执行而跳过正文，索引就退化成了一份摘要版说明书。触发场景融进句子，不罗列带引号的短语清单；
+  不写「不要自动触发」这类否定指令（负例交给正面的触发条件本身去排除）。
+- **拆分判据**：互斥、或很少一起用的内容拆进 `references/`，由 `SKILL.md` 里的路由表指过去，
+  只留一层深（不再从 reference 里二次分流）；路由条件写成 agent 从 prompt 原文里能直接认出的
+  字样。系统已经确定的判断（例如派发器早知道当前是哪一轮）由代码或调用方注入，不留给模型从
+  正文里现场挑。跨平台差异按系统拆 `references/windows.md`、`references/linux.md` 是这条判据
+  的一个特例：`SKILL.md` 只写选择条件并直接链接过去，agent 只读当前平台分支；脚本按平台使用
+  `.ps1` / `.sh`，浏览器、字体和二进制优先自动探测，机器私有路径用未跟踪配置或环境变量。
 - 面向多个客户端的 skill frontmatter 只使用标准 `name`、`description`；客户端专属字段只用于
   manifest 已限制到对应客户端的 skill。
-- 跨平台差异不要全部塞进公共正文：`SKILL.md` 只写选择条件，并直接链接
-  `references/windows.md`、`references/linux.md`；agent 只读当前平台分支。脚本按平台使用
-  `.ps1` / `.sh`，浏览器、字体和二进制优先自动探测，机器私有路径用未跟踪配置或环境变量。
 - `skills.manifest.json` 中每个 canonical skill 和 alias 都声明 `platforms`；alias 另声明
   `canonical`，使逐-skill machine override 能同时控制新旧名称。
 

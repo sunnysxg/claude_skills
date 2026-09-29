@@ -1,9 +1,9 @@
 ---
 name: zettel-distill
 description: >-
-  会话收尾时从本次对话精选最多三条值得进用户 Obsidian Zettelkasten 的点，给出具体到卡的
-  落点提案，用户拍板后经 vault-ops 写入并回填 session log。默认由 neat-freak 收尾链在
-  session-log 之后触发；用户单独问这次有什么值得进库、要不要提卡、精选进 vault 时也用。
+  会话收尾时从本次对话里挑出值得记进用户 Obsidian Zettelkasten（她的卡片笔记库）的点，给出
+  具体的落点提案供她拍板。默认在 neat-freak 收尾链的 session-log 之后触发；用户单独问这次有
+  什么值得进库、要不要提卡、精选进 vault 时也用。
 ---
 
 # zettel-distill — 收尾时的 vault 精选

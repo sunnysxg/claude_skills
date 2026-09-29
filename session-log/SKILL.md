@@ -1,8 +1,8 @@
 ---
 name: session-log
 description: >
-  在 neat-freak 完成文档与记忆整理之后，把本次对话的工作摘要归档到
-  ~/_sxg/llm_session_log/、更新索引，并在宿主支持时重命名 chat。
+  session 收尾归档：把本次对话的工作摘要归档并生成可检索索引，供以后按项目或关键词找回改过
+  什么。用户要在结束本次对话前留痕时使用；也在 neat-freak 完成文档与记忆整理之后自动接续。
 ---
 
 # Session Log — 关 session 前写摘要

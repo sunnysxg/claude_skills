@@ -6,9 +6,9 @@ delivery-comment.md，两份一起读。
 
 ## 工作树
 
-要改仓库代码的卡，认领后先进独立 worktree／分支再动代码（并行纪律与生命周期见 git-workflow
+要改仓库代码或工程文档的卡，认领后先进独立 worktree／分支再动文件（并行纪律与生命周期见 git-workflow
 skill 的 git.md），并登记进卡片：`issue update --worktree-path PATH --worktree-branch BRANCH`
-（只有分支时用 `--git-branch`）。卡已绑定的，这张卡的活只在里面做。
+（只有分支时用 `--git-branch`）。卡已绑定的，仓库改动只在里面做；普通材料按 SKILL.md「材料交付」。
 
 - 自己开的树目录名 = 卡号原样 + 随机后缀（`TODOHUB-38-a1b2c3`），不用默认随机名——名字要能一眼
   看出是哪张卡的。
@@ -23,10 +23,11 @@ skill 的 git.md），并登记进卡片：`issue update --worktree-path PATH --
    `taskctl dispatch family review <本卡号> --reason "<影响了什么>"`，系统把复查指令投回父卡
    会话；**自己不去改兄弟卡的关系**（命令与边界见 `taskctl help dispatch family`）。
 2. **收口跟目的地走**：生产卡**先做知识收口**（`neat-freak` → `session-log` → `zettel-distill`
-   提案），把收口改动一并 commit，再确认候选 `git status --short` 为空——交付后系统直接上线，不会
+   提案）；有仓库改动才一并 commit，有候选树则确认 `git status --short` 为空——交付后系统直接上线，不会
    再回到这个会话，树里残留的未跟踪文件（TODOHUB-291 是 session-log 的时间 JSON）会让发布 saga
    判脏树反复重试。存量开发卡（目的地 `dev` 已停用，TODOHUB-493）**不收口**，等完成钩子（见 closeout.md）——她可能打回迭代，提前收口白做。
-3. **干净候选、保留工作树**：把本卡成果 commit 成干净候选（todo_hub 自己的卡要做原理留档页的，
+3. **干净候选、保留工作树**：有仓库改动才 commit 成干净候选；仅评论或 artifacts 网页按
+   SKILL.md「材料交付」处理（todo_hub 自己的卡要做原理留档页的，
    页随候选同笔，见 notes-page.md）；**不自行 merge / push / deploy /
    收树**，两种目的地都由服务端落位，worker 动手会和它打架。
 4. **交付评论**：照 delivery-comment.md 写。

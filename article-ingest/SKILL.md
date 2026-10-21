@@ -1,14 +1,14 @@
 ---
 name: article-ingest
 description: >
-  把文章（主要是微信公众号）抓取归档进用户的 Obsidian 主库，生成正文与索引卡。用户发来文章
+  把文章（微信公众号、含图片正文的小红书笔记等）归档进用户的 Obsidian 主库，生成正文与索引卡。用户发来文章
   链接要入库、存档、剪藏、说「帮我存一下这篇」时使用。
 ---
 
 # article-ingest — 文章入库
 
-流程固定在 `scripts/article_ingest.py` 里（只用标准库），agent 只做一件脚本做不了的事：扫一眼
-头尾有没有脚本没剪掉的账号专属页脚。每一步的判定都以脚本输出的 JSON 为准，不要自己另起抓取。
+取源、查重与写库固定在 `scripts/article_ingest.py` 里（只用标准库）；按内容分支：网页文字直接出
+草稿，小红书图片正文由 agent 逐页读图转写后合稿。每一步以脚本输出的 JSON 为准。
 
 **前提**：本 skill 依赖 Lightsail 上的 Obsidian 受限入口（gate，库在 sera，经 Tailscale）。
 没有这条链路的机器不适用——`doctor` 会报出来，别绕过 gate 直接写库。
@@ -33,8 +33,9 @@ description: >
 
 | status | 含义 | 怎么办 |
 |---|---|---|
-| `exists` | 库里 `_raw/` 或 `Clippings/` 已有同一篇（短链 `/s/…` 与长链 `sn=` 互认） | 报 `vault_paths`，结束，不重复入库 |
+| `exists` | 库里 `_raw/` 或 `Clippings/` 已有同一篇（微信短长链互认；小红书分享链取源后按笔记 ID 互认） | 报 `vault_paths`，结束，不重复入库 |
 | `drafted` | 抓到正文，草稿在 `work_dir` | 进第 3 步 |
+| `needs_transcription` | 原站有正文图片，图片清单与文字说明在 `work_dir/source.json` | 按下面的图片分支处理 |
 | `deleted` | 平台已删：`infringement` 侵权投诉 / `violation` 违反规定 / `unavailable` 暂时无法查看 / `deleted_by_author` 作者删除 | 直接报删和原因，**不重试** |
 | `unfetchable` | `verify` 各条出网都撞验证页；`network` 连不上；`thin` 非公众号页面转出来几乎没字；`blocked` 403；`gone` 404；`empty_body` 正文页却没字；`unknown` 未识别页面 | 报「抓不到 + reason」，见下 |
 
@@ -43,10 +44,33 @@ Reader 之类第三方抓取服务**（为什么见 `docs/decisions.md`「抓文
 `verify` 已经走完「等 60 秒重试一次 → 换下一条出网」；`thin` 是 JS 渲染或要登录的站（知乎、掘金
 这类），按 [references/headless.md](references/headless.md) 的路线另说，不在这条主路里硬试。
 
-`kind` 是 `article`（正文页）、`short`（公众号短内容，正文在页面数据里）或 `page`（非公众号页面）。
+`kind` 是 `article`（正文页）、`short`（公众号短内容，正文在页面数据里）、`page`（普通网页）或
+`xhs`（小红书笔记）。
 `attempts` 记录每次抓取走的哪条出网、结果和耗时，汇报时带上成功的那条。
 
-## 3. 看草稿（agent 唯一要判断的地方）
+### 图片正文分支
+
+小红书先用原站移动页的数据，不经 defuddle，也不因为图片外的说明文字多就当正文齐全。脚本保留
+原帖图片顺序、作者、发布日期与规范来源链接（笔记 ID，不带分享参数），不取评论与视频。
+
+1. `{PY} {SCRIPT} images <work_dir>`：沿成功取页的出网下载到 `images/001.img` 等；可用
+   `--fetch ssh:<alias>` 换一条已配置的出网。下载失败报 `image_failed` 与页码，不用空图顶替；
+   链接过期时重新 `fetch --work <新目录>`，不反复重试旧图片地址。
+2. 用当前客户端的图片查看工具逐页打开这些文件，按顺序把忠实转写放到 `pages/001.md` 等。
+   复核数字、公式、图表和跨页断句；保留原文，不写摘要。没有文字的装饰图写 `<!-- 本页无正文文字 -->`；
+   图表用文字或 Markdown 表格表达。模糊字可把 `source.json` 对应页的 `url` 换成 `alternates` 中的
+   原站版本，再跑 `images` 对照；仍无法辨认就报告具体页码、保留草稿，
+   不编字、不声称完整入库。无需安装 OCR 服务或增加额外图片审查流程。
+3. `{PY} {SCRIPT} assemble <work_dir>`：检查每页图片与非空转写都在，按序合成正文与 REF 骨架；
+   少页报 `incomplete_transcription`。这是检查漏页，不证明转写准确；准确性由 agent 对照图片复核。
+4. 继续第 3、4 步。只有文字长期入库，图片留在工作缓存；原帖或缓存失效后无法逐页回看。
+
+`login_required` / `source_unavailable` 表示没拿到原帖数据或有效笔记身份，换完配置的出网仍失败就
+报告缺有效分享链接或登录态；不当成删除。`unsupported_content` 表示视频，不在本技能范围。
+重新抓取用新工作目录（同一分钟默认目录撞上时指定 `--work`）；已有目录报 `work_in_use`，沿原目录
+继续处理即可。发布日期缺失时 `date` 是采集日，并显式记录 `published: null` 与日期依据，不冒充发布日期。
+
+## 3. 看草稿
 
 `work_dir` 里三个文件：`raw.md`（原文）、`ref.md`（REF 卡骨架）、`meta.json`（`raw_path` /
 `ref_path` 等）。草稿按库宪法（`_hermes/claude-code-guide.md`「笔记体系核心规则」第 2 条）只建
@@ -54,7 +78,7 @@ Reader 之类第三方抓取服务**（为什么见 `docs/decisions.md`「抓文
 
 1. **扫头尾残渣**：脚本已剪掉阅读器横幅、「知道了 / 微信扫一扫」页脚、常见推广块和「阅读原文」。
    账号专属的签名块（如「以上，既然看到这里了…三连」、商务合作邮箱）若还在文末，删掉；**只删
-   页面残渣，不改正文一个字**。拿不准的留着。
+   页面残渣，不改正文一个字**。拿不准的留着。图片合稿可调整跨页断句与 Markdown 排版，不增补或改写原文。
 2. **路径（可选）**：默认文件名是全标题。想短一点就改 `meta.json` 的 `raw_path` / `ref_path`
    （照库里现有 `_raw/作者-短标题-YYYYMMDD.md`、`REF-短标题-作者.md`），并同步改 `ref.md`
    「## 原文存档」下的 `[[…]]`——`write` 会校验两者一致。
@@ -73,11 +97,11 @@ Reader 之类第三方抓取服务**（为什么见 `docs/decisions.md`「抓文
 
 ## 5. 汇报
 
-一两句：入库了哪篇（标题、公众号、发布日期）、两个 vault 路径、走的哪条出网；抓不到的给原因
-分类。
+一两句：入库了哪篇（标题、作者、发布日期或「发布日期未知」）、两个 vault 路径、走的哪条出网；
+图片正文带总页数与逐页复核情况。抓不到的给原因分类和缺什么。
 
 ## 退出码
 
-`0` 完成（drafted / written / exists）；`1` 拒绝或抓不到（deleted、unfetchable、conflict、
+`0` 当前步骤完成（drafted / needs_transcription / images_ready / written / exists）；`1` 拒绝或抓不到（deleted、unfetchable、conflict、
 invalid_draft）；`2` 链路未就绪；`3` 用法或配置错误（没给 `--fetch` / `--gate`、在 Windows 上
 用 `local` 抓取）。

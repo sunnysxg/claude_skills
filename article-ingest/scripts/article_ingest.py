@@ -3,10 +3,13 @@
 
 Pipeline (see ../SKILL.md): lookup vault by URL -> fetch HTML with curl + Chrome UA -> classify
 (article / short / verify / deleted) -> defuddle to Markdown -> trim page residue -> drafts with the
-vault frontmatter -> the agent checks the tail for residue -> `write` creates _raw + REF (never overwrites).
+vault frontmatter -> the agent checks residue -> `write` creates _raw + REF (never overwrites).
+Xiaohongshu original-site state bypasses defuddle: ordered images -> agent transcription -> same drafts.
 
 Subcommands (all print one JSON object on stdout; progress goes to stderr):
   fetch URL [--work DIR]   lookup + fetch + classify + convert + drafts
+  images WORK_DIR          download the source's ordered images through a configured fetcher
+  assemble WORK_DIR        combine agent-written pages/NNN.md into _raw + REF drafts
   write WORK_DIR           validate drafts, create _raw then REF through the gate
   lookup URL               vault lookup only
   rules                    print the vault's CLAUDE.md and _hermes/claude-code-guide.md (stderr)
@@ -56,7 +59,8 @@ LOOKUP_FOLDERS = ("_raw", "Clippings")
 META_MARK = "ARTICLE_INGEST_META"
 LINK_STATES = {"unreachable", "obsidian_offline", "obsidian_timeout", "obsidian_error",
                "backup_unhealthy", "busy", "wrong_vault", "not_indexed", "gate_error", "gate_client_missing"}
-DONE_KINDS = ("article", "short", "page", "deleted", "gone", "thin", "empty_body")
+DONE_KINDS = ("article", "short", "page", "xhs", "deleted", "gone", "thin", "empty_body", "unsupported_content")
+MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1"
 
 
 class Fail(Exception):
@@ -80,6 +84,10 @@ def url_keys(url: str) -> set[str]:
     u = urlparse(url if "://" in url else "https://" + url)
     host = u.netloc.lower()
     keys = set()
+    if host == "xiaohongshu.com" or host.endswith(".xiaohongshu.com"):
+        m = re.search(r"/(?:explore|discovery/item)/([a-fA-F0-9]{24})(?:/|$)", u.path)
+        if m:
+            return {"xhs:" + m.group(1).lower()}
     if host.endswith("mp.weixin.qq.com"):
         m = re.match(r"^/s/([A-Za-z0-9_-]{8,})", u.path)
         if m:
@@ -99,7 +107,11 @@ def url_keys(url: str) -> set[str]:
 def note_urls(text: str) -> list[str]:
     fm = re.match(r"^﻿?---\r?\n(.*?)\r?\n---", text, re.S)
     head = fm.group(1) if fm else text[:3000]
-    return [m.group(2).strip().strip("\"'") for m in re.finditer(r"(?m)^(source|url|link)\s*:\s*(\S.*)$", head)]
+    urls = [m.group(2).strip().strip("\"'") for m in re.finditer(r"(?m)^(source|url|link)\s*:\s*(\S.*)$", head)]
+    note_id = re.search(r'(?m)^source_note_id:\s*["\']?([a-fA-F0-9]{24})["\']?\s*$', head)
+    if note_id:
+        urls.append("https://www.xiaohongshu.com/explore/" + note_id.group(1))
+    return urls
 
 
 # ---------------------------------------------------------------- ssh transport
@@ -178,7 +190,8 @@ def gate_lookup(g, keys: set[str]) -> dict:
     """Incremental URL index of _raw/ and Clippings/: list names (cheap), read only unseen notes."""
     index_file = CACHE / "vault_url_index.json"
     try:
-        index = json.loads(index_file.read_text(encoding="utf-8"))
+        cached = json.loads(index_file.read_text(encoding="utf-8"))
+        index = cached.get("notes", {}) if cached.get("version") == 2 else {}
     except (OSError, ValueError):
         index = {}
     listed, truncated = [], []
@@ -199,7 +212,7 @@ def gate_lookup(g, keys: set[str]) -> dict:
         log(f"index {i}/{len(unseen)} {time.time() - t0:.1f}s")
     index = {p: index[p] for p in listed}
     CACHE.mkdir(parents=True, exist_ok=True)
-    index_file.write_text(json.dumps(index, ensure_ascii=False, indent=0), encoding="utf-8")
+    index_file.write_text(json.dumps({"version": 2, "notes": index}, ensure_ascii=False, indent=0), encoding="utf-8")
     hits = sorted(p for p, ks in index.items() if keys & set(ks))
     return {"ok": True, "status": "ok", "hits": hits, "indexed": len(index), "newly_read": len(unseen),
             "truncated": truncated}
@@ -219,7 +232,7 @@ def gate_call(spec: str | None, req: dict, timeout: int = 1800) -> dict:
 # ---------------------------------------------------------------- fetch
 
 def curl_args(url: str) -> list[str]:
-    return ["curl", "-sS", "-L", "--compressed", "--max-time", "40", "-A", UA,
+    return ["curl", "-sS", "-L", "--compressed", "--max-time", "40", "-A", MOBILE_UA if is_xhs(url) else UA,
             "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "-H", "Accept-Language: zh-CN,zh;q=0.9,en;q=0.8",
             "-o", "-", "-w", "%{stderr}" + META_MARK + " %{http_code} %{url_effective}\\n", url]
@@ -279,6 +292,67 @@ DELETED = [
 
 def is_wechat(url: str) -> bool:
     return "mp.weixin.qq.com" in urlparse(url).netloc
+
+
+def is_xhs(url: str) -> bool:
+    host = urlparse(url).hostname or ""
+    return host in ("xhslink.com", "xhslink.cn", "xiaohongshu.com") or host.endswith(".xiaohongshu.com")
+
+
+def xhs_content(page: str, url: str) -> dict:
+    """Read the original site's mobile/desktop state as data, without executing JavaScript."""
+    match = re.search(r"(?:window\.)?__INITIAL_STATE__\s*=\s*", page)
+    if not match:
+        return {"kind": "login_required" if "login" in url or "登录" in page else "source_unavailable",
+                "reason": "no original note data; provide a working direct share link"}
+    # The state is JSON except for JS undefined values. Preserve that word inside strings.
+    state_text = re.sub(r'"(?:[^"\\]|\\.)*"|\bundefined\b',
+                        lambda m: "null" if m.group() == "undefined" else m.group(), page[match.end():].split("</script>", 1)[0])
+    try:
+        state, _ = json.JSONDecoder().raw_decode(state_text)
+    except ValueError:
+        return {"kind": "source_unavailable", "reason": "unrecognized original note state"}
+    notes = []
+
+    def visit(value):
+        if isinstance(value, dict):
+            if value.get("noteId") and "desc" in value and "type" in value:
+                notes.append(value)
+            else:
+                for child in value.values():
+                    visit(child)
+        elif isinstance(value, list):
+            for child in value:
+                visit(child)
+
+    visit(state)
+    identity = next((k[4:] for k in url_keys(url) if k.startswith("xhs:")), None)
+    notes = [n for n in notes if n["noteId"] == identity] if identity else notes
+    if len(notes) != 1:
+        return {"kind": "source_unavailable", "reason": "direct note identity missing or ambiguous"}
+    note = notes[0]
+    if note["type"] != "normal":
+        return {"kind": "unsupported_content", "reason": "video notes are outside text ingest"}
+    images = []
+    for number, pic in enumerate(note.get("imageList", []), 1):
+        variants = pic.get("infoList") or []
+        image_url = next((v["url"] for v in variants if v.get("imageScene") in ("H5_DTL", "WB_DFT") and v.get("url")), None)
+        image_url = image_url or pic.get("urlDefault") or pic.get("url")
+        if not image_url:
+            return {"kind": "source_unavailable", "reason": f"image {number} has no source URL"}
+        images.append({"page": number, "url": image_url.replace("http://", "https://", 1), "file": f"images/{number:03d}.img",
+                       "alternates": [v["url"].replace("http://", "https://", 1) for v in variants if v.get("url") and v["url"] != image_url]})
+    desc = note.get("desc") or ""
+    if not images and not desc.strip():
+        return {"kind": "source_unavailable", "reason": "note has no text or images"}
+    published = int(note.get("time") or 0)
+    if published > 10**11:
+        published //= 1000
+    meta = {"title": note.get("title") or desc.split("\n")[0][:60] or "小红书笔记",
+            "account": note.get("user", {}).get("nickname") or note.get("user", {}).get("nickName") or "unknown",
+            "byline": "", "published": published,
+            "link": "https://www.xiaohongshu.com/explore/" + note["noteId"]}
+    return {"kind": "xhs", "meta": meta, "body": desc, "chars": len(desc), "images": images}
 
 
 def classify(res: dict, url: str) -> tuple[str, str]:
@@ -415,6 +489,8 @@ def process(res: dict, url: str) -> dict:
     """Classify a fetched page and, if it has content, convert it; runs wherever the HTML is."""
     kind, reason = classify(res, url)
     out = {"kind": kind, "reason": reason, "http": res.get("http", 0), "secs": res.get("secs")}
+    if kind == "page" and (is_xhs(url) or is_xhs(res.get("final_url", ""))):
+        return {**out, **xhs_content(res["html"], res.get("final_url") or url)}
     if kind not in ("article", "short", "page"):
         return out
     page = res["html"]
@@ -467,6 +543,11 @@ def build_drafts(meta: dict, body: str) -> dict:
     raw_path = f"_raw/{slug(account, 24)}-{slug(meta['title'], 40)}-{pub.strftime('%Y%m%d')}.md"
     ref_path = f"2-Zettelkasten-References/REF-{slug(meta['title'], 24)}-{slug(account, 24)}.md"
     common = ["categories: \"[[articles]]\"", f"author: \"[[{author}]]\"", f"source: {yaml_str(meta['link'])}"]
+    if not meta["published"]:
+        common.append('published: null')
+        common.append('date_basis: "collected; publication date unknown"')
+    if meta.get("image_count"):
+        common.append(f"source_images: {meta['image_count']}")
     raw = "\n".join([
         "---", f"date: {pub:%Y-%m-%d}", "tags:", f"id: ref_{pub:%Y%m%d%H%M%S}", *common,
         f"created: \"{stamp}\"", f"updated: \"{stamp}\"", "---", "", f"# {meta['title']}", "", body, ""])
@@ -548,6 +629,13 @@ def cmd_fetch(args) -> dict:
     work = Path(args.work) if args.work else CACHE / "work" / (
         datetime.now(BEIJING).strftime("%Y%m%d%H%M") + "_" + hashlib.sha1(url.encode()).hexdigest()[:8])
     work.mkdir(parents=True, exist_ok=True)
+    if res.get("images"):
+        if (work / "source.json").exists() or (work / "meta.json").exists():
+            raise Fail(1, {"ok": False, "status": "work_in_use", "detail": "resume this work directory or fetch with a new --work"})
+        source = {"meta": meta, "body": body, "images": res["images"], "via": res["via"], "url": url}
+        (work / "source.json").write_text(json.dumps(source, ensure_ascii=False, indent=1), encoding="utf-8")
+        return {"ok": True, "status": "needs_transcription", "work_dir": str(work),
+                "title": meta["title"], "link": meta["link"], "image_count": len(res["images"]), **base}
     drafts = build_drafts(meta, body)
     (work / "raw.md").write_text(drafts["raw"], encoding="utf-8")
     (work / "ref.md").write_text(drafts["ref"], encoding="utf-8")
@@ -558,7 +646,65 @@ def cmd_fetch(args) -> dict:
     return {"ok": True, "status": "drafted", "work_dir": str(work), **info, **base}
 
 
+def cmd_images(args) -> dict:
+    work = Path(args.work_dir)
+    source = json.loads((work / "source.json").read_text(encoding="utf-8"))
+    spec = args.fetch or source["via"]
+    started = time.time()
+    for item in source["images"]:
+        log(f"image {item['page']}/{len(source['images'])} via {spec}")
+        cmd = ["curl", "-f", "-sS", "-L", "--max-time", "60", "-A", MOBILE_UA, item["url"]]
+        if spec.startswith("ssh:"):
+            alias = spec[4:]
+            if remote_os(alias) == "windows":
+                remote = "curl.exe " + " ".join('"' + a.replace('"', '') + '"' for a in cmd[1:])
+            else:
+                remote = shlex.join(cmd)
+            cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", alias, remote]
+        elif spec != "local" or os.name == "nt":
+            raise Fail(3, {"ok": False, "status": "config_invalid", "detail": "use one ssh:<alias> fetcher on Windows"})
+        try:
+            r = subprocess.run(cmd, capture_output=True, stdin=subprocess.DEVNULL, timeout=90)
+        except subprocess.TimeoutExpired:
+            raise Fail(1, {"ok": False, "status": "image_failed", "page": item["page"], "detail": "timeout"})
+        data = r.stdout
+        image = data.startswith((b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n", b"GIF8")) or (data[:4] == b"RIFF" and data[8:12] == b"WEBP")
+        if r.returncode or not image:
+            raise Fail(1, {"ok": False, "status": "image_failed", "page": item["page"],
+                           "detail": "download failed or not an image; refresh the share link with fetch"})
+        path = work / item["file"]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+    log(f"images complete: {len(source['images'])} pages, {time.time() - started:.1f}s")
+    return {"ok": True, "status": "images_ready", "work_dir": str(work), "image_count": len(source["images"])}
+
+
+def cmd_assemble(args) -> dict:
+    work = Path(args.work_dir)
+    source = json.loads((work / "source.json").read_text(encoding="utf-8"))
+    pages, missing = [], []
+    for item in source["images"]:
+        text_path = work / "pages" / f"{item['page']:03d}.md"
+        text = text_path.read_text(encoding="utf-8").strip() if text_path.is_file() else ""
+        if not (work / item["file"]).is_file() or not text:
+            missing.append(item["page"])
+        pages.append(f"<!-- source page {item['page']} -->\n{text}")
+    if missing:
+        raise Fail(1, {"ok": False, "status": "incomplete_transcription", "pages": missing})
+    body = source["body"] + "\n\n" + "\n\n".join(pages)
+    meta = {**source["meta"], "image_count": len(pages)}
+    drafts = build_drafts(meta, body.strip())
+    info = {**meta, "kind": "xhs", "image_count": len(pages),
+            "raw_path": drafts["raw_path"], "ref_path": drafts["ref_path"]}
+    for name in ("raw", "ref"):
+        (work / f"{name}.md").write_text(drafts[name], encoding="utf-8")
+    (work / "meta.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
+    return {"ok": True, "status": "drafted", "work_dir": str(work), **info}
+
+
 def validate(work: Path) -> tuple[dict, str, str]:
+    if (work / "source.json").is_file() and not (work / "meta.json").is_file():
+        raise Fail(1, {"ok": False, "status": "invalid_draft", "problems": ["run images, transcribe pages, then assemble first"]})
     info = json.loads((work / "meta.json").read_text(encoding="utf-8"))
     raw = (work / "raw.md").read_text(encoding="utf-8")
     ref = (work / "ref.md").read_text(encoding="utf-8")
@@ -640,6 +786,11 @@ def main() -> int:
     p.add_argument("--no-lookup", action="store_true", help="skip the vault URL lookup")
     p.add_argument("--verify-wait", type=int, default=60, help="seconds before retrying a verify page; -1 = no retry")
     wiring(p, fetch=True)
+    p = sub.add_parser("images")
+    p.add_argument("work_dir")
+    p.add_argument("--fetch", help="one local | ssh:<alias> (default: successful page fetcher)")
+    p = sub.add_parser("assemble")
+    p.add_argument("work_dir")
     p = sub.add_parser("write")
     p.add_argument("work_dir")
     wiring(p)
@@ -655,7 +806,7 @@ def main() -> int:
             out = local_op(json.loads(sys.stdin.buffer.read().decode("utf-8")))
         else:
             out = {"fetch": cmd_fetch, "write": cmd_write, "lookup": cmd_lookup, "rules": cmd_rules,
-                   "doctor": cmd_doctor}[args.cmd](args)
+                   "doctor": cmd_doctor, "images": cmd_images, "assemble": cmd_assemble}[args.cmd](args)
         code = 0 if out.get("ok", True) else 1
     except Fail as e:
         out, code = e.payload, e.code

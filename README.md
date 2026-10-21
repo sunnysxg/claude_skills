@@ -12,7 +12,7 @@
 
 | Skill | 说明 |
 |-------|------|
-| `article-ingest` | 文章（主要是公众号）入 Obsidian 主库：按 URL 查库 → curl + Chrome UA 抓 → 分正文页/短内容/验证页/已删 → defuddle 转 Markdown 并剪页面残渣 → 经 Lightsail 上只新建不覆盖的 gate 写 `_raw/` 与 REF 骨架；Windows 本机不抓国内站，经 ssh 借 Lightsail / sera 出网；依赖本机私有的 gate 链路，没有它的机器不适用 |
+| `article-ingest` | 文章入 Obsidian 主库：网页文字经 defuddle 提取，小红书图片正文从原站移动页取有序图片、由 agent 逐页转写后合稿；按微信链接身份或小红书笔记 ID 查重，经只新建不覆盖的 gate 写 `_raw/` 与 REF 骨架，只长期存文字；Windows 经已配置的 ssh 出网，依赖私有 gate 链路；[操作与边界](article-ingest/SKILL.md) |
 | `git-workflow` | 执行 Git 写操作；按项目指令文件里的 Git 规则执行，没有规则时用保守默认并问一次 |
 | `grilling` | 把一个计划/想法组织成设计树，按轮追问用户直到达成共同理解；每题带推荐答案，事实自查不问用户 |
 | `handoff` | 写交接文档到 `~/_sxg/handoff/{project}.md`，供下一个 session/agent 接手 |
@@ -92,6 +92,8 @@
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test_sync_rules.ps1
   ```
 - 归档目录 `~/_sxg/` 各机器独立，skill 首次写入时自动创建。
+
+文章入库离线行为检查（不访问真实笔记库）：`python -B -m unittest discover -s article-ingest/tests -v`。
 
 双机 Remote Control、SSH host、Computer Use、machine-local 配置边界和验收矩阵见
 [docs/sync-design.md](docs/sync-design.md)。同步仓库不包含 ChatGPT/Codex auth、SSH 私钥、

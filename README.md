@@ -12,7 +12,7 @@
 
 | Skill | 说明 |
 |-------|------|
-| `article-ingest` | 文章入 Obsidian 主库：网页文字经 defuddle 提取，小红书图片正文从原站移动页取有序图片、由 agent 逐页转写后合稿；按微信链接身份或小红书笔记 ID 查重，经只新建不覆盖的 gate 写 `_raw/` 与 REF 骨架，只长期存文字；Windows 经已配置的 ssh 出网，依赖私有 gate 链路；[操作与边界](article-ingest/SKILL.md) |
+| `article-ingest` | 文章入 Obsidian 主库：`ingest` 一次调用完成文字取源、查重、草稿及只新建写库；小红书图片下载后交 agent 逐页转写，图片与草稿保留在调用机器的 `~/article_archive/`，文字写 `_raw/` 与 REF 骨架；Windows 经已配置的 ssh 出网，依赖私有 gate 链路；[操作与边界](article-ingest/SKILL.md) |
 | `git-workflow` | 执行 Git 写操作；按项目指令文件里的 Git 规则执行，没有规则时用保守默认并问一次 |
 | `grilling` | 把一个计划/想法组织成设计树，按轮追问用户直到达成共同理解；每题带推荐答案，事实自查不问用户 |
 | `handoff` | 写交接文档到 `~/_sxg/handoff/{project}.md`，供下一个 session/agent 接手 |

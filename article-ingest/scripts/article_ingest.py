@@ -3,10 +3,11 @@
 
 Pipeline (see ../SKILL.md): lookup vault by URL -> fetch HTML with curl + Chrome UA -> classify
 (article / short / verify / deleted) -> defuddle to Markdown -> trim page residue -> drafts with the
-vault frontmatter -> the agent checks residue -> `write` creates _raw + REF (never overwrites).
+vault frontmatter -> `write` creates _raw + REF (never overwrites).
 Xiaohongshu original-site state bypasses defuddle: ordered images -> agent transcription -> same drafts.
 
 Subcommands (all print one JSON object on stdout; progress goes to stderr):
+  ingest URL               run the text pipeline; download image notes and pause for transcription
   fetch URL [--work DIR]   lookup + fetch + classify + convert + drafts
   images WORK_DIR          download the source's ordered images through a configured fetcher
   assemble WORK_DIR        combine agent-written pages/NNN.md into _raw + REF drafts
@@ -21,6 +22,7 @@ Machine wiring comes from flags or environment, never from hostnames:
   --gate  / ARTICLE_INGEST_GATE    `local` or `ssh:<alias>` (host that has the gate client)
   ARTICLE_INGEST_GATE_CLIENT       gate client path on the gate host
                                    (default ~/.hermes/article_archive/scripts/obsidian_gate.py)
+  ARTICLE_INGEST_WORK_ROOT         persistent local drafts/images (default ~/article_archive)
 A Linux ssh fetcher fetches and converts on that host and returns only Markdown (a WeChat page is
 ~3.5 MB of HTML); a Windows ssh fetcher (cmd.exe + curl.exe) returns the HTML for local conversion.
 
@@ -626,7 +628,8 @@ def cmd_fetch(args) -> dict:
                 return {"ok": True, "status": "exists", "url": url, "vault_paths": hits, **base}
         except Fail as e:
             log(f"post-fetch lookup unavailable: {e.payload}")
-    work = Path(args.work) if args.work else CACHE / "work" / (
+    work = Path(args.work).expanduser() if args.work else Path(os.environ.get(
+        "ARTICLE_INGEST_WORK_ROOT", str(Path.home() / "article_archive"))).expanduser() / (
         datetime.now(BEIJING).strftime("%Y%m%d%H%M") + "_" + hashlib.sha1(url.encode()).hexdigest()[:8])
     work.mkdir(parents=True, exist_ok=True)
     if res.get("images"):
@@ -644,6 +647,31 @@ def cmd_fetch(args) -> dict:
             "raw_path": drafts["raw_path"], "ref_path": drafts["ref_path"]}
     (work / "meta.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
     return {"ok": True, "status": "drafted", "work_dir": str(work), **info, **base}
+
+
+def cmd_ingest(args) -> dict:
+    started = time.time()
+    work_dir = None
+    try:
+        log("ingest: lookup, fetch and draft")
+        fetched = cmd_fetch(args)
+        if fetched["status"] == "exists":
+            return fetched
+        work_dir = fetched["work_dir"]
+        step = argparse.Namespace(work_dir=work_dir, gate=args.gate)
+        if fetched["status"] == "needs_transcription":
+            log("ingest: download images before transcription")
+            step.fetch = args.image_fetch
+            cmd_images(step)
+            return {**fetched, "next": "transcribe pages/NNN.md, then assemble and write"}
+        log("ingest: validate and create raw + REF")
+        return {**fetched, **cmd_write(step)}
+    except Fail as e:
+        if work_dir:
+            e.payload.setdefault("work_dir", work_dir)
+        raise
+    finally:
+        log(f"ingest finished: {time.time() - started:.1f}s")
 
 
 def cmd_images(args) -> dict:
@@ -780,12 +808,17 @@ def main() -> int:
             p.add_argument("--fetch", help="comma list of local | ssh:<alias> (env ARTICLE_INGEST_FETCH)")
         p.add_argument("--gate", help="local | ssh:<alias> (env ARTICLE_INGEST_GATE)")
 
-    p = sub.add_parser("fetch")
-    p.add_argument("url")
-    p.add_argument("--work", help="draft directory (default ~/.cache/article_ingest/work/...)")
-    p.add_argument("--no-lookup", action="store_true", help="skip the vault URL lookup")
-    p.add_argument("--verify-wait", type=int, default=60, help="seconds before retrying a verify page; -1 = no retry")
-    wiring(p, fetch=True)
+    for command in ("ingest", "fetch"):
+        p = sub.add_parser(command)
+        p.add_argument("url")
+        p.add_argument("--work", help="local archive directory (default ARTICLE_INGEST_WORK_ROOT or ~/article_archive, then per-article folder)")
+        p.add_argument("--verify-wait", type=int, default=60, help="seconds before retrying a verify page; -1 = no retry")
+        p.set_defaults(no_lookup=False)
+        if command == "fetch":
+            p.add_argument("--no-lookup", action="store_true", help="skip the vault URL lookup")
+        else:
+            p.add_argument("--image-fetch", help="one local | ssh:<alias> for images (default: successful page fetcher)")
+        wiring(p, fetch=True)
     p = sub.add_parser("images")
     p.add_argument("work_dir")
     p.add_argument("--fetch", help="one local | ssh:<alias> (default: successful page fetcher)")
@@ -805,7 +838,7 @@ def main() -> int:
         if args.cmd == "proxy":
             out = local_op(json.loads(sys.stdin.buffer.read().decode("utf-8")))
         else:
-            out = {"fetch": cmd_fetch, "write": cmd_write, "lookup": cmd_lookup, "rules": cmd_rules,
+            out = {"ingest": cmd_ingest, "fetch": cmd_fetch, "write": cmd_write, "lookup": cmd_lookup, "rules": cmd_rules,
                    "doctor": cmd_doctor, "images": cmd_images, "assemble": cmd_assemble}[args.cmd](args)
         code = 0 if out.get("ok", True) else 1
     except Fail as e:

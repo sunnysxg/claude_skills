@@ -21,6 +21,10 @@ gate 客户端默认路径 `~/.hermes/article_archive/scripts/obsidian_gate.py`�
 别的 Linux 机器没有 gate 客户端时，`--gate ssh:<有客户端的机器>`；该机器能不能直接抓国内站按
 那台机器的网络规矩定，不确定就只用 `ssh:` 出网。
 
+`ingest` / `fetch` 的草稿和图片留在发起命令的机器 `~/article_archive/`，可用
+`ARTICLE_INGEST_WORK_ROOT` 或单篇 `--work` 覆盖，不自动清理。若要求图片留在 SeraCC / sera，
+应从那台机器调用并借 Linux 出网；在 Lightsail 直接跑不会自动复制图片回本机。
+
 ## 状态
 
 - 2026-09-16 在 Lightsail 上验过：`doctor` 全绿、查库命中、`fetch` 本机抓取出草稿、验证页按

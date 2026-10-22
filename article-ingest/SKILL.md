@@ -7,8 +7,8 @@ description: >
 
 # article-ingest — 文章入库
 
-取源、查重与写库固定在 `scripts/article_ingest.py` 里（只用标准库）；按内容分支：网页文字直接出
-草稿，小红书图片正文由 agent 逐页读图转写后合稿。每一步以脚本输出的 JSON 为准。
+正常入库直接调用 `scripts/article_ingest.py ingest`（只用标准库）：文字文章自动查重、取源、清理、
+成稿、校验并写库；小红书图片下载后暂停，由 agent 逐页读图转写。每一步以脚本输出的 JSON 为准。
 
 **前提**：本 skill 依赖 Lightsail 上的 Obsidian 受限入口（gate，库在 sera，经 Tailscale）。
 没有这条链路的机器不适用——`doctor` 会报出来，别绕过 gate 直接写库。
@@ -27,14 +27,27 @@ description: >
 同一会话第一次写库前，跑一次 `{PY} {SCRIPT} rules --gate …` 读库内规则（输出在 stderr：库根
 `CLAUDE.md` 与 `_hermes/claude-code-guide.md`）。库内规则优先于本文。
 
-## 2. 抓：`{PY} {SCRIPT} fetch <URL> {WIRING}`
+## 2. 入库：`{PY} {SCRIPT} ingest <URL> {WIRING}`
+
+`written` / `exists` 直接汇报，不再让 agent 逐篇检查和串联正常的文字路径。脚本复用固定提取与清理
+规则，不证明原文完整或转写零误差；用户阅读发现问题后再修流程。失败时由 agent 判断修脚本还是
+临时手动处理；重复出现的可复用问题优先修脚本，不把手动补救变成常规步骤。
+
+图片分支返回 `needs_transcription` 时已下载图片，直接从下方第 2 步开始；可加
+`--image-fetch ssh:<alias>` 指定下载出网。下载失败会保留 `work_dir`，重跑 `images` 下载；
+写库失败沿该目录重跑 `write`，不要重新 `ingest`，以免已写的原文被查重命中后漏补 REF。
+
+仅需草稿、排查失败或指定路径时才用 `{PY} {SCRIPT} fetch <URL> {WIRING}`；它不自动写库。
+草稿及正文图片默认留在本机独立归档目录 `~/article_archive/<时间戳_链接指纹>/`，不自动清理，
+不进入 iCloud；每篇的 `source.json` 对应 `images/` 与 `pages/`。可用 `ARTICLE_INGEST_WORK_ROOT`
+覆盖根目录，或用 `--work` 指定单篇位置。原有缓存目录不自动搬迁，已有草稿仍可原路径继续。
 
 多条链接逐条跑，不并发（gate 串行加锁）。按 `status` 分流：
 
 | status | 含义 | 怎么办 |
 |---|---|---|
 | `exists` | 库里 `_raw/` 或 `Clippings/` 已有同一篇（微信短长链互认；小红书分享链取源后按笔记 ID 互认） | 报 `vault_paths`，结束，不重复入库 |
-| `drafted` | 抓到正文，草稿在 `work_dir` | 进第 3 步 |
+| `drafted` | `fetch` 抓到正文，草稿在 `work_dir` | 按需看草稿，再 `write` |
 | `needs_transcription` | 原站有正文图片，图片清单与文字说明在 `work_dir/source.json` | 按下面的图片分支处理 |
 | `deleted` | 平台已删：`infringement` 侵权投诉 / `violation` 违反规定 / `unavailable` 暂时无法查看 / `deleted_by_author` 作者删除 | 直接报删和原因，**不重试** |
 | `unfetchable` | `verify` 各条出网都撞验证页；`network` 连不上；`thin` 非公众号页面转出来几乎没字；`blocked` 403；`gone` 404；`empty_body` 正文页却没字；`unknown` 未识别页面 | 报「抓不到 + reason」，见下 |
@@ -63,14 +76,16 @@ Reader 之类第三方抓取服务**（为什么见 `docs/decisions.md`「抓文
    不编字、不声称完整入库。无需安装 OCR 服务或增加额外图片审查流程。
 3. `{PY} {SCRIPT} assemble <work_dir>`：检查每页图片与非空转写都在，按序合成正文与 REF 骨架；
    少页报 `incomplete_transcription`。这是检查漏页，不证明转写准确；准确性由 agent 对照图片复核。
-4. 继续第 3、4 步。只有文字长期入库，图片留在工作缓存；原帖或缓存失效后无法逐页回看。
+4. 继续第 3、4 步。文字入库，图片和转写留在本机独立归档目录，可在原帖失效后本地回看；
+   不写 `_raw` 附件、不跨机同步、不承诺本机磁盘损坏后的恢复。需要在 SeraCC / sera 留图时，
+   从这两台机器发起命令；在 Lightsail 发起会留在 Lightsail，应换回本机调用。
 
 `login_required` / `source_unavailable` 表示没拿到原帖数据或有效笔记身份，换完配置的出网仍失败就
 报告缺有效分享链接或登录态；不当成删除。`unsupported_content` 表示视频，不在本技能范围。
 重新抓取用新工作目录（同一分钟默认目录撞上时指定 `--work`）；已有目录报 `work_in_use`，沿原目录
 继续处理即可。发布日期缺失时 `date` 是采集日，并显式记录 `published: null` 与日期依据，不冒充发布日期。
 
-## 3. 看草稿
+## 3. 按需看草稿（图片合稿或异常处理）
 
 `work_dir` 里三个文件：`raw.md`（原文）、`ref.md`（REF 卡骨架）、`meta.json`（`raw_path` /
 `ref_path` 等）。草稿按库宪法（`_hermes/claude-code-guide.md`「笔记体系核心规则」第 2 条）只建
@@ -102,6 +117,7 @@ Reader 之类第三方抓取服务**（为什么见 `docs/decisions.md`「抓文
 
 ## 退出码
 
-`0` 当前步骤完成（drafted / needs_transcription / images_ready / written / exists）；`1` 拒绝或抓不到（deleted、unfetchable、conflict、
+`0` 当前步骤完成（drafted / needs_transcription / images_ready / written / exists）；`needs_transcription`
+只是交给读图环节，不代表已入库。`1` 拒绝或抓不到（deleted、unfetchable、conflict、
 invalid_draft）；`2` 链路未就绪；`3` 用法或配置错误（没给 `--fetch` / `--gate`、在 Windows 上
 用 `local` 抓取）。

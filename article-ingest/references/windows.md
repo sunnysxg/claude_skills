@@ -32,6 +32,9 @@ defuddle 走本机 `npx`（Node 自带），首次会从 npm 拉 `defuddle@0.19.
 
 ## 坑
 
-- 草稿默认在 `~/.cache/article_ingest/work/`，不在任何 Git 树里，交付时不会弄脏候选树。
+- 草稿和图片默认在调用机器的 `~/article_archive/`，不是缓存，不自动清理；可用
+  `ARTICLE_INGEST_WORK_ROOT` 或单篇 `--work` 覆盖。从 SeraCC / sera 调用即可留在其本地磁盘，
+  不需要接入 iCloud 或修改 gate。不要把根目录设到 Git 树或 iCloud 中。
 - 命令里的 URL 用双引号包住（长链里有 `&`）。
 - `images` 默认沿取页成功的出网传回图片字节；Lightsail 传图慢时可用 `--fetch ssh:sera`。
+  正常入口 `ingest` 对应的参数是 `--image-fetch ssh:sera`，网页仍可先走 Lightsail。

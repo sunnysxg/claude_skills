@@ -2,6 +2,7 @@
 import argparse
 import importlib.util
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -22,6 +23,85 @@ def page(images=2, **extra):
 
 
 class IngestTests(unittest.TestCase):
+    def test_ingest_text_writes_both_notes_and_duplicate_stops_before_fetch(self):
+        with tempfile.TemporaryDirectory() as td:
+            args = argparse.Namespace(url="https://mp.weixin.qq.com/s/abcdefgh", fetch="ssh:test", gate="local",
+                                      no_lookup=False, verify_wait=-1, work=None, image_fetch=None)
+            meta = {"title": "Title", "account": "Author", "byline": "", "published": 1792071968, "link": args.url}
+            result = {"kind": "article", "meta": meta, "body": "Text body", "chars": 9, "via": "ssh:test"}
+            stored = {}
+
+            def gate(spec, req, timeout=1800):
+                if req["op"] == "lookup":
+                    return {"ok": True, "hits": list(stored)}
+                stored[req["path"]] = req["content"]
+                return {"ok": True, "status": "created"}
+
+            with patch.dict(os.environ, {"ARTICLE_INGEST_WORK_ROOT": td}), patch.object(a, "gate_call", side_effect=gate), patch.object(a, "attempt", return_value=result) as fetch:
+                out = a.cmd_ingest(args)
+                self.assertEqual(out["status"], "written")
+                self.assertEqual(Path(out["work_dir"]).parent, Path(td))
+                self.assertEqual(len(stored), 2)
+                self.assertEqual(a.cmd_ingest(args)["status"], "exists")
+                self.assertEqual(fetch.call_count, 1)
+
+    def test_default_work_is_local_archive_outside_cache(self):
+        with tempfile.TemporaryDirectory() as td, patch.object(a.Path, "home", return_value=Path(td)), patch.dict(os.environ):
+            os.environ.pop("ARTICLE_INGEST_WORK_ROOT", None)
+            args = argparse.Namespace(url=URL, fetch="ssh:test", no_lookup=True, verify_wait=-1, work=None)
+            with patch.object(a, "attempt", return_value={**a.xhs_content(page(), URL), "via": "ssh:test"}):
+                out = a.cmd_fetch(args)
+            self.assertEqual(Path(out["work_dir"]).parent, Path(td) / "article_archive")
+
+    def test_ingest_images_downloads_but_never_writes_before_transcription(self):
+        with tempfile.TemporaryDirectory() as td:
+            args = argparse.Namespace(url=URL, fetch="ssh:test", gate="local", no_lookup=True,
+                                      verify_wait=-1, work=td, image_fetch="ssh:images")
+            result = {**a.xhs_content(page(), URL), "via": "ssh:test"}
+            image = b"\x89PNG\r\n\x1a\nimage"
+            with patch.object(a, "attempt", return_value=result), patch.object(a, "remote_os", return_value="posix"), patch.object(a.subprocess, "run", return_value=argparse.Namespace(returncode=0, stdout=image)), patch.object(a, "cmd_write", side_effect=AssertionError("must wait for transcription")):
+                out = a.cmd_ingest(args)
+            self.assertEqual(out["status"], "needs_transcription")
+            self.assertEqual((Path(td) / "images/002.img").read_bytes(), image)
+            self.assertFalse((Path(td) / "raw.md").exists())
+
+    def test_ingest_download_failure_preserves_resume_location(self):
+        with tempfile.TemporaryDirectory() as td:
+            args = argparse.Namespace(url=URL, fetch="ssh:test", gate="local", no_lookup=True,
+                                      verify_wait=-1, work=td, image_fetch=None)
+            with patch.object(a, "attempt", return_value={**a.xhs_content(page(), URL), "via": "ssh:test"}), patch.object(a, "cmd_images", side_effect=a.Fail(1, {"status": "image_failed", "page": 2})):
+                with self.assertRaises(a.Fail) as failed:
+                    a.cmd_ingest(args)
+            self.assertEqual(failed.exception.payload["work_dir"], td)
+            self.assertEqual(failed.exception.payload["page"], 2)
+            self.assertTrue((Path(td) / "source.json").is_file())
+
+    def test_ingest_partial_write_resumes_without_fetching_again(self):
+        with tempfile.TemporaryDirectory() as td:
+            args = argparse.Namespace(url=URL, fetch="ssh:test", gate="local", no_lookup=True,
+                                      verify_wait=-1, work=td, image_fetch=None)
+            result = {**a.xhs_content(page(images=0), URL), "via": "ssh:test"}
+            stored = {}
+            fail_ref = True
+
+            def create(spec, req, timeout):
+                if req["path"].startswith("2-Zettelkasten") and fail_ref:
+                    return {"ok": False, "status": "unreachable"}
+                existed = req["path"] in stored
+                stored[req["path"]] = req["content"]
+                return {"ok": True, "status": "existed" if existed else "created"}
+
+            with patch.object(a, "attempt", return_value=result), patch.object(a, "gate_call", side_effect=create):
+                with self.assertRaises(a.Fail) as failed:
+                    a.cmd_ingest(args)
+                self.assertEqual(failed.exception.code, 2)
+                self.assertEqual(failed.exception.payload["work_dir"], td)
+                self.assertEqual(len(stored), 1)
+                fail_ref = False
+                out = a.cmd_write(argparse.Namespace(work_dir=td, gate="local"))
+            self.assertEqual(out["results"]["raw"]["status"], "existed")
+            self.assertEqual(out["results"]["ref"]["status"], "created")
+
     def test_image_content_bypasses_defuddle_even_with_long_caption(self):
         with patch.object(a, "defuddle", side_effect=AssertionError("must not convert image note")):
             r = a.process({"http": 200, "html": page(desc="说明" * 300), "final_url": URL}, URL)

@@ -12,6 +12,10 @@
 本地识字不需要聊天登录、API 密钥或常驻服务；缺随包模型报错，不运行时下载。
 详细依赖与质量边界见 [transcription.md](transcription.md)。
 
+图片成稿还需 PATH 中已登录的 `codex`，或用 `ARTICLE_INGEST_CODEX` 指定可执行文件绝对路径。
+复核沿用 CLI 默认模型及登录，不新增 API 密钥；模型不可用时停在草稿，不跳过对照原图。
+只有 Windows 的复核实跑证据；Linux 代码共用，未据此声称 Linux 实机已验。
+
 ## `{WIRING}`
 
 在 Lightsail（gate 客户端所在机器）上本机抓、本机写：

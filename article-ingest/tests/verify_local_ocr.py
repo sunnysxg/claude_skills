@@ -1,9 +1,11 @@
-"""Optional real-image acceptance run with network/process denial and a stateful isolated vault.
+"""Real-image acceptance: offline OCR only, or --review for the complete isolated pipeline.
 
 Run with the installed OCR Python:
   python -B verify_local_ocr.py --source DIR [--source DIR ...] --work NEW_DIR
 Each source contains source.json + images/; only these inputs are copied, never old page text.
-Original-site fetching/download is replaced by local input; OCR/assemble/validate/write are real.
+Only original-site image inputs are reused, never old OCR/review text. Without --review no draft
+is written: offline OCR is no longer considered publication-ready. --review uses real Codex
+source comparison and a stateful isolated vault; never the user's real vault.
 """
 import argparse
 import hashlib
@@ -25,22 +27,36 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", action="append", required=True)
     parser.add_argument("--work", required=True)
+    parser.add_argument("--review", action="store_true", help="exercise real batched model comparison and isolated writes")
+    parser.add_argument("--check-unavailable", action="store_true", help="first deny the model executable, then resume with real review")
     args = parser.parse_args()
     root = Path(args.work).expanduser()
     root.mkdir(parents=True, exist_ok=False)
-    evidence = {"boundary": "original-site inputs reused; real local OCR and draft/write pipeline; isolated create-only gate",
-                "events": [], "articles": [], "python": sys.version, "agent_calls": 0}
+    evidence = {"boundary": "original-site inputs reused; real OCR; " + ("real model review + isolated gate" if args.review else "OCR only, no reviewed draft or vault write"),
+                "events": [], "articles": [], "python": sys.version}
+    ocr_active = False
 
     def audit(event, values):
         if event in ("subprocess.Popen", "os.system", "os.posix_spawn", "socket.connect", "socket.getaddrinfo"):
-            evidence["events"].append({"event": event, "detail": str(values)[:300]})
-            raise RuntimeError("process/network disabled for acceptance: " + event)
+            evidence["events"].append({"event": event, "during_ocr": ocr_active, "detail": str(values)[:300]})
+            if ocr_active or not args.review:
+                raise RuntimeError("process/network disabled during OCR acceptance: " + event)
 
     sys.addaudithook(audit)
     os.environ["ARTICLE_INGEST_OCR_PYTHON"] = sys.executable
-    os.environ["ARTICLE_INGEST_CODEX"] = str(root / "disabled-agent")
-    os.environ["OPENAI_API_KEY"] = "disabled"
-    os.environ["ANTHROPIC_API_KEY"] = "disabled"
+    if not args.review:
+        os.environ["ARTICLE_INGEST_CODEX"] = str(root / "disabled-agent")
+        os.environ["OPENAI_API_KEY"] = "disabled"
+        os.environ["ANTHROPIC_API_KEY"] = "disabled"
+    real_ocr = a.transcribe_image
+
+    def checked_ocr(image):
+        nonlocal ocr_active
+        ocr_active = True
+        try:
+            return real_ocr(image)
+        finally:
+            ocr_active = False
     for number, source_dir in enumerate(args.source, 1):
         source_dir = Path(source_dir).expanduser()
         source = json.loads((source_dir / "source.json").read_text(encoding="utf-8"))
@@ -67,12 +83,36 @@ def main():
         ingest_args = argparse.Namespace(url=source["meta"]["link"], fetch="local-input", gate="isolated",
                                          no_lookup=False, verify_wait=-1, work=str(work), image_fetch=None)
         started = time.monotonic()
-        with patch.object(a, "attempt", return_value=fetched), patch.object(a, "cmd_images", side_effect=images), patch.object(a, "gate_call", side_effect=gate):
+        if not args.review:
+            work.mkdir()
+            a.save_json(work / "source.json", source)
+            images(None)
+            with patch.object(a, "transcribe_image", side_effect=checked_ocr):
+                a.cmd_transcribe(argparse.Namespace(work_dir=str(work), collect_issues=True))
+            evidence["articles"].append({"title": source["meta"]["title"], "work": str(work),
+                                         "seconds": round(time.monotonic() - started, 3), "pages": len(source["images"])})
+            continue
+        with patch.object(a, "attempt", return_value=fetched), patch.object(a, "cmd_images", side_effect=images), patch.object(a, "gate_call", side_effect=gate), patch.object(a, "transcribe_image", side_effect=checked_ocr):
+            if args.check_unavailable:
+                with patch.dict(os.environ, {"ARTICLE_INGEST_CODEX": str(root / "unavailable-model")}):
+                    try:
+                        a.cmd_ingest(ingest_args)
+                        raise AssertionError("unavailable reviewer did not stop ingest")
+                    except a.Fail as error:
+                        assert error.payload["status"] == "review_unavailable", error.payload
+                        assert not stored and not (work / "meta.json").exists()
+                before = {p.name: a.file_sha(p) for p in work.glob("pages/*.md")}
             try:
-                a.cmd_ingest(ingest_args)
+                if args.check_unavailable:
+                    a.cmd_resume(argparse.Namespace(work_dir=str(work), gate="isolated", draft_only=False))
+                    assert before == {p.name: a.file_sha(p) for p in work.glob("pages/*.md")}
+                else:
+                    a.cmd_ingest(ingest_args)
                 raise AssertionError("injected REF failure was not observed")
             except a.Fail as error:
                 assert error.payload["status"] == "unreachable", error.payload
+            if args.check_unavailable:
+                assert before == {p.name: a.file_sha(p) for p in work.glob("pages/*.md")}
             elapsed = time.monotonic() - started
             info, raw, ref = a.validate(work)
             assert len(stored) == 1 and stored[info["raw_path"]] == raw
@@ -87,15 +127,15 @@ def main():
             assert len(stored) == 2
             assert "topics:\n" in ref and "**一句话**：\n\n" in ref
             assert raw.count("<!-- source page ") == len(source["images"])
-            (work / "raw.md").write_text(raw + "conflicting change", encoding="utf-8")
+            stored[info["raw_path"]] = "a different existing note"
             try:
                 a.cmd_write(step)
                 raise AssertionError("different bytes must conflict")
             except a.Fail as error:
                 assert error.payload["status"] == "conflict"
-            (work / "raw.md").write_text(raw, encoding="utf-8")
+            stored[info["raw_path"]] = raw
         # Missing transcription is caught before assembling; restore exact original result.
-        last = work / "pages" / f"{len(source['images']):03d}.md"
+        last = work / "reviewed" / f"{len(source['images']):03d}.md"
         data = last.read_bytes()
         last.unlink()
         try:
@@ -105,12 +145,15 @@ def main():
             assert error.payload["pages"] == [len(source["images"])]
         last.write_bytes(data)
         hashes = {str(p.relative_to(work)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(work.glob("pages/*.md"))}
+        step.collect_issues = True
         a.cmd_transcribe(step)
         assert hashes == {str(p.relative_to(work)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(work.glob("pages/*.md"))}
-        evidence["articles"].append({"title": info["title"], "pages": len(hashes), "seconds": round(elapsed, 3),
+        evidence["articles"].append({"title": info["title"], "pages": len(source["images"]), "seconds": round(elapsed, 3),
                                       "work": str(work), "page_sha256": hashes,
+                                      "model_calls": sum(a.read_json(p).get("model_calls", 0) for p in work.glob("review/batch_*/attempt.json")),
+                                      "unavailable_then_resume": args.check_unavailable,
                                       "checks": ["REF failure after raw", "resume exact raw bytes", "repeat", "duplicate", "conflict", "missing page", "kept pages"]})
-    evidence["ok"] = not evidence["events"]
+    evidence["ok"] = not any(e["during_ocr"] for e in evidence["events"])
     (root / "evidence.json").write_text(json.dumps(evidence, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(evidence, ensure_ascii=False, indent=2))
 

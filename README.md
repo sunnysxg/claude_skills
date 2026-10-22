@@ -12,7 +12,7 @@
 
 | Skill | 说明 |
 |-------|------|
-| `article-ingest` | 文章入 Obsidian 主库：`ingest` 一次调用完成取源、查重、草稿及只新建写库，小红书图片以固定本地 RapidOCR 专用模型识字、合稿，无聊天登录或通用 agent 调用；首次运行 `article-ingest/scripts/setup_ocr.py` 安装隔离依赖；失败沿原目录 `resume`，异常才交 agent。图片与草稿留在调用机器的 `~/article_archive/`，文字写 `_raw/` 与 REF 骨架；Windows 经已配置的 ssh 出网，依赖私有 gate 链路；[操作与边界](article-ingest/SKILL.md) |
+| `article-ingest` | 文章入 Obsidian 主库：`ingest` 串联取源、查重、成稿和只新建写库；小红书先固定本地 OCR，再由已登录 Codex 分批对照原图、修复表格/公式及 Markdown 排版，通过质量检查才写。首次 `setup_ocr.py` 安装识字依赖；失败 `resume` 复用已通过页与原稿。图片留本机 `~/article_archive/`，文字写 `_raw/` 与 REF 骨架；微信原文字路径不变；[操作与边界](article-ingest/SKILL.md) |
 | `git-workflow` | 执行 Git 写操作；按项目指令文件里的 Git 规则执行，没有规则时用保守默认并问一次 |
 | `grilling` | 把一个计划/想法组织成设计树，按轮追问用户直到达成共同理解；每题带推荐答案，事实自查不问用户 |
 | `handoff` | 写交接文档到 `~/_sxg/handoff/{project}.md`，供下一个 session/agent 接手 |
@@ -94,7 +94,7 @@
 - 归档目录 `~/_sxg/` 各机器独立，skill 首次写入时自动创建。
 
 文章入库离线行为检查（不访问真实笔记库）：`python -B -m unittest discover -s article-ingest/tests -v`。
-真实图片验收可用安装后的 OCR Python 运行 `article-ingest/tests/verify_local_ocr.py --source <含 source.json 与 images 的目录> --work <全新结果目录>`，多篇重复 `--source`；该入口只复用原图，重新识字、合稿并以有状态替身验证只新建写库，同时禁止进程和网络调用，输出逐页校验值与耗时。它不验证当次原站下载或正式库写入。
+真实图片验收用 OCR Python 运行 `article-ingest/tests/verify_local_ocr.py --source <含 source.json 与 images 的目录> --work <全新结果目录>`，多篇重复 `--source`；默认只验离线识字，禁止进程/网络，不生成可入库成稿。加 `--review` 则真实调用分批原图对照，并用有状态替身验证只新建写库、重复、冲突、缺页与原字节续写；识字阶段仍禁止进程/网络，另记复核调用证据。两种都仅复用原图，不复制旧转写，不验证当次原站下载或正式库写入。
 
 双机 Remote Control、SSH host、Computer Use、machine-local 配置边界和验收矩阵见
 [docs/sync-design.md](docs/sync-design.md)。同步仓库不包含 ChatGPT/Codex auth、SSH 私钥、

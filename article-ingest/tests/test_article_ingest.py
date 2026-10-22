@@ -13,6 +13,12 @@ a = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(a)
 ID = "6ad0d9200000000018013158"
 URL = "https://www.xiaohongshu.com/explore/" + ID
+REAL_REVIEW_BATCH = a.review_batch
+
+
+def review_result(entries, context, record):
+    return {"pages": [{"page": e["page"], "text": e["ocr"] or f"Repaired {e['page']}",
+                       "unreadable": False, "join_previous": False, "join_separator": "", "changes": []} for e in entries]}
 
 
 def page(images=2, **extra):
@@ -28,6 +34,10 @@ class IngestTests(unittest.TestCase):
         patcher = patch.object(a.importlib.util, "find_spec", side_effect=lambda name: True if name == "rapidocr" else real_find(name))
         patcher.start()
         self.addCleanup(patcher.stop)
+        # Every offline test denies the real model transport unless it mocks subprocess explicitly.
+        reviewer = patch.object(a, "review_batch", side_effect=review_result)
+        self.review_mock = reviewer.start()
+        self.addCleanup(reviewer.stop)
 
     def test_ingest_text_writes_both_notes_and_duplicate_stops_before_fetch(self):
         with tempfile.TemporaryDirectory() as td:
@@ -50,6 +60,7 @@ class IngestTests(unittest.TestCase):
                 self.assertEqual(len(stored), 2)
                 self.assertEqual(a.cmd_ingest(args)["status"], "exists")
                 self.assertEqual(fetch.call_count, 1)
+                self.review_mock.assert_not_called()
 
     def test_default_work_is_local_archive_outside_cache(self):
         with tempfile.TemporaryDirectory() as td, patch.object(a.Path, "home", return_value=Path(td)), patch.dict(os.environ):
@@ -79,8 +90,10 @@ class IngestTests(unittest.TestCase):
             self.assertLess(raw.index("Page 1"), raw.index("Page 2"))
             self.assertEqual((Path(td) / "images/002.img").read_bytes(), image)
             self.assertEqual((Path(td) / "pages/002.md").read_text(encoding="utf-8").strip(), "Page 2")
+            self.assertEqual(self.review_mock.call_count, 1)
+            self.assertEqual(out["review_version"], a.REVIEW_VERSION)
 
-    def test_transcription_failure_resumes_only_missing_pages_and_never_writes_early(self):
+    def test_ocr_failure_enters_review_and_resume_keeps_completed_work(self):
         with tempfile.TemporaryDirectory() as td:
             work = Path(td)
             source = {**a.xhs_content(page(), URL), "via": "ssh:test"}
@@ -89,16 +102,18 @@ class IngestTests(unittest.TestCase):
             for item in source["images"]:
                 (work / item["file"]).write_bytes(b"image")
             args = argparse.Namespace(work_dir=td, gate="local", image_fetch=None, draft_only=True)
+            self.review_mock.side_effect = a.Fail(1, {"status": "review_failed"})
             with patch.object(a, "transcribe_image", side_effect=["First", a.Fail(1, {"status": "transcription_failed"})]), patch.object(a, "cmd_write") as write:
                 with self.assertRaises(a.Fail) as failed:
                     a.cmd_resume(args)
-                self.assertEqual(failed.exception.payload["page"], 2)
+                self.assertEqual(failed.exception.payload["pages"], [1, 2])
                 self.assertFalse((work / "meta.json").exists())
                 write.assert_not_called()
-            with patch.object(a, "transcribe_image", return_value="Second") as model, patch.object(a, "attempt", side_effect=AssertionError("must not fetch")):
+            self.review_mock.side_effect = review_result
+            with patch.object(a, "transcribe_image", side_effect=AssertionError("keep OCR success/failure evidence")), patch.object(a, "attempt", side_effect=AssertionError("must not fetch")):
                 self.assertEqual(a.cmd_resume(args)["status"], "drafted")
-                model.assert_called_once_with(work / "images/002.img")
             self.assertEqual((work / "pages/001.md").read_text(encoding="utf-8"), "First\n")
+            self.assertEqual((work / "reviewed/002.md").read_text(encoding="utf-8"), "Repaired 2\n")
 
     def test_resume_existing_draft_preserves_exact_bytes_for_partial_write(self):
         with tempfile.TemporaryDirectory() as td:
@@ -297,7 +312,7 @@ class IngestTests(unittest.TestCase):
             args = argparse.Namespace(work_dir=td, gate="local")
             with self.assertRaises(a.Fail) as failed:
                 a.cmd_assemble(args)
-            self.assertEqual(failed.exception.payload["pages"], [1, 2])
+            self.assertEqual(failed.exception.payload["page"], 1)
             with self.assertRaises(a.Fail):
                 a.validate(work)
             (work / "images").mkdir()
@@ -305,6 +320,10 @@ class IngestTests(unittest.TestCase):
             for n in (1, 2):
                 (work / f"images/{n:03d}.img").write_bytes(b"image")
                 (work / f"pages/{n:03d}.md").write_text(f"Page {n}", encoding="utf-8")
+            with self.assertRaises(a.Fail) as failed:
+                a.cmd_assemble(args)
+            self.assertEqual(failed.exception.payload["pages"], [1, 2])
+            a.cmd_review(args)
             self.assertEqual(a.cmd_assemble(args)["status"], "drafted")
             info, raw, ref = a.validate(work)
             self.assertLess(raw.index("Page 1"), raw.index("Page 2"))
@@ -322,7 +341,7 @@ class IngestTests(unittest.TestCase):
                 self.assertEqual(a.cmd_write(args)["results"]["raw"]["status"], "created")
                 self.assertEqual(a.cmd_write(args)["results"]["raw"]["status"], "existed")
                 self.assertEqual(len(stored), 2)
-                (work / "raw.md").write_text(raw + "changed", encoding="utf-8")
+                stored[info["raw_path"]] = "a different existing note"
                 with self.assertRaises(a.Fail) as conflict:
                     a.cmd_write(args)
                 self.assertEqual(conflict.exception.payload["status"], "conflict")
@@ -336,6 +355,179 @@ class IngestTests(unittest.TestCase):
                 with self.assertRaises(a.Fail) as failed:
                     a.cmd_images(argparse.Namespace(work_dir=td, fetch=None))
             self.assertEqual(failed.exception.payload["status"], "image_failed")
+
+    def prepare_review(self, work, count=2):
+        source = {**a.xhs_content(page(images=count), URL), "via": "ssh:test"}
+        a.save_json(work / "source.json", source)
+        (work / "images").mkdir()
+        (work / "pages").mkdir()
+        for n in range(1, count + 1):
+            (work / f"images/{n:03d}.img").write_bytes(b"image")
+            (work / f"pages/{n:03d}.md").write_text(f"OCR {n}", encoding="utf-8")
+        return argparse.Namespace(work_dir=str(work), gate="isolated", draft_only=False)
+
+    def test_review_repairs_markdown_and_cross_page_prose_then_partial_write_is_exact(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            args = self.prepare_review(work)
+            self.review_mock.side_effect = lambda *args: {"pages": [
+                {"page": 1, "text": "## 标题\n\n| A | B |\n|---|---|\n| 1 | ↑ |\n\n跨页", "unreadable": False, "join_previous": False, "join_separator": "", "changes": ["修正高置信箭头错字"]},
+                {"page": 2, "text": "接续。\n\n$$x=\\frac{1}{2}$$", "unreadable": False, "join_previous": True, "join_separator": "", "changes": []}]}
+            a.cmd_review(args)
+            a.cmd_assemble(args)
+            original = (work / "raw.md").read_bytes()
+            self.assertIn("跨页<!-- source page 2 -->接续", original.decode())
+            self.assertIn("| 1 | ↑ |", original.decode())
+            self.assertEqual((work / "pages/001.md").read_text(), "OCR 1")
+            stored = {}
+            fail_ref = True
+
+            def gate(spec, req, timeout):
+                if req["path"].startswith("2-") and fail_ref:
+                    return {"ok": False, "status": "unreachable"}
+                previous = stored.setdefault(req["path"], req["content"])
+                return {"ok": previous == req["content"], "status": "existed"}
+
+            with patch.object(a, "gate_call", side_effect=gate):
+                with self.assertRaises(a.Fail):
+                    a.cmd_write(args)
+                fail_ref = False
+                with patch.object(a, "cmd_review", side_effect=AssertionError("no repeat review")), patch.object(a, "cmd_assemble", side_effect=AssertionError("no regeneration")):
+                    self.assertEqual(a.cmd_resume(args)["status"], "written")
+            self.assertEqual((work / "raw.md").read_bytes(), original)
+            self.assertEqual(len(stored), 2)
+
+    def test_review_rejects_missing_duplicate_empty_unreadable_and_keeps_good_pages(self):
+        bad_rows = [[], [{"page": 1}, {"page": 1}],
+                    [{"page": n, "text": "", "unreadable": False, "join_previous": False, "join_separator": "", "changes": []} for n in (1, 2)],
+                    [{"page": n, "text": "Text", "unreadable": n == 2, "join_previous": False, "join_separator": "", "changes": []} for n in (1, 2)]]
+        for rows in bad_rows:
+            with self.subTest(rows=rows), tempfile.TemporaryDirectory() as td:
+                args = self.prepare_review(Path(td))
+                self.review_mock.side_effect = lambda *args: {"pages": rows}
+                with self.assertRaises(a.Fail) as failed:
+                    a.cmd_review(args)
+                self.assertEqual(failed.exception.payload["status"], "review_failed")
+                with self.assertRaises(a.Fail):
+                    a.cmd_assemble(args)
+                self.assertFalse((Path(td) / "meta.json").exists())
+                if len(rows) == 2 and rows[-1].get("unreadable"):
+                    self.review_mock.side_effect = review_result
+                    a.cmd_review(args)
+                    self.assertEqual([e["page"] for e in self.review_mock.call_args.args[0]], [2])
+
+    def test_review_resume_batches_and_forced_failure_invalidates_previous_pass(self):
+        with tempfile.TemporaryDirectory() as td:
+            args = self.prepare_review(Path(td), 8)
+            def review(entries, context, record):
+                if entries[0]["page"] == 7:
+                    raise a.Fail(1, {"status": "review_failed"})
+                return review_result(entries, context, record)
+            self.review_mock.side_effect = review
+            with self.assertRaises(a.Fail):
+                a.cmd_review(args)
+            self.review_mock.side_effect = review_result
+            a.cmd_review(args)
+            self.assertEqual([e["page"] for e in self.review_mock.call_args.args[0]], [7, 8])
+            self.assertEqual(self.review_mock.call_args.args[1]["page"], 6)
+            args.repair_pages = [2]
+            self.review_mock.side_effect = a.Fail(1, {"status": "review_failed"})
+            with self.assertRaises(a.Fail):
+                a.cmd_review(args)
+            with self.assertRaises(a.Fail) as failed:
+                a.cmd_assemble(args)
+            self.assertEqual(failed.exception.payload["pages"], [2])
+
+    def test_image_ocr_reviewed_and_raw_changes_invalidate_quality_evidence(self):
+        for target in ("images/001.img", "pages/001.md", "reviewed/001.md", "raw.md"):
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as td:
+                work = Path(td)
+                args = self.prepare_review(work)
+                a.cmd_review(args)
+                a.cmd_assemble(args)
+                (work / target).write_text("changed", encoding="utf-8")
+                with patch.object(a, "gate_call") as gate, self.assertRaises(a.Fail):
+                    a.cmd_write(args)
+                gate.assert_not_called()
+
+    def test_legacy_image_draft_is_preserved_and_cannot_bypass_review(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            args = self.prepare_review(work)
+            source = a.read_json(work / "source.json")
+            draft = a.build_drafts({**source["meta"], "image_count": 2}, "old OCR")
+            a.save_json(work / "meta.json", {**source["meta"], "image_count": 2,
+                                           "raw_path": draft["raw_path"], "ref_path": draft["ref_path"]})
+            for name in ("raw", "ref"):
+                (work / f"{name}.md").write_text(draft[name], encoding="utf-8")
+            original = (work / "raw.md").read_bytes()
+            for command in (a.cmd_resume, a.cmd_write, a.cmd_review, a.cmd_assemble):
+                with self.assertRaises(a.Fail):
+                    command(args)
+            self.assertEqual((work / "raw.md").read_bytes(), original)
+            self.review_mock.assert_not_called()
+
+    def test_fixed_layout_signals_do_not_treat_confidence_as_completeness(self):
+        boxes = [[[x, y], [x + 20, y], [x + 20, y + 10], [x, y + 10]] for y in (0, 30) for x in (0, 60)]
+        self.assertIn("table_or_columns", a.review_reasons(["甲", "乙", "丙", "丁"], [0.99] * 4, boxes))
+        self.assertIn("formula", a.review_reasons(["∑ x"], [0.99], []))
+
+    def test_cross_page_english_word_and_word_boundary_use_explicit_separator(self):
+        for previous, following, separator, expected in (("con", "tinuous", "", "continuous"), ("two", "words", " ", "two words")):
+            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as td:
+                work = Path(td)
+                args = self.prepare_review(work)
+                self.review_mock.side_effect = lambda *args: {"pages": [
+                    {"page": n, "text": text, "unreadable": False, "join_previous": n == 2,
+                     "join_separator": separator if n == 2 else "", "changes": []}
+                    for n, text in ((1, previous), (2, following))]}
+                a.cmd_review(args)
+                body = a.reviewed_body(work, a.read_json(work / "source.json"))
+                self.assertIn(expected, body.replace("<!-- source page 2 -->", ""))
+
+    def test_review_transport_nonzero_and_invalid_json_do_not_produce_passed_pages(self):
+        import io
+        for exit_code, output in ((1, None), (0, "not json")):
+            with self.subTest(exit_code=exit_code), tempfile.TemporaryDirectory() as td:
+                work = Path(td)
+                args = self.prepare_review(work)
+                class Process:
+                    pid = 123
+                    stdin = io.BytesIO()
+                    def wait(self, timeout):
+                        if output is not None:
+                            next(work.glob("review/batch_*" )).joinpath("output.json").write_text(output)
+                        return exit_code
+                self.review_mock.side_effect = REAL_REVIEW_BATCH
+                with patch.object(a, "find_review_codex", return_value="codex"), patch.object(a.subprocess, "Popen", return_value=Process()):
+                    with self.assertRaises(a.Fail) as failed:
+                        a.cmd_review(args)
+                self.assertEqual(failed.exception.payload["status"], "review_failed")
+                self.assertFalse((work / "review/001.json").exists())
+                attempt = a.read_json(next(work.glob("review/batch_*/attempt.json")))
+                self.assertEqual(attempt["model_calls"], 1)
+                self.assertEqual(attempt["status"], "failed")
+
+    def test_review_transport_uses_one_structured_batch_and_retains_actual_invocation(self):
+        import io
+        with tempfile.TemporaryDirectory() as td:
+            record = Path(td) / "call"
+            entries = [{"page": n, "image": str(Path(td) / f"{n}.png"), "ocr": "text", "reasons": []} for n in (1, 2)]
+            class Process:
+                pid = 123
+                stdin = io.BytesIO()
+                def wait(self, timeout):
+                    a.save_json(record / "output.json", review_result(entries, None, record))
+                    return 0
+            with patch.object(a, "find_review_codex", return_value="codex"), patch.object(a.subprocess, "Popen", return_value=Process()) as popen:
+                result = REAL_REVIEW_BATCH(entries, None, record)
+            command = popen.call_args.args[0]
+            self.assertEqual(command.count("--image"), 2)
+            self.assertIn("--ignore-user-config", command)
+            self.assertIn("features.shell_tool=false", command)
+            self.assertEqual(len(result["pages"]), 2)
+            self.assertTrue((record / "invocation.json").is_file())
+            self.assertTrue((record / "prompt.txt").is_file())
 
     def test_wechat_existing_paths(self):
         html = '<div id="js_content"></div><meta property="og:title" content="Title">'

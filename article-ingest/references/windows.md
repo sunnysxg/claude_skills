@@ -14,6 +14,10 @@ defuddle 走本机 `npx`（Node 自带），首次会从 npm 拉 `defuddle@0.19.
 已有独立安装可用 `ARTICLE_INGEST_OCR_PYTHON` 指定 Python 可执行文件完整路径（不是命令字符串）。
 正常识字只读本机模型；缺模型报错，不运行时下载。详细依赖与质量边界见 [transcription.md](transcription.md)。
 
+图片成稿还需已登录的 Codex CLI：优先找 PATH 中的 `codex`，否则用 `Get-AppxPackage OpenAI.Codex`
+探测桌面包内可执行文件；可用 `ARTICLE_INGEST_CODEX` 指定完整绝对路径，不接受带参数的命令串。
+复核使用 CLI 默认模型及现有登录；网络、登录或额度不可用就保留草稿报错，不自动跳过质量检查。
+
 ## `{WIRING}`
 
 **Windows 机器本机不抓国内站**：`--fetch local` 在 Windows 上直接被脚本拒绝（退出码 3），出网一律

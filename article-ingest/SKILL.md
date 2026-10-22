@@ -7,8 +7,9 @@ description: >
 
 # article-ingest — 文章入库
 
-正常入库直接调用 `scripts/article_ingest.py ingest`（只用标准库）：文字文章自动查重、取源、清理、
-成稿、校验并写库；小红书图片下载后暂停，由 agent 逐页读图转写。每一步以脚本输出的 JSON 为准。
+正常入库直接调用 `scripts/article_ingest.py ingest`（Python 只用标准库）：统一查重、取源、清理、
+成稿、校验并写库；小红书图片由脚本调用本机 Codex 命令行客户端逐页转写，再自动合稿和写库。
+正常路径无需 agent 串联步骤；失败才处理异常。每一步以脚本输出的 JSON 为准。
 
 **前提**：本 skill 依赖 Lightsail 上的 Obsidian 受限入口（gate，库在 sera，经 Tailscale）。
 没有这条链路的机器不适用——`doctor` 会报出来，别绕过 gate 直接写库。
@@ -33,9 +34,13 @@ description: >
 规则，不证明原文完整或转写零误差；用户阅读发现问题后再修流程。失败时由 agent 判断修脚本还是
 临时手动处理；重复出现的可复用问题优先修脚本，不把手动补救变成常规步骤。
 
-图片分支返回 `needs_transcription` 时已下载图片，直接从下方第 2 步开始；可加
-`--image-fetch ssh:<alias>` 指定下载出网。下载失败会保留 `work_dir`，重跑 `images` 下载；
-写库失败沿该目录重跑 `write`，不要重新 `ingest`，以免已写的原文被查重命中后漏补 REF。
+图片分支默认自动完成下载 → 模型转写 → 合稿 → 写库，可加 `--image-fetch ssh:<alias>` 指定
+下载出网。读图复用本机 Codex 的登录和模型配置，不需要另配 API 密钥；会消耗该账户的模型额度。
+接线、逐页产物与故障处理见 [转写调用](references/transcription.md)。
+
+任何中途失败都沿输出的 `work_dir` 跑 `{PY} {SCRIPT} resume <work_dir> --gate …`：保留已有
+图片和非空转写，只补缺页；已有草稿直接重试写库，不重建导致内容冲突。不要重新 `ingest`，
+以免已写的原文被查重命中后漏补 REF。仅排查取源或转写时可加 `--draft-only`，到草稿为止不写库。
 
 仅需草稿、排查失败或指定路径时才用 `{PY} {SCRIPT} fetch <URL> {WIRING}`；它不自动写库。
 草稿及正文图片默认留在本机独立归档目录 `~/article_archive/<时间戳_链接指纹>/`，不自动清理，
@@ -48,7 +53,8 @@ description: >
 |---|---|---|
 | `exists` | 库里 `_raw/` 或 `Clippings/` 已有同一篇（微信短长链互认；小红书分享链取源后按笔记 ID 互认） | 报 `vault_paths`，结束，不重复入库 |
 | `drafted` | `fetch` 抓到正文，草稿在 `work_dir` | 按需看草稿，再 `write` |
-| `needs_transcription` | 原站有正文图片，图片清单与文字说明在 `work_dir/source.json` | 按下面的图片分支处理 |
+| `needs_transcription` | `fetch` 或显式 `ingest --manual-transcription` 留下图片分支 | 跑 `resume` 自动续做，或按下面的人工修复步骤处理 |
+| `transcription_failed` / `transcriber_missing` | 第 N 页不可辨认、模型调用失败，或本机没有客户端 | 按页码与本地诊断修复，再 `resume`；不得当作已入库 |
 | `deleted` | 平台已删：`infringement` 侵权投诉 / `violation` 违反规定 / `unavailable` 暂时无法查看 / `deleted_by_author` 作者删除 | 直接报删和原因，**不重试** |
 | `unfetchable` | `verify` 各条出网都撞验证页；`network` 连不上；`thin` 非公众号页面转出来几乎没字；`blocked` 403；`gone` 404；`empty_body` 正文页却没字；`unknown` 未识别页面 | 报「抓不到 + reason」，见下 |
 
@@ -61,7 +67,7 @@ Reader 之类第三方抓取服务**（为什么见 `docs/decisions.md`「抓文
 `xhs`（小红书笔记）。
 `attempts` 记录每次抓取走的哪条出网、结果和耗时，汇报时带上成功的那条。
 
-### 图片正文分支
+### 图片正文分支（自动执行；以下供异常修复）
 
 小红书先用原站移动页的数据，不经 defuddle，也不因为图片外的说明文字多就当正文齐全。脚本保留
 原帖图片顺序、作者、发布日期与规范来源链接（笔记 ID，不带分享参数），不取评论与视频。
@@ -69,14 +75,16 @@ Reader 之类第三方抓取服务**（为什么见 `docs/decisions.md`「抓文
 1. `{PY} {SCRIPT} images <work_dir>`：沿成功取页的出网下载到 `images/001.img` 等；可用
    `--fetch ssh:<alias>` 换一条已配置的出网。下载失败报 `image_failed` 与页码，不用空图顶替；
    链接过期时重新 `fetch --work <新目录>`，不反复重试旧图片地址。
-2. 用当前客户端的图片查看工具逐页打开这些文件，按顺序把忠实转写放到 `pages/001.md` 等。
+2. `{PY} {SCRIPT} transcribe <work_dir>` 自动将缺失页转写到 `pages/001.md` 等。需要手动修复时，
+   用当前客户端的图片查看工具打开具体页，把忠实转写放到相应文件。
    复核数字、公式、图表和跨页断句；保留原文，不写摘要。没有文字的装饰图写 `<!-- 本页无正文文字 -->`；
    图表用文字或 Markdown 表格表达。模糊字可把 `source.json` 对应页的 `url` 换成 `alternates` 中的
    原站版本，再跑 `images` 对照；仍无法辨认就报告具体页码、保留草稿，
    不编字、不声称完整入库。无需安装 OCR 服务或增加额外图片审查流程。
 3. `{PY} {SCRIPT} assemble <work_dir>`：检查每页图片与非空转写都在，按序合成正文与 REF 骨架；
-   少页报 `incomplete_transcription`。这是检查漏页，不证明转写准确；准确性由 agent 对照图片复核。
-4. 继续第 3、4 步。文字入库，图片和转写留在本机独立归档目录，可在原帖失效后本地回看；
+   少页报 `incomplete_transcription`。这是检查漏页，不证明转写准确；自动路径要求模型对照原图自检，
+   不增加逐篇人工复核，阅读发现错字后修流程。
+4. `resume` 自动完成上述缺失步骤并写库；单独合稿后也可继续第 3、4 步。文字入库，图片和转写留在本机独立归档目录，可在原帖失效后本地回看；
    不写 `_raw` 附件、不跨机同步、不承诺本机磁盘损坏后的恢复。需要在 SeraCC / sera 留图时，
    从这两台机器发起命令；在 Lightsail 发起会留在 Lightsail，应换回本机调用。
 
@@ -113,11 +121,11 @@ Reader 之类第三方抓取服务**（为什么见 `docs/decisions.md`「抓文
 ## 5. 汇报
 
 一两句：入库了哪篇（标题、作者、发布日期或「发布日期未知」）、两个 vault 路径、走的哪条出网；
-图片正文带总页数与逐页复核情况。抓不到的给原因分类和缺什么。
+图片正文带总页数、模型自动转写或人工修复情况，不把自动自检说成人工逐字复核。抓不到的给原因分类和缺什么。
 
 ## 退出码
 
-`0` 当前步骤完成（drafted / needs_transcription / images_ready / written / exists）；`needs_transcription`
+`0` 当前步骤完成（drafted / needs_transcription / images_ready / transcribed / written / exists）；`needs_transcription`
 只是交给读图环节，不代表已入库。`1` 拒绝或抓不到（deleted、unfetchable、conflict、
-invalid_draft）；`2` 链路未就绪；`3` 用法或配置错误（没给 `--fetch` / `--gate`、在 Windows 上
+invalid_draft / transcription_failed）；`2` 链路未就绪；`3` 用法或配置错误（缺转写客户端、没给 `--fetch` / `--gate`、在 Windows 上
 用 `local` 抓取）。

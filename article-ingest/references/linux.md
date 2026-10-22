@@ -5,6 +5,10 @@
 `python3`（标准库即可）。defuddle 走 `npx`：PATH 里没有时脚本会自己找
 `~/.nvm/versions/node/*/bin/npx`（Lightsail 的 Node 装在 nvm 下，非交互 shell 的 PATH 里没有）。
 
+图片转写要求本机 PATH 中有已登录的 `codex`，或用 `ARTICLE_INGEST_CODEX` 指定可执行文件。
+没有客户端的抓取主机仍可只做取源；从具备客户端的 SeraCC / sera 调用统一入口、借它出网即可。
+本机调用不会自动借用远端机器的模型登录。
+
 ## `{WIRING}`
 
 在 Lightsail（gate 客户端所在机器）上本机抓、本机写：

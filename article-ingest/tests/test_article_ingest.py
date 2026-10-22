@@ -53,17 +53,105 @@ class IngestTests(unittest.TestCase):
                 out = a.cmd_fetch(args)
             self.assertEqual(Path(out["work_dir"]).parent, Path(td) / "article_archive")
 
-    def test_ingest_images_downloads_but_never_writes_before_transcription(self):
+    def test_ingest_images_transcribes_assembles_and_writes(self):
         with tempfile.TemporaryDirectory() as td:
             args = argparse.Namespace(url=URL, fetch="ssh:test", gate="local", no_lookup=True,
                                       verify_wait=-1, work=td, image_fetch="ssh:images")
             result = {**a.xhs_content(page(), URL), "via": "ssh:test"}
             image = b"\x89PNG\r\n\x1a\nimage"
-            with patch.object(a, "attempt", return_value=result), patch.object(a, "remote_os", return_value="posix"), patch.object(a.subprocess, "run", return_value=argparse.Namespace(returncode=0, stdout=image)), patch.object(a, "cmd_write", side_effect=AssertionError("must wait for transcription")):
+            stored = {}
+
+            def create(spec, req, timeout):
+                stored[req["path"]] = req["content"]
+                return {"ok": True, "status": "created"}
+
+            with patch.object(a, "attempt", return_value=result), patch.object(a, "remote_os", return_value="posix"), patch.object(a.subprocess, "run", return_value=argparse.Namespace(returncode=0, stdout=image)), patch.object(a, "transcribe_image", side_effect=["Page 1", "Page 2"]), patch.object(a, "gate_call", side_effect=create):
                 out = a.cmd_ingest(args)
-            self.assertEqual(out["status"], "needs_transcription")
+            self.assertEqual(out["status"], "written")
+            self.assertEqual(len(stored), 2)
+            raw = stored[out["raw_path"]]
+            self.assertLess(raw.index("Page 1"), raw.index("Page 2"))
             self.assertEqual((Path(td) / "images/002.img").read_bytes(), image)
-            self.assertFalse((Path(td) / "raw.md").exists())
+            self.assertEqual((Path(td) / "pages/002.md").read_text(encoding="utf-8").strip(), "Page 2")
+
+    def test_transcription_failure_resumes_only_missing_pages_and_never_writes_early(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            source = {**a.xhs_content(page(), URL), "via": "ssh:test"}
+            (work / "source.json").write_text(json.dumps(source), encoding="utf-8")
+            (work / "images").mkdir()
+            for item in source["images"]:
+                (work / item["file"]).write_bytes(b"image")
+            args = argparse.Namespace(work_dir=td, gate="local", image_fetch=None, draft_only=True)
+            with patch.object(a, "transcribe_image", side_effect=["First", a.Fail(1, {"status": "transcription_failed"})]), patch.object(a, "cmd_write") as write:
+                with self.assertRaises(a.Fail) as failed:
+                    a.cmd_resume(args)
+                self.assertEqual(failed.exception.payload["page"], 2)
+                self.assertFalse((work / "meta.json").exists())
+                write.assert_not_called()
+            with patch.object(a, "transcribe_image", return_value="Second") as model, patch.object(a, "attempt", side_effect=AssertionError("must not fetch")):
+                self.assertEqual(a.cmd_resume(args)["status"], "drafted")
+                model.assert_called_once_with(work / "images/002.img")
+            self.assertEqual((work / "pages/001.md").read_text(encoding="utf-8"), "First\n")
+
+    def test_resume_existing_draft_preserves_exact_bytes_for_partial_write(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            meta = a.xhs_content(page(images=0), URL)["meta"]
+            draft = a.build_drafts(meta, "Body")
+            for name in ("raw", "ref"):
+                (work / f"{name}.md").write_text(draft[name], encoding="utf-8")
+            (work / "meta.json").write_text(json.dumps({**meta, "raw_path": draft["raw_path"], "ref_path": draft["ref_path"]}), encoding="utf-8")
+            args = argparse.Namespace(work_dir=td, gate="local", draft_only=False)
+            with patch.object(a, "cmd_assemble", side_effect=AssertionError("must preserve draft")), patch.object(a, "gate_call", return_value={"ok": True, "status": "existed"}) as gate:
+                self.assertEqual(a.cmd_resume(args)["status"], "written")
+                self.assertEqual(gate.call_args_list[0].args[1]["content"], draft["raw"])
+
+    def test_manual_pause_is_explicit_and_draft_only_does_not_write(self):
+        with tempfile.TemporaryDirectory() as td:
+            args = argparse.Namespace(work_dir=td, gate="local", manual_transcription=True, draft_only=False, image_fetch=None)
+            with patch.object(a, "cmd_fetch", return_value={"status": "needs_transcription", "work_dir": td}), patch.object(a, "cmd_images"), patch.object(a, "cmd_transcribe") as model, patch.object(a, "cmd_write") as write:
+                self.assertEqual(a.cmd_ingest(args)["status"], "needs_transcription")
+                model.assert_not_called()
+                write.assert_not_called()
+            args.manual_transcription = False
+            args.draft_only = True
+            with patch.object(a, "cmd_fetch", return_value={"status": "drafted", "work_dir": td}), patch.object(a, "validate") as validate, patch.object(a, "cmd_write") as write:
+                self.assertEqual(a.cmd_ingest(args)["status"], "drafted")
+                validate.assert_called_once_with(Path(td))
+                write.assert_not_called()
+
+    def test_model_transport_reads_structured_final_response_and_retains_diagnostics(self):
+        with tempfile.TemporaryDirectory() as td:
+            image = Path(td) / "images/001.img"
+            image.parent.mkdir()
+            image.write_bytes(b"image")
+
+            def launch(command, **kwargs):
+                self.assertIn(str(image.resolve()), command)
+                schema = json.loads(Path(command[command.index("--output-schema") + 1]).read_text(encoding="utf-8"))
+                self.assertEqual(schema["required"], ["text", "unreadable"])
+                output = Path(command[command.index("--output-last-message") + 1])
+                output.write_text(json.dumps({"text": "原文 α = 1", "unreadable": False}), encoding="utf-8")
+                return argparse.Namespace(wait=lambda timeout: 0)
+
+            with patch.object(a, "find_codex", return_value="codex"), patch.object(a.subprocess, "Popen", side_effect=launch):
+                self.assertEqual(a.transcribe_image(image), "原文 α = 1")
+            self.assertTrue((Path(td) / "transcription/001.log").is_file())
+
+    def test_model_unreadable_empty_invalid_and_failed_results_are_not_saved_as_pages(self):
+        with tempfile.TemporaryDirectory() as td:
+            image = Path(td) / "images/001.img"
+            image.parent.mkdir()
+            image.write_bytes(b"image")
+            for payload, code in [('{"text":"guess","unreadable":true}', 0), ('{"text":"","unreadable":false}', 0), ('not json', 0), ('[]', 0), ('{}', 1)]:
+                def launch(command, **kwargs):
+                    Path(command[command.index("--output-last-message") + 1]).write_text(payload, encoding="utf-8")
+                    return argparse.Namespace(wait=lambda timeout: code)
+                with patch.object(a, "find_codex", return_value="codex"), patch.object(a.subprocess, "Popen", side_effect=launch):
+                    with self.assertRaises(a.Fail) as failed:
+                        a.transcribe_image(image)
+                    self.assertEqual(failed.exception.payload["status"], "transcription_failed")
 
     def test_ingest_download_failure_preserves_resume_location(self):
         with tempfile.TemporaryDirectory() as td:

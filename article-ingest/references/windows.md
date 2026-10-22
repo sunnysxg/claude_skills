@@ -8,6 +8,10 @@
 
 defuddle 走本机 `npx`（Node 自带），首次会从 npm 拉 `defuddle@0.19.3` 到缓存。
 
+图片转写先从 PATH 找 `codex`；没有则通过 Windows 的已安装应用查询发现 Codex Desktop 自带的
+`app/resources/codex.exe`，不硬编码版本路径。其它安装方式用 `ARTICLE_INGEST_CODEX` 指向可执行文件。
+沿用本机登录和模型配置，不从别的机器复制凭据。
+
 ## `{WIRING}`
 
 **Windows 机器本机不抓国内站**：`--fetch local` 在 Windows 上直接被脚本拒绝（退出码 3），出网一律

@@ -23,6 +23,12 @@ def page(images=2, **extra):
 
 
 class IngestTests(unittest.TestCase):
+    def setUp(self):
+        real_find = a.importlib.util.find_spec
+        patcher = patch.object(a.importlib.util, "find_spec", side_effect=lambda name: True if name == "rapidocr" else real_find(name))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_ingest_text_writes_both_notes_and_duplicate_stops_before_fetch(self):
         with tempfile.TemporaryDirectory() as td:
             args = argparse.Namespace(url="https://mp.weixin.qq.com/s/abcdefgh", fetch="ssh:test", gate="local",
@@ -121,37 +127,63 @@ class IngestTests(unittest.TestCase):
                 validate.assert_called_once_with(Path(td))
                 write.assert_not_called()
 
-    def test_model_transport_reads_structured_final_response_and_retains_diagnostics(self):
+    def test_ocr_keeps_recognition_evidence_without_launching_processes(self):
         with tempfile.TemporaryDirectory() as td:
             image = Path(td) / "images/001.img"
             image.parent.mkdir()
             image.write_bytes(b"image")
+            result = argparse.Namespace(txts=["原文 OCR 123", "下一行"], scores=[0.99, 0.97], boxes=None)
+            with patch.object(a, "get_ocr", return_value=lambda path: result), patch.object(a.subprocess, "Popen", side_effect=AssertionError("no agent/process")):
+                self.assertEqual(a.transcribe_image(image), "原文 OCR 123\n下一行")
+            evidence = json.loads((Path(td) / "transcription/001.json").read_text(encoding="utf-8"))
+            self.assertEqual(evidence["engine"], "rapidocr")
+            self.assertEqual(evidence["low_confidence_lines"], [])
 
-            def launch(command, **kwargs):
-                self.assertIn(str(image.resolve()), command)
-                schema = json.loads(Path(command[command.index("--output-schema") + 1]).read_text(encoding="utf-8"))
-                self.assertEqual(schema["required"], ["text", "unreadable"])
-                output = Path(command[command.index("--output-last-message") + 1])
-                output.write_text(json.dumps({"text": "原文 α = 1", "unreadable": False}), encoding="utf-8")
-                return argparse.Namespace(wait=lambda timeout: 0)
-
-            with patch.object(a, "find_codex", return_value="codex"), patch.object(a.subprocess, "Popen", side_effect=launch):
-                self.assertEqual(a.transcribe_image(image), "原文 α = 1")
-            self.assertTrue((Path(td) / "transcription/001.log").is_file())
-
-    def test_model_unreadable_empty_invalid_and_failed_results_are_not_saved_as_pages(self):
+    def test_ocr_empty_low_confidence_and_corrupt_image_stop_with_diagnostics(self):
         with tempfile.TemporaryDirectory() as td:
             image = Path(td) / "images/001.img"
             image.parent.mkdir()
             image.write_bytes(b"image")
-            for payload, code in [('{"text":"guess","unreadable":true}', 0), ('{"text":"","unreadable":false}', 0), ('not json', 0), ('[]', 0), ('{}', 1)]:
-                def launch(command, **kwargs):
-                    Path(command[command.index("--output-last-message") + 1]).write_text(payload, encoding="utf-8")
-                    return argparse.Namespace(wait=lambda timeout: code)
-                with patch.object(a, "find_codex", return_value="codex"), patch.object(a.subprocess, "Popen", side_effect=launch):
+            for lines, scores in [([], []), (["uncertain"], [0.2]), (["∑ x_i"], [0.99])]:
+                result = argparse.Namespace(txts=lines, scores=scores, boxes=None)
+                with patch.object(a, "get_ocr", return_value=lambda path: result):
                     with self.assertRaises(a.Fail) as failed:
                         a.transcribe_image(image)
-                    self.assertEqual(failed.exception.payload["status"], "transcription_failed")
+                self.assertEqual(failed.exception.payload["status"], "transcription_failed")
+                self.assertTrue((Path(td) / "transcription/001.json").is_file())
+            with patch.object(a, "get_ocr", side_effect=ValueError("bad image")):
+                with self.assertRaises(a.Fail) as failed:
+                    a.transcribe_image(image)
+            self.assertIn("bad image", failed.exception.payload["detail"])
+
+    def test_ocr_override_rejects_commands_and_missing_executables(self):
+        for value in ("python --model chat", "missing-python"):
+            with patch.dict(os.environ, {"ARTICLE_INGEST_OCR_PYTHON": value}):
+                with self.assertRaises(a.Fail) as failed:
+                    a.ocr_python()
+            self.assertEqual(failed.exception.payload["status"], "ocr_missing")
+
+    def test_ocr_worker_relays_page_failure_with_one_python_call(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            (work / "source.json").write_text(json.dumps({"images": [{"page": 7}]}), encoding="utf-8")
+            payload = {"ok": False, "status": "transcription_failed", "page": 7, "work_dir": td}
+            with patch.object(a, "ocr_python", return_value=str(work / "python.exe")), patch.object(a.subprocess, "run", return_value=argparse.Namespace(returncode=1, stdout=json.dumps(payload).encode())) as run:
+                with self.assertRaises(a.Fail) as failed:
+                    a.cmd_transcribe(argparse.Namespace(work_dir=td))
+            self.assertEqual(failed.exception.payload["page"], 7)
+            self.assertEqual(run.call_count, 1)
+            self.assertEqual(run.call_args.args[0][1], "-B")
+            self.assertEqual(run.call_args.args[0][-2], "transcribe")
+
+    def test_saved_pages_need_no_ocr_installation(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            (work / "source.json").write_text(json.dumps({"images": [{"page": 1}]}), encoding="utf-8")
+            (work / "pages").mkdir()
+            (work / "pages/001.md").write_text("manually repaired text", encoding="utf-8")
+            with patch.object(a, "ocr_python", side_effect=AssertionError("do not require OCR for saved pages")):
+                self.assertEqual(a.cmd_transcribe(argparse.Namespace(work_dir=td))["status"], "transcribed")
 
     def test_ingest_download_failure_preserves_resume_location(self):
         with tempfile.TemporaryDirectory() as td:

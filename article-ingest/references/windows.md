@@ -8,9 +8,11 @@
 
 defuddle 走本机 `npx`（Node 自带），首次会从 npm 拉 `defuddle@0.19.3` 到缓存。
 
-图片转写先从 PATH 找 `codex`；没有则通过 Windows 的已安装应用查询发现 Codex Desktop 自带的
-`app/resources/codex.exe`，不硬编码版本路径。其它安装方式用 `ARTICLE_INGEST_CODEX` 指向可执行文件。
-沿用本机登录和模型配置，不从别的机器复制凭据。
+图片识字首次执行 `{PY} <本 skill>/scripts/setup_ocr.py`。它在
+`~/.local/share/article_ingest/venv` 安装固定版本的 RapidOCR 与 ONNX Runtime（专用识字模型的 CPU
+执行引擎），并测试随包模型；无服务、无聊天凭据。正常调用仍用原 `{PY}`，脚本自动借该环境识字。
+已有独立安装可用 `ARTICLE_INGEST_OCR_PYTHON` 指定 Python 可执行文件完整路径（不是命令字符串）。
+正常识字只读本机模型；缺模型报错，不运行时下载。详细依赖与质量边界见 [transcription.md](transcription.md)。
 
 ## `{WIRING}`
 

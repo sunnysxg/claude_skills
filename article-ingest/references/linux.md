@@ -5,9 +5,12 @@
 `python3`（标准库即可）。defuddle 走 `npx`：PATH 里没有时脚本会自己找
 `~/.nvm/versions/node/*/bin/npx`（Lightsail 的 Node 装在 nvm 下，非交互 shell 的 PATH 里没有）。
 
-图片转写要求本机 PATH 中有已登录的 `codex`，或用 `ARTICLE_INGEST_CODEX` 指定可执行文件。
-没有客户端的抓取主机仍可只做取源；从具备客户端的 SeraCC / sera 调用统一入口、借它出网即可。
-本机调用不会自动借用远端机器的模型登录。
+图片识字首次执行 `python3 <本 skill>/scripts/setup_ocr.py`（系统须支持 `venv` 和 pip）。
+固定依赖装到 `~/.local/share/article_ingest/venv`，正常调用自动借该环境识字；可用
+`ARTICLE_INGEST_OCR_PYTHON` 指定其它具备固定版本依赖的 Python 完整路径。
+只取源或处理微信文字的机器不需要 OCR；若要求图片留在 SeraCC / sera，应从那台机器调用。
+本地识字不需要聊天登录、API 密钥或常驻服务；缺随包模型报错，不运行时下载。
+详细依赖与质量边界见 [transcription.md](transcription.md)。
 
 ## `{WIRING}`
 

@@ -168,6 +168,12 @@ Linux 自动探测显式 renderer、conda、PATH 和 fontconfig。只有自动�
 
 ## 6. COMMON 与全局指令
 
+项目级与本节的用户级分开维护：项目正文只放 `AGENTS.md`，`CLAUDE.md` 是普通文件，只有
+导入与守卫两行；模板以 [COMMON](../global/COMMON.md#项目规则文件) 为准。
+不双写、不用文件软链替代指针，也不把项目规则转进用户级文件。Claude 的加载模式与版本差异
+见 [agent-paths.md](../neat-freak/references/agent-paths.md#跨平台共存策略)。这项约定不改变 manifest、
+同步器或下面的用户级链；全局 COMMON 更新仍通过 `Scope=Rules` 分发。
+
 `global/COMMON.md` 是跨客户端规则的唯一维护源。客户端入口只做加载适配，不再各维护一份
 正文：
 

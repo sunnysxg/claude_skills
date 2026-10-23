@@ -16,7 +16,7 @@
 | 跨会话记忆(全局) | `~/.claude/projects/<encoded-project-path>/memory/` |
 | 记忆索引文件 | `~/.claude/projects/<...>/memory/MEMORY.md` |
 | 全局指令 | `~/.claude/CLAUDE.md` |
-| 项目级指令 | 项目根 `CLAUDE.md`(可层级嵌套) |
+| 项目级指令 | 本工作空间由 `CLAUDE.md` 显式导入同目录 `AGENTS.md` 正文（可层级嵌套，见下方共存策略） |
 | Skills 目录 | `~/.claude/skills/<name>/SKILL.md` |
 
 记忆文件用 YAML frontmatter:`name`、`description`、`type`(user / feedback / project / reference)。
@@ -118,14 +118,28 @@ OpenCode 读取 Claude Code 和 Codex 的兼容目录，所以同一个 skill �
 
 ## 跨平台共存策略
 
-如果一个项目同时被 Claude Code 用户和 Codex 用户使用,推荐:
+项目规则正文一律写进 `AGENTS.md`；同目录 `CLAUDE.md` 只保留已加载的全局规则「项目规则文件」
+规定的导入与守卫两行（维护源是 claude_skills 仓库的 `global/COMMON.md`）。
+新建、收口、记项目偏好与 `/init` 后整理都写同一正文；不追加 Claude 专属规则，不反向指回
+`CLAUDE.md`。Windows 使用普通文件和相对导入，不用文件 symlink；docs/ 和 README 也不分客户端。
 
-- **项目根同时放 `CLAUDE.md` 和 `AGENTS.md`**,内容可以互相 symlink 或在两边维护
-- 或者一份内容主文件 + 另一份用一行 `See CLAUDE.md` 跳转
-- docs/ 和 README 是平台中立的,不需要分两份
+Claude 的原生 `AGENTS.md` 自动发现与 `@AGENTS.md` 显式导入是两条加载路径。默认模式下，
+会话启动目录或祖先有项目级 `CLAUDE.md`、`.claude/CLAUDE.md` 或 `CLAUDE.local.md`，就不再自动
+发现 `AGENTS.md`；用户级和组织级 CLAUDE、`.claude/rules/` 不触发这项排除。显式导入仍有效，
+官方保证它不会让同一 AGENTS 文件重复加载。两条路径的当前限制以
+[官方 memory 文档](https://code.claude.com/docs/en/memory#agentsmd)为准，不把默认回退条件说成所有模式都忽略 AGENTS。
+
+需要同时原生发现两类文件时，Project instructions 可选 `claude-md-and-agents-md`；当前设置键是
+`pluginConfigs` → `cc-plugin-agents-md@builtin` → `options` → `instructionFiles`（旧版使用
+`agents-md@builtin`）。该选项写在用户设置 `~/.claude/settings.json`、命令行 `--settings` 或组织
+设置中，项目和 local 设置不生效。本工作空间的指针方案不需要改该设置，也不改用户级全局适配链。
+2.1.280 起可用 `/memory` 和 `/context` 核查直接发现的 AGENTS；旧版本不能仅凭列表缺席判断
+未加载。工作树应在实际会话中核对路径，区分独立会话与继承上下文的隔离子 agent。
 
 ## 官方复核入口
 
+- Claude Code memory：<https://code.claude.com/docs/en/memory>
+- Claude Code worktrees：<https://code.claude.com/docs/en/worktrees>
 - Codex skills：<https://learn.chatgpt.com/docs/build-skills>
 - Codex AGENTS.md：<https://learn.chatgpt.com/docs/agent-configuration/agents-md>
 - Agent Skills specification：<https://agentskills.io/specification>

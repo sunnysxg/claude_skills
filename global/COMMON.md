@@ -67,6 +67,17 @@
 
 ## 机械约定
 
+### 项目规则文件
+
+项目规则正文一律写进 `AGENTS.md`；同目录 `CLAUDE.md` 只保留以下两行，不按客户端另写规则，也不把偏好、决策指针或 `/init` 的建议追加到指针文件：
+
+```text
+@AGENTS.md
+本文件只做指针。项目规则正文一律写进 AGENTS.md，不要往这里追加任何内容。
+```
+
+Claude 默认模式下，会话启动目录或其祖先中的项目级 `CLAUDE.md`、`.claude/CLAUDE.md`、`CLAUDE.local.md` 会阻止原生自动发现 `AGENTS.md`，但不阻止显式导入。因此每层需要共享规则时都放这份指针，不能只指望下层 `AGENTS.md` 被自动读到。若保留 `CLAUDE.local.md` 又要原生自动发现，可在用户设置的 Project instructions 选 `claude-md-and-agents-md`；采用上述指针时无需改设置。用户级 `~/.claude/CLAUDE.md` 不触发此回退条件，其现有全局导入链不动。加载模式与版本差异查 `neat-freak/references/agent-paths.md`。
+
 ### 数学公式
 
 按输出到哪里选写法：

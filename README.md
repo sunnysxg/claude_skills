@@ -8,6 +8,11 @@
 仓库内 agent 的安全与并行约定见 [AGENTS.md](AGENTS.md)；本仓的决策记录（拍过板、有被否选项的）
 在 [docs/decisions.md](docs/decisions.md)，格式与门限见 conventions.md §13。
 
+项目规则正文统一维护在 `AGENTS.md`，同目录 `CLAUDE.md` 只留导入与守卫两行；新建和收口
+都沿用这一形态，不向指针追加项目偏好。模板见 [COMMON 的项目规则约定](global/COMMON.md#项目规则文件)，
+加载模式和版本差异见 [跨平台共存策略](neat-freak/references/agent-paths.md#跨平台共存策略)。
+用户级全局适配链保持下文的部署方式。
+
 ## Skills
 
 | Skill | 说明 |

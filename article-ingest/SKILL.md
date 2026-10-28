@@ -26,6 +26,13 @@ description: >
 `{SCRIPT}` = 本 skill 目录下的 `scripts/article_ingest.py`。首次在一台机器上用、或上一次报链路
 错误时，先跑 `{PY} {SCRIPT} doctor {WIRING}`，`ok: true` 再继续。
 
+`doctor` 同时检查连通与备份：gate 的 probe（只读探针）中 `ok/status` 仅表示库可连接，
+还必须有布尔值 `backup_ok: true` 才通过。失败时总体为 `ok: false / status: degraded`，退出码 1；
+`checks.gate` 区分 `backup_unhealthy`（备份不健康）、`backup_unknown`（旧探针缺字段或字段非布尔，
+无法确认）与 `unreachable` 等连接故障，原始状态与原因保留在 `gate_probe`。
+备份不健康按 vault-ops 检查；状态未知先核对 gate 客户端/服务端合同，不从文字原因猜通过，
+不删旗标、不绕过 gate。诊断通过也不代替写入时 gate 的即时检查。
+
 同一会话第一次写库前，跑一次 `{PY} {SCRIPT} rules --gate …` 读库内规则（输出在 stderr：库根
 `CLAUDE.md` 与 `_hermes/claude-code-guide.md`）。库内规则优先于本文。
 
@@ -121,7 +128,7 @@ Reader 之类第三方抓取服务**（为什么见 `docs/decisions.md`「抓文
 - `conflict`：该路径已有**不同内容**的笔记。gate 永不覆盖；报给用户，由她决定改名重写还是放弃。
   前一步已建成的 `_raw` 不回滚（REF 可以换名再写）。
 - 退出码 2（`backup_unhealthy`、`obsidian_offline`、`unreachable` 等）：链路没就绪，草稿留在
-  `work_dir`，报原因，稍后原样重跑 `write`。`backup_unhealthy` 表示 sera 的库快照过期，按
+  `work_dir`，报原因，稍后原样重跑 `write`。`backup_unhealthy` 表示库备份检查失败（如快照过期、失败旗标），按
   vault-ops 的备份检查处理，不要绕过。
 
 ## 5. 汇报

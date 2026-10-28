@@ -99,6 +99,8 @@
 - 归档目录 `~/_sxg/` 各机器独立，skill 首次写入时自动创建。
 
 文章入库离线行为检查（不访问真实笔记库）：`python -B -m unittest discover -s article-ingest/tests -v`。
+其中 doctor 用例覆盖连通但备份失败、无法连接与旧 probe 缺字段，检查 JSON 原因和非零退出码；
+诊断结果的含义与处理见 [article-ingest 接线与诊断](article-ingest/SKILL.md#1-选平台分支拿到调用前缀与接线参数)。
 真实图片验收用 OCR Python 运行 `article-ingest/tests/verify_local_ocr.py --source <含 source.json 与 images 的目录> --work <全新结果目录>`，多篇重复 `--source`；默认只验离线识字，禁止进程/网络，不生成可入库成稿。加 `--review` 则真实调用分批原图对照，并用有状态替身验证只新建写库、重复、冲突、缺页与原字节续写；识字阶段仍禁止进程/网络，另记复核调用证据。两种都仅复用原图，不复制旧转写，不验证当次原站下载或正式库写入。
 
 双机 Remote Control、SSH host、Computer Use、machine-local 配置边界和验收矩阵见

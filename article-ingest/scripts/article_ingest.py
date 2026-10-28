@@ -1232,13 +1232,30 @@ def cmd_doctor(args) -> dict:
             checks[spec] = "invalid spec"
     checks["npx"] = find_npx() or "missing"
     gate_spec = cfg(args, "gate", "ARTICLE_INGEST_GATE")
+    gate_ok, probe = True, None
     if gate_spec:
-        res = gate_call(gate_spec, {"op": "probe"}, timeout=120)
-        checks["gate"] = f"{res.get('status')} {res.get('detail', '')}".strip()
+        probe = gate_call(gate_spec, {"op": "probe"}, timeout=120)
+        status, detail = probe.get("status"), probe.get("detail", "")
+        gate_ok = probe.get("ok") is True and status == "ok"
+        if gate_ok:
+            # probe's ok/status describe connectivity; create checks backup health separately.
+            backup_ok = probe.get("backup_ok")
+            gate_ok = backup_ok is True
+            if backup_ok is False:
+                status = "backup_unhealthy"
+            elif backup_ok is not True:
+                status = "backup_unknown"
+                detail = f"probe backup_ok missing or not boolean; {detail}".rstrip("; ")
+        elif status == "ok":
+            status = "gate_error"
+        checks["gate"] = f"{status} {detail}".strip()
     bad = [k for k, v in checks.items() if v in ("down", "missing", "invalid spec") or str(v).startswith(("refused", "missing"))]
-    if gate_spec and not checks["gate"].startswith("ok"):
+    if not gate_ok:
         bad.append("gate")
-    return {"ok": not bad, "status": "ok" if not bad else "degraded", "checks": checks}
+    out = {"ok": not bad, "status": "ok" if not bad else "degraded", "checks": checks}
+    if probe is not None:
+        out["gate_probe"] = probe
+    return out
 
 
 def main() -> int:

@@ -61,9 +61,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/sarah/Projects/todo
   前缀），终端裸跑才取 `CLAUDE_CODE_SESSION_ID`。两者都不用显式传。**顺序不能反**——
   `claude://resume?session=` 只认宿主 id，拿 CLI id 会导入成一条无标题的重复记录。
 - Cursor 内自动读 `CURSOR_CONVERSATION_ID`（派发器起 `cursor-agent` 时注入；IDE 聊天窗口没有）。
-- 再取不到的环境显式传 `--thread-id <当前会话 UUID>`；连 UUID 都没有就用
+- Antigravity（命令 `agy`）的工具进程注入 `ANTIGRAVITY_CONVERSATION_ID`（当前会话 UUID）和
+  `ANTIGRAVITY_AGENT`（身份标记）。`--agent agy` 是 `--agent antigravity` 的别名，落库统一记
+  `antigravity`。
+- 同时继承多个 agent 的会话变量时，Windows 上 taskctl 从当前进程向上找最近的原生宿主
+  （Antigravity 对应 `agy.exe`），并核对它是否对应其中一个会话变量。无法核实时显式指定写入方和会话。
+  Antigravity 用 `--agent antigravity --thread-id <当前会话 UUID>`，缺少自动注入时也用这两个参数。
+  非交互新会话用 `agy --print <提示词> --output-format stream-json`，编号取流里的
+  `init.conversation_id`。**不要从 brain 目录的修改时间猜会话编号。**
+- Antigravity 的「查看对话」提供终端命令 `agy --conversation <UUID>`，按原编号续聊。
+  Windows 上找不到 `agy` 时，用 `LOCALAPPDATA` 下的 `agy/bin/agy.exe` 执行同一命令。
+- 其他环境取不到会话编号时显式传 `--thread-id <当前会话 UUID>`；连 UUID 都没有就用
   `claude-YYYYMMDDHHMM` 一次性 id，同一会话从一而终。
-- 写入方标识 `--agent codex|claude|cursor` 决定看板画哪个图标、深链怎么开，自动判定顺序见
+- 写入方标识 `--agent codex|claude|cursor|antigravity` 决定看板署名和会话入口，自动识别规则见
   `taskctl help` 的全局选项——**Cursor IDE 的聊天窗口必须显式带 `--agent cursor`**，别记成 claude。
 
 ## 分区：每一列装什么

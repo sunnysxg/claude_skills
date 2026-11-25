@@ -307,3 +307,17 @@ CLAUDE.md 只保留相对导入与可见守卫两行」，否「双份维护」�
 出处：CLAUDESKILLS-46，Sarah 2026-09-23 评论关于优先做两个样板、CLAUDE 只留指针和客户端不漂移
 的意见，以及本卡转为直接交付后的验收标准。2026-10-23 实施时据当前官方文档校正加载模式前提；
 跨仓迁移遵循当轮派发须知交给目标项目关联卡，不扩成全工作区迁移。
+
+## 2026-11-25 Antigravity 接入采用 `managed_include` 单行内联与 `skills.json` 清单发现
+
+状态：现行
+
+在「把 Antigravity 纳入 `claude_skills` 统一同步器，同时避免像 Codex 那样因拷贝正文而漂移、且兼容 Windows 实测约束」的场景下，面对「直接复用 `managed_block` 拷贝全文与逐 skill junction」的默认惯性，选「① `~/.gemini/AGENTS.md` 用 `managed_include` 标记块写入单行 `@[Global Common Rules](~/.claude/skills/global/COMMON.md)`，由 `Sync`/`Doctor` 管入口、由客户端运行时实时内联；② skills 由 `Sync`/`Doctor` 维护 `~/.gemini/config/skills.json` 中指向本仓的 `include_only` 条目（先挂除 `session-log` 外的 16 个 skill）」，否「`managed_block` 拷贝 11 KB 全文」「不进同步器、每台机器手工建 `~/.gemini/AGENTS.md`」「沿用逐 skill Windows junction 挂到 `~/.gemini/config/skills/`」，以达「新机器一次 `Sync`/`Doctor` 配齐、日常改 `COMMON.md` 永不漂移、Windows/Linux 零复制零权限依赖」，接受「同步器多维护 `managed_include` 与 `antigravity_skills_json` 两种轻量模式；`skills.json` 在各机写入解析后的绝对路径；Linux 侧对称实现待 Linux host 实机复验」。
+
+否决理由：
+- 逐 skill Windows junction：2026-11-25 在 Windows `agy 1.5.16` 实机探测证实，Antigravity 扫描 `~/.gemini/config/skills/` 和 `skills.json` 指向的 `~/.agents/skills/` 时均跳过 Windows 目录联接（junction），只加载真实目录；而 `~/.gemini/config/skills.json` 指向真实仓库目录并配 `include_only` 实测可直接加载，且可保留同文件内其他自定义条目。
+- `managed_block` 拷贝全文：Codex 沿用拷贝是因为 Codex 至今不支持 `@import`；Antigravity 原生支持 `@[label](path)` 实时内联（实机验证 `~/` 在 Windows `agy 1.5.16` 正常展开），再拷贝全文会引入「改完 COMMON 忘跑同步就漂移」的人工自律依赖。
+- 手工建入口不进同步器：虽然新机器不多，但失去 `Sync` 自动建入口和 `Doctor` 校验兜底；用 3 行标记块放单行内联指针即可兼得「自动建/检」与「实时不漂移」。
+- 暂不挂 `session-log`：当前转写解析器仅支持 Cursor / Claude Code / Codex，避免误触发报错；待补 Antigravity transcript adapter 后再加入 targets。
+
+出处：2026-11-25 Antigravity CLI 会话，Sarah 拍板统一接入方案、优先靠机制避免规则漂移并保留块外本机 `cpu005` 事实。

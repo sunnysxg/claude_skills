@@ -1,6 +1,6 @@
 # claude_skills
 
-我自己日常使用的 agent skills（Claude Code / Cursor / Codex / OpenCode 等平台通用），实现诸如「在 playground
+我自己日常使用的 agent skills（Claude Code / Cursor / Codex / Antigravity / OpenCode 等平台通用），实现诸如「在 playground
 新建项目帮我尝试…」「当前 session 到上限，汇总工作为交接文档给下一个 agent」等短指令。
 
 命名与路径规范见 **[conventions.md](conventions.md)**：所有跨项目路径一律 `~` 开头，
@@ -43,7 +43,7 @@
 - `sync.local.json` 是可选且不入 Git 的 machine override。只有需要稳定自定义 `machine_id`、
   改安装根、关闭某个客户端或关闭某项 skill 时，才复制 `sync.local.example.json`；完全采用
   manifest 默认值时无需创建。关闭只停止管理该入口，不自动删除已有链接。
-- Windows 上先预览，再同步 Cursor 与 Codex：
+- Windows 上先预览，再同步 Cursor、Codex 与 Antigravity：
 
   ```powershell
   # 仅在需要 machine override 时执行下一行
@@ -53,11 +53,12 @@
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync_skills.ps1 -Command Doctor
   ```
 
-  默认 `Scope=All`，同时同步 skill 链接和全局规则投影；可用
-  `-Scope Skills` / `-Scope Rules` 单独处理。Cursor skill 目标为 `~/.cursor/skills`；
-  Codex 官方用户级 skill 目标为 `~/.agents/skills`。脚本逐 skill 创建目录联接，不覆盖
-  已有真实目录。
-- Linux 上同样先预览，再同步 Cursor 与 Codex：
+  默认 `Scope=All`，同时同步 skill 与全局规则投影；可用 `-Scope Skills` / `-Scope Rules`
+  单独处理。Cursor skill 目标为 `~/.cursor/skills`，Codex 官方用户级 skill 目标为
+  `~/.agents/skills`，脚本逐 skill 创建目录联接、不覆盖已有真实目录；Antigravity 在
+  Windows 上不跟随目录联接，同步器改由维护 `~/.gemini/config/skills.json` 中指向本仓的
+  `include_only` 条目（保留同文件内其他条目及 `~/.gemini/config/skills/` 下已有真实目录）。
+- Linux 上同样先预览，再同步 Cursor、Codex 与 Antigravity：
 
   ```bash
   cp sync.local.example.json sync.local.json
@@ -66,17 +67,18 @@
   bash scripts/sync_skills.sh doctor
   ```
 
-  该脚本需要 Bash、`jq` 和 GNU `realpath`，默认同时同步 skill 链接和全局规则；可用
-  `--scope skills` / `--scope rules` 单独处理。它按 manifest 为每个 skill 创建符号链接；
-  `~/.cursor/skills/` 和 `~/.agents/skills/` 下已有的真实目录视为客户端专属内容，不会被
-  覆盖或删除。旧命令 `scripts/sync_cursor_skills.sh` 仍保留，作为只处理 Cursor 的兼容入口。
+  该脚本需要 Bash、`jq` 和 GNU `realpath`，默认同时同步 skill 与全局规则；可用
+  `--scope skills` / `--scope rules` 单独处理。它按 manifest 为 Cursor 与 Codex 逐 skill
+  创建符号链接（`~/.cursor/skills/` 和 `~/.agents/skills/` 下已有的真实目录视为客户端专属
+  内容，不会被覆盖或删除），为 Antigravity 维护 `~/.gemini/config/skills.json` 中的本仓
+  条目。旧命令 `scripts/sync_cursor_skills.sh` 仍保留，作为只处理 Cursor 的兼容入口。
   当前只承诺 Windows 与 Linux，不宣称支持 macOS。
 - 跨平台 skill 的 `SKILL.md` 只保留公共流程和平台路由；运行时仅加载当前平台 reference。
   `mmd-explain` 在 Windows 使用
   [`references/windows.md`](mmd-explain/references/windows.md)，在 Linux 使用
   [`references/linux.md`](mmd-explain/references/linux.md)。浏览器、renderer 和字体由各平台
   doctor 自动探测，机器私有路径仅通过本机环境变量覆盖，不写进 Git。
-- [global/COMMON.md](global/COMMON.md) 是跨客户端全局规则的唯一维护源。三个客户端用不同
+- [global/COMMON.md](global/COMMON.md) 是跨客户端全局规则的唯一维护源。四个客户端用不同
   的薄适配读取同一正文：
   - Claude：`~/.claude/CLAUDE.md` 导入 `skills/global/CLAUDE.md`，后者只含
     `@COMMON.md`；机器特有内容可继续放在用户级文件的导入行下面。
@@ -85,6 +87,11 @@
     3.9.16 的文件化 User Rule；同步器只管理这一文件，不接管整个 `rules/` 目录。
   - Codex：同步器只替换 `~/.codex/AGENTS.md` 的
     `<!-- BEGIN/END claude_skills:global-common -->` 标记区块，块外本机规则原样保留。
+  - Antigravity：同步器在 `~/.gemini/AGENTS.md` 的
+    `<!-- BEGIN/END claude_skills:global-common -->` 标记区块内维护单行原生内联
+    `@[Global Common Rules](~/.claude/skills/global/COMMON.md)`（`managed_include` 模式），
+    块外本机规则原样保留；日常改 `COMMON.md` 后下一轮自动生效，无需重跑同步，`Doctor`
+    负责检查入口完整。
   - Hermes（Lightsail 上的常驻助手）不归本仓同步器管：COMMON 由私有仓的脚本从管理机推进
     它的 `SOUL.md`，skills 没有同步。接入评估与方案见
     [docs/sync-design.md](docs/sync-design.md) §10。

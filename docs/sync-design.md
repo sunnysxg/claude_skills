@@ -31,8 +31,13 @@ Windows Computer Use 使用活动桌面，任务执行期间要保持机器解�
 中央仓库固定 clone 到 `~/.claude/skills`：
 
 - Claude Code 与 OpenCode 直接读取该目录。
-- Cursor 安装根为 `~/.cursor/skills`。
-- Codex 官方用户级 skill 根为 `~/.agents/skills`。
+- Cursor 安装根为 `~/.cursor/skills`（Windows junction / Linux symlink）。
+- Codex 官方用户级 skill 根为 `~/.agents/skills`（Windows junction / Linux symlink）。
+- Antigravity（App / CLI / IDE）使用官方发现清单 `~/.gemini/config/skills.json`：实测
+  Windows `agy 1.5.16` 扫描 `~/.gemini/config/skills/` 时不跟随目录联接（junction），因此
+  同步器改为在 `~/.gemini/config/skills.json` 中维护指向本仓的单个 `include_only` 条目，
+  保留同文件内用户自定义条目及 `~/.gemini/config/skills/` 下的真实目录，Windows 与 Linux
+  使用同一清单机制；当前不含 `session-log`（尚无 Antigravity transcript adapter）。
 
 这里不是把整个 `~/.codex` 改名为 `~/.agents`：Codex 配置、全局 `AGENTS.md` 和运行状态仍
 属于 `$CODEX_HOME`（默认 `~/.codex`），只有用户级/项目级 skill 的官方发现根迁到
@@ -181,7 +186,8 @@ Linux 自动探测显式 renderer、conda、PATH 和 fontconfig。只有自动�
 |---|---|---|---|
 | Claude Code | `~/.claude/CLAUDE.md` → `skills/global/CLAUDE.md` | `global/CLAUDE.md` 仅用 `@COMMON.md` 相对导入 | 用户级入口导入行之外可追加本机规则 |
 | Cursor 3.9.16+ | `~/.cursor/rules/claude-skills-common.mdc` | 同步器生成带 `alwaysApply: true` frontmatter 的用户文件规则 | 只接管这个专用文件，不碰同目录其他规则 |
-| Codex | `~/.codex/AGENTS.md` | 同步器更新 `claude_skills:global-common` 标记区块 | 区块前后内容原样保留 |
+| Codex | `~/.codex/AGENTS.md` | 同步器更新 `claude_skills:global-common` 标记区块（`managed_block` 拷贝正文） | 区块前后内容原样保留 |
+| Antigravity | `~/.gemini/AGENTS.md` | 同步器更新 `claude_skills:global-common` 标记区块（`managed_include` 写入单行 `@[Global Common Rules](~/.claude/skills/global/COMMON.md)` 实时内联） | 区块前后内容原样保留 |
 
 Cursor 官方稳定入口仍是 Settings → Rules → User Rules；当前 vmcc 的 3.9.16 已确认实现
 `~/.cursor/rules/*.mdc` 用户文件规则。同步器采用文件入口，便于从 COMMON 自动更新和
@@ -273,6 +279,8 @@ commit/merge 协调。Handoff 可以在 Local、worktree 和匹配的 SSH host �
 | COMMON → Claude adapter | 相对 import 只加载一份 COMMON | 已实现；新 Claude session 待行为验收 |
 | COMMON → Cursor user file rule | 生成专用 alwaysApply `.mdc`，不接管其他规则 | Windows 27 项隔离断言与 vmcc Doctor 通过；新 Cursor task 待行为验收 |
 | COMMON → Codex managed block | 更新公共区块且保留机器私有区块 | Windows 27 项隔离断言、vmcc Doctor 与重复 Sync 通过 |
+| COMMON → Antigravity managed_include | 在 `~/.gemini/AGENTS.md` 维护单行 `@[...](~/.claude/skills/global/COMMON.md)`，块外保留本机规则，运行时实时内联 | 2026-11-25 Windows 隔离回归、本机 Sync/Doctor 与 `agy 1.5.16` 实机内联验收通过；Linux 待实机复验 |
+| Antigravity skills.json 清单 | 维护 `~/.gemini/config/skills.json` 本仓 `include_only`（不含 `session-log`），保留其他条目，畸形 JSON 报冲突 | 2026-11-25 Windows 隔离回归、本机 Sync/Doctor 与 `agy 1.5.16` 实机验证通过（15 个自动发现 skill 全量加载，`hv-analysis` 正确遵循 `disable-model-invocation: true`）；Linux 待实机复验 |
 | 同 task 跨 host session upsert | task ID 不变，记录 host history，私有传输后更新同一文件 | 需先定传输层 |
 | 两个 agent 并行 | 独立 worktree/branch，不共写 checkout | 流程约束 |
 
@@ -330,3 +338,5 @@ Hermes 用的 skill，或 Sarah 重新把 Hermes 当主力入口用。
 - [Claude Code：CLAUDE.md 导入与相对路径解析](https://code.claude.com/docs/zh-CN/memory#importing-additional-files)
 - [Cursor Rules：项目规则与全局 User Rules](https://docs.cursor.com/context/rules)
 - [OpenCode Rules：全局文件、Claude fallback 与 instructions](https://opencode.ai/docs/rules/)
+- [Antigravity Rules：全局 AGENTS.md 与 `@[label](path)` 文件内联](https://antigravity.google/docs/rules)
+- [Antigravity Skills 与 Customization Discovery（`~/.gemini/config/skills.json`）](https://antigravity.google/docs/customization-discovery)

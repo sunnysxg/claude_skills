@@ -75,6 +75,18 @@ Codex 默认只查 `AGENTS.md` / `AGENTS.override.md`；只有本机 `config.tom
 当作 fallback（默认列表为空）。`project_doc_max_bytes` 控制整个项目指令链的合计读取上限，维护时
 应读取本机配置，不把某个版本的默认值写死为项目约束。
 
+## Antigravity
+
+| 用途 | 路径 |
+|---|---|
+| 全局指令（App / CLI / IDE 共通） | `~/.gemini/AGENTS.md`（同步器以 `managed_include` 维护单行 `@[Global Common Rules](~/.claude/skills/global/COMMON.md)`，块外保留本机事实） |
+| 项目级指令 | 项目根及祖先目录至 `.git` 根的 `AGENTS.md` / `GEMINI.md`、`.agents/rules/*.md` |
+| 全局 Skills 目录与清单 | `~/.gemini/config/skills/<name>/SKILL.md` 与 `~/.gemini/config/skills.json`（同步器通过 `skills.json` 的 `include_only` 条目指向 `~/.claude/skills`，不建 Windows junction） |
+| 项目级 Skills | `.agents/skills/<name>/SKILL.md` |
+| CLI 配置与会话转写 | `~/.gemini/antigravity-cli/settings.json`、`~/.gemini/antigravity-cli/brain/<conversation-id>/.system_generated/logs/transcript.jsonl` |
+
+Antigravity 的 `AGENTS.md` 支持 `@[label](path)` 实时内联（单文件展开上限 24 KB，全局 `always_on` 规则共享 20,000 token 预算）。CLI 中改动 skills 后可用 `/skills reload` 刷新。
+
 ## OpenClaw
 
 | 用途 | 路径 |
@@ -142,4 +154,5 @@ Claude 的原生 `AGENTS.md` 自动发现与 `@AGENTS.md` 显式导入是两条�
 - Claude Code worktrees：<https://code.claude.com/docs/en/worktrees>
 - Codex skills：<https://learn.chatgpt.com/docs/build-skills>
 - Codex AGENTS.md：<https://learn.chatgpt.com/docs/agent-configuration/agents-md>
+- Antigravity Rules & Discovery：<https://antigravity.google/docs/customization-discovery>
 - Agent Skills specification：<https://agentskills.io/specification>

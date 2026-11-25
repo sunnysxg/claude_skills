@@ -284,7 +284,7 @@ function Get-ManagedRulePlan {
         }
     }
 
-    if ($Mode -ne "managed_block") {
+    if ($Mode -notin @("managed_block", "managed_include")) {
         throw "Unsupported managed rule mode: $Mode"
     }
 
@@ -352,6 +352,181 @@ function Get-ManagedRulePlan {
         State = $state
         DesiredContent = $desired
         Detail = if ($state -eq "Current") { "managed block is current" } else { "managed block differs from source" }
+    }
+}
+
+function Get-AntigravitySkillsJsonPlan {
+    param(
+        [Parameter(Mandatory)][string]$Client,
+        [Parameter(Mandatory)][string]$TargetPath,
+        [Parameter(Mandatory)][string]$SourceRoot,
+        [AllowEmptyCollection()][string[]]$SkillRelPaths
+    )
+
+    $sourcePathForJson = (Get-NormalizedPath $SourceRoot).Replace("\", "/")
+    $desiredInclude = @($SkillRelPaths)
+    $desiredEntry = [ordered]@{
+        path = $sourcePathForJson
+        include_only = $desiredInclude
+    }
+
+    $existing = Get-Item -LiteralPath $TargetPath -Force -ErrorAction SilentlyContinue
+    if ($null -eq $existing) {
+        $doc = [ordered]@{
+            entries = @($desiredEntry)
+        }
+        $desiredJson = (($doc | ConvertTo-Json -Depth 10) -replace "`r`n", "`n") + "`n"
+        return [PSCustomObject]@{
+            Client = $Client
+            TargetPath = $TargetPath
+            State = "MissingFile"
+            DesiredContent = $desiredJson
+            Detail = "skills manifest does not exist"
+        }
+    }
+
+    if ($existing.PSIsContainer -or
+        ($existing.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+        return [PSCustomObject]@{
+            Client = $Client
+            TargetPath = $TargetPath
+            State = "UnsafeTarget"
+            DesiredContent = $null
+            Detail = "target is a directory or reparse point"
+        }
+    }
+
+    $rawText = [System.IO.File]::ReadAllText($TargetPath)
+    try {
+        $parsed = $rawText | ConvertFrom-Json
+    } catch {
+        return [PSCustomObject]@{
+            Client = $Client
+            TargetPath = $TargetPath
+            State = "Malformed"
+            DesiredContent = $null
+            Detail = "existing skills manifest is not valid JSON"
+        }
+    }
+    if ($null -eq $parsed -or ($parsed -is [System.Array]) -or ($parsed -is [string]) -or ($parsed -is [ValueType])) {
+        return [PSCustomObject]@{
+            Client = $Client
+            TargetPath = $TargetPath
+            State = "Malformed"
+            DesiredContent = $null
+            Detail = "existing skills manifest root must be a JSON object"
+        }
+    }
+
+    $targetDir = Split-Path -Parent $TargetPath
+    $entriesProp = $parsed.PSObject.Properties["entries"]
+    $existingEntries = @()
+    if ($null -ne $entriesProp) {
+        if ($null -eq $entriesProp.Value) {
+            $existingEntries = @()
+        } elseif ($entriesProp.Value -is [System.Array]) {
+            $existingEntries = @($entriesProp.Value)
+        } else {
+            return [PSCustomObject]@{
+                Client = $Client
+                TargetPath = $TargetPath
+                State = "Malformed"
+                DesiredContent = $null
+                Detail = "existing skills manifest 'entries' must be an array"
+            }
+        }
+    }
+
+    $matchIndices = @()
+    for ($i = 0; $i -lt $existingEntries.Count; $i += 1) {
+        $entryObj = $existingEntries[$i]
+        if ($null -eq $entryObj) { continue }
+        $entryPathVal = [string](Get-ObjectProperty $entryObj "path")
+        if (-not $entryPathVal) { continue }
+        $resolvedEntryPath = Expand-PortablePath -PathValue $entryPathVal -BasePath $targetDir
+        if (Test-SamePath $resolvedEntryPath $SourceRoot) {
+            $matchIndices += $i
+        }
+    }
+
+    if ($matchIndices.Count -gt 1) {
+        return [PSCustomObject]@{
+            Client = $Client
+            TargetPath = $TargetPath
+            State = "Malformed"
+            DesiredContent = $null
+            Detail = "multiple entries reference the same source repository"
+        }
+    }
+
+    $isCurrent = $false
+    if ($matchIndices.Count -eq 1) {
+        $currentEntry = $existingEntries[$matchIndices[0]]
+        $currentIncludeProp = $currentEntry.PSObject.Properties["include_only"]
+        $currentExcludeProp = $currentEntry.PSObject.Properties["exclude"]
+        $currentPathVal = [string](Get-ObjectProperty $currentEntry "path")
+        if ($currentPathVal -ceq $sourcePathForJson -and
+            $null -ne $currentIncludeProp -and
+            $null -eq $currentExcludeProp) {
+            $currentInclude = @($currentIncludeProp.Value | ForEach-Object { [string]$_ })
+            if ($currentInclude.Count -eq $desiredInclude.Count) {
+                $allEqual = $true
+                for ($j = 0; $j -lt $desiredInclude.Count; $j += 1) {
+                    if ($currentInclude[$j] -cne $desiredInclude[$j]) {
+                        $allEqual = $false
+                        break
+                    }
+                }
+                if ($allEqual) {
+                    $isCurrent = $true
+                }
+            }
+        }
+    }
+
+    if ($isCurrent) {
+        return [PSCustomObject]@{
+            Client = $Client
+            TargetPath = $TargetPath
+            State = "Current"
+            DesiredContent = $null
+            Detail = "skills manifest entry is current"
+        }
+    }
+
+    $newEntries = @()
+    if ($matchIndices.Count -eq 1) {
+        for ($i = 0; $i -lt $existingEntries.Count; $i += 1) {
+            if ($i -eq $matchIndices[0]) {
+                $newEntries += $desiredEntry
+            } else {
+                $newEntries += $existingEntries[$i]
+            }
+        }
+    } else {
+        $newEntries = @($existingEntries) + @($desiredEntry)
+    }
+
+    $outDoc = [ordered]@{}
+    $wroteEntries = $false
+    foreach ($prop in $parsed.PSObject.Properties) {
+        if ($prop.Name -eq "entries") {
+            $outDoc["entries"] = @($newEntries)
+            $wroteEntries = $true
+        } else {
+            $outDoc[$prop.Name] = $prop.Value
+        }
+    }
+    if (-not $wroteEntries) {
+        $outDoc["entries"] = @($newEntries)
+    }
+    $desiredJson = (($outDoc | ConvertTo-Json -Depth 10) -replace "`r`n", "`n") + "`n"
+    return [PSCustomObject]@{
+        Client = $Client
+        TargetPath = $TargetPath
+        State = "Stale"
+        DesiredContent = $desiredJson
+        Detail = if ($matchIndices.Count -eq 0) { "skills manifest entry will be added" } else { "skills manifest entry differs from declared skills" }
     }
 }
 
@@ -518,6 +693,7 @@ foreach ($skill in @($manifest.skills)) {
     if ((Test-EntryPlatform $skill) -and (Test-LocalSkillEnabled $name)) {
         $declaredEntries += [PSCustomObject]@{
             Name = $name
+            SourceRelPath = ([string]$skill.source).Replace("\", "/")
             SourcePath = $sourcePath
             Targets = @($skill.targets)
             Kind = "skill"
@@ -549,6 +725,7 @@ foreach ($alias in @($manifest.aliases)) {
     if ((Test-EntryPlatform $alias) -and (Test-LocalSkillEnabled $canonicalName)) {
         $declaredEntries += [PSCustomObject]@{
             Name = $name
+            SourceRelPath = ([string]$alias.source).Replace("\", "/")
             SourcePath = $sourcePath
             Targets = @($alias.targets)
             Kind = "alias"
@@ -568,10 +745,15 @@ if ($localConfig) {
 }
 
 $operations = @()
+$skillManifestPlans = @()
 if ($manageSkills) {
 foreach ($clientName in $selectedClients) {
     $definition = Get-ObjectProperty $manifest.clients $clientName
     $rootValue = [string]$definition.root
+    $linkType = [string](Get-ObjectProperty $definition "windows_link_type")
+    if (-not $linkType) {
+        $linkType = "junction"
+    }
 
     if ($localConfig) {
         $localClients = Get-ObjectProperty $localConfig "clients"
@@ -588,6 +770,29 @@ foreach ($clientName in $selectedClients) {
 
     $clientRoot = Expand-PortablePath -PathValue $rootValue -BasePath $repoRoot
     Assert-SafeClientRoot -ClientRoot $clientRoot -SourceRoot $sourceRoot
+
+    if ($linkType -eq "antigravity_skills_json") {
+        $clientSkillRelPaths = @()
+        foreach ($entry in $declaredEntries) {
+            if ($entry.Targets -notcontains $clientName) {
+                continue
+            }
+            if ($clientSkillRelPaths -notcontains $entry.SourceRelPath) {
+                $clientSkillRelPaths += $entry.SourceRelPath
+            }
+        }
+        $skillManifestPlans += Get-AntigravitySkillsJsonPlan `
+            -Client $clientName `
+            -TargetPath $clientRoot `
+            -SourceRoot $sourceRoot `
+            -SkillRelPaths $clientSkillRelPaths
+        continue
+    }
+
+    if ($linkType -ne "junction") {
+        throw "Unsupported windows_link_type for client ${clientName}: $linkType"
+    }
+
     foreach ($entry in $declaredEntries) {
         if ($entry.Targets -notcontains $clientName) {
             continue
@@ -642,8 +847,16 @@ if ($manageRules) {
                 continue
             }
             $mode = [string]$target.mode
-            if ($mode -notin @("managed_block", "cursor_mdc")) {
+            if ($mode -notin @("managed_block", "managed_include", "cursor_mdc")) {
                 throw "Unsupported managed rule mode: $ruleName -> $mode"
+            }
+            $effectiveSourceContent = $ruleSourceContent
+            if ($mode -eq "managed_include") {
+                $includeLine = [string](Get-ObjectProperty $target "include_line")
+                if (-not $includeLine -or -not $includeLine.Trim()) {
+                    throw "managed_include target must declare include_line: $ruleName -> $targetClient"
+                }
+                $effectiveSourceContent = $includeLine
             }
             $targetPath = Expand-PortablePath -PathValue ([string]$target.path) -BasePath $repoRoot
             $normalizedTarget = Get-NormalizedPath $targetPath
@@ -661,7 +874,7 @@ if ($manageRules) {
                 -Client $targetClient `
                 -Mode $mode `
                 -TargetPath $targetPath `
-                -SourceContent $ruleSourceContent `
+                -SourceContent $effectiveSourceContent `
                 -LegacyExactContent $legacyExactContent
         }
     }
@@ -783,6 +996,35 @@ foreach ($operation in $operations) {
 
     Write-Host "$prefix CONFLICT: target is a regular file or real directory; it will not be overwritten" -ForegroundColor Red
     $conflicts += 1
+}
+
+$manifestIndex = 0
+foreach ($manifestPlan in $skillManifestPlans) {
+    $manifestIndex += 1
+    $prefix = "[$manifestIndex/$($skillManifestPlans.Count)] [$($manifestPlan.Client)] skills.json"
+    switch ($manifestPlan.State) {
+        "Current" {
+            Write-Host "$prefix OK -> $($manifestPlan.TargetPath)"
+            $ok += 1
+        }
+        { $_ -in @("MissingFile", "Stale") } {
+            if ($Command -eq "Doctor") {
+                Write-Host "$prefix $($manifestPlan.State.ToUpperInvariant()): $($manifestPlan.Detail) -> $($manifestPlan.TargetPath)" -ForegroundColor Yellow
+                $missing += 1
+            } elseif ($DryRun) {
+                Write-Host "$prefix would create/update -> $($manifestPlan.TargetPath)"
+                $created += 1
+            } else {
+                Write-Utf8FileAtomic -PathValue $manifestPlan.TargetPath -Content $manifestPlan.DesiredContent
+                Write-Host "$prefix created/updated -> $($manifestPlan.TargetPath)" -ForegroundColor Green
+                $created += 1
+            }
+        }
+        default {
+            Write-Host "$prefix CONFLICT: $($manifestPlan.Detail) -> $($manifestPlan.TargetPath)" -ForegroundColor Red
+            $conflicts += 1
+        }
+    }
 }
 
 Write-Host "---"

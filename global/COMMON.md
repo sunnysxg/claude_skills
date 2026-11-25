@@ -104,7 +104,7 @@ Claude 默认模式下，会话启动目录或其祖先中的项目级 `CLAUDE.m
 
 本文件不单独工作：它是 claude_skills 仓库（`~/.claude/skills`，`git@github.com:sunnysxg/claude_skills.git`）的一部分，新机器 clone 仓库、跑一遍同步脚本即可开工，步骤见仓库 README。包内分工：
 
-- `global/COMMON.md`（本文件）——全局规则。各客户端读到的是它的投影：Claude 经 `@import` 引用，永远是最新；Cursor（生成的用户规则文件）和 Codex（`AGENTS.md` 里的标记区块）是同步脚本抄的拷贝，跑同步才刷新。修改全局规则只改本文件并提交，再跑同步分发，不直接改投影文件。
+- `global/COMMON.md`（本文件）——全局规则。各客户端读到的是它的投影：Claude 经 `@import`、Antigravity 经 `~/.gemini/AGENTS.md` 里的 `@[...]` 实时内联，永远是最新；Cursor（生成的用户规则文件）和 Codex（`AGENTS.md` 里的标记区块）是同步脚本抄的拷贝，跑同步才刷新。修改全局规则只改本文件并提交，再跑同步分发，不直接改投影文件。
 - 各 skill——按需触发的能力；路径、脚本、平台差异等细节由各自 `SKILL.md` 维护，本文件不重复。
 - `conventions.md`——agent 写文件时的命名、路径与共享文件格式规范：全小写 snake_case、纯 ASCII 路径（中文进内容不进路径）、时间戳 12 位 `YYYYMMDDHHMM`、跨项目路径用 `~` 开头不用绝对路径。
 - 仓库自身的 `AGENTS.md` 与 `README.md`——开发这个仓库时才生效的约定和部署文档，与日常任务无关。

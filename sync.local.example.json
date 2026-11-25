@@ -6,6 +6,9 @@
     },
     "codex": {
       "enabled": true
+    },
+    "antigravity": {
+      "enabled": true
     }
   },
   "skills": {

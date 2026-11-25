@@ -18,6 +18,12 @@
       "enabled_by_default": true,
       "windows_link_type": "junction",
       "unix_link_type": "symlink"
+    },
+    "antigravity": {
+      "root": "~/.gemini/config/skills.json",
+      "enabled_by_default": true,
+      "windows_link_type": "antigravity_skills_json",
+      "unix_link_type": "antigravity_skills_json"
     }
   },
   "managed_rules": [
@@ -36,6 +42,12 @@
           "path": "~/.codex/AGENTS.md",
           "mode": "managed_block",
           "legacy_exact_content": "@skills/global/AGENTS.md"
+        },
+        {
+          "client": "antigravity",
+          "path": "~/.gemini/AGENTS.md",
+          "mode": "managed_include",
+          "include_line": "@[Global Common Rules](~/.claude/skills/global/COMMON.md)"
         }
       ]
     }
@@ -45,10 +57,11 @@
       "name": "article-ingest",
       "source": "article-ingest",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "compatible",
         "codex": "compatible",
+        "antigravity": "compatible",
         "windows": "ssh_fetch_only",
         "linux": "local_fetch"
       }
@@ -57,70 +70,77 @@
       "name": "git-workflow",
       "source": "git-workflow",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "compatible",
-        "codex": "compatible"
+        "codex": "compatible",
+        "antigravity": "compatible"
       }
     },
     {
       "name": "grilling",
       "source": "grilling",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "compatible",
-        "codex": "compatible"
+        "codex": "compatible",
+        "antigravity": "tested"
       }
     },
     {
       "name": "handoff",
       "source": "handoff",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "compatible",
-        "codex": "compatible"
+        "codex": "compatible",
+        "antigravity": "tested"
       }
     },
     {
       "name": "hv-analysis",
       "source": "hv-analysis",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "compatible",
-        "codex": "compatible"
+        "codex": "compatible",
+        "antigravity": "compatible"
       }
     },
     {
       "name": "leader",
       "source": "leader",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "compatible",
-        "codex": "compatible"
+        "codex": "compatible",
+        "antigravity": "compatible"
       }
     },
     {
       "name": "lq",
       "source": "lq",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "compatible",
-        "codex": "compatible"
+        "codex": "compatible",
+        "antigravity": "compatible"
       }
     },
     {
       "name": "mmd-explain",
       "source": "mmd-explain",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "tested",
         "codex": "tested",
+        "antigravity": "compatible",
         "windows": "powershell_renderer",
         "linux": "bash_renderer"
       }
@@ -129,30 +149,33 @@
       "name": "neat-freak",
       "source": "neat-freak",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "compatible",
-        "codex": "tested"
+        "codex": "tested",
+        "antigravity": "compatible"
       }
     },
     {
       "name": "pickup",
       "source": "pickup",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "compatible",
-        "codex": "compatible"
+        "codex": "compatible",
+        "antigravity": "compatible"
       }
     },
     {
       "name": "playground",
       "source": "playground",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "compatible",
-        "codex": "compatible"
+        "codex": "compatible",
+        "antigravity": "compatible"
       }
     },
     {
@@ -162,57 +185,63 @@
       "targets": ["cursor", "codex"],
       "compatibility": {
         "cursor": "tested",
-        "codex": "tested"
+        "codex": "tested",
+        "antigravity": "unsupported"
       }
     },
     {
       "name": "session-search",
       "source": "session-search",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "compatible",
-        "codex": "compatible"
+        "codex": "compatible",
+        "antigravity": "compatible"
       }
     },
     {
       "name": "steelman",
       "source": "steelman",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "compatible",
-        "codex": "compatible"
+        "codex": "compatible",
+        "antigravity": "compatible"
       }
     },
     {
       "name": "taskboard",
       "source": "taskboard",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "compatible",
-        "codex": "compatible"
+        "codex": "compatible",
+        "antigravity": "tested"
       }
     },
     {
       "name": "ui-options",
       "source": "ui-options",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "compatible",
-        "codex": "compatible"
+        "codex": "compatible",
+        "antigravity": "compatible"
       }
     },
     {
       "name": "zettel-distill",
       "source": "zettel-distill",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "compatible",
-        "codex": "compatible"
+        "codex": "compatible",
+        "antigravity": "compatible"
       }
     }
   ],

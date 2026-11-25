@@ -7,8 +7,11 @@
   未声明内容。Codex 用户 skill 只允许安装到 `~/.agents/skills`；`~/.codex/skills/.system`
   是 Codex 自带内容，不得声明为客户端目标或由同步器接管。
 - 跨客户端全局正文只维护 `global/COMMON.md`。`managed_rules` 只生成声明的 Cursor 用户规则
-  文件和 Codex `AGENTS.md` 标记区块；不得覆盖 Codex 块外机器私有内容，也不得接管整个
-  `~/.cursor/rules`。畸形/重复标记和未受管的同名 Cursor 文件必须报冲突。
+  文件、Codex `~/.codex/AGENTS.md` 标记区块和 Antigravity `~/.gemini/AGENTS.md` 的单行内联
+  标记区块；不得覆盖块外机器私有内容，也不得接管整个 `~/.cursor/rules`。畸形/重复标记和
+  未受管的同名 Cursor 文件必须报冲突。Antigravity skill 通过 `~/.gemini/config/skills.json`
+  中的本仓 `include_only` 条目管理（保留同文件内其他条目与 `~/.gemini/config/skills/` 下
+  的真实目录），JSON 畸形或重复本仓条目必须报冲突且不覆盖。
 - Windows 同步器必须保持 `-DryRun`、`Doctor`、幂等、错误链接显式修复，以及普通文件/
   真实目录绝不覆盖；规则同步还必须保持 `Scope=Skills/Rules/All`、原子写入和块外内容
   保留。测试只使用隔离临时根，不直接拿 live 客户端目录做破坏性验证。

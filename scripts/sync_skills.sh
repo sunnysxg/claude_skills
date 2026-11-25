@@ -316,7 +316,7 @@ inspect_managed_rule() {
     return
   fi
 
-  [[ "$mode" == "managed_block" ]] || die "unsupported managed rule mode: $mode"
+  [[ "$mode" == "managed_block" || "$mode" == "managed_include" ]] || die "unsupported managed rule mode: $mode"
   if [[ -n "$legacy_exact" ]]; then
     local legacy_actual
     legacy_actual="$(sed 's/\r$//' "$target_path")"
@@ -426,6 +426,75 @@ render_managed_rule_target() {
   rm -f -- "$block_path"
 }
 
+inspect_and_render_antigravity_skills_json() {
+  local target_path="$1"
+  local source_root_path="$2"
+  local include_json="$3"
+  local output_path="$4"
+
+  if [[ ! -e "$target_path" && ! -L "$target_path" ]]; then
+    jq -n --arg path "$source_root_path" --argjson include_only "$include_json" \
+      '{entries: [{path: $path, include_only: $include_only}]}' >"$output_path"
+    printf 'MissingFile\n'
+    return
+  fi
+  if [[ -L "$target_path" || -d "$target_path" || ! -f "$target_path" ]]; then
+    printf 'UnsafeTarget\n'
+    return
+  fi
+  if ! jq -e 'type == "object" and ((.entries == null) or (.entries | type == "array"))' "$target_path" >/dev/null 2>&1; then
+    printf 'Malformed\n'
+    return
+  fi
+
+  local target_dir
+  target_dir="$(dirname -- "$target_path")"
+  local match_count=0
+  local match_index=-1
+  local idx=0
+  while IFS= read -r entry_path; do
+    if [[ -n "$entry_path" ]]; then
+      local resolved_entry
+      resolved_entry="$(expand_path "$entry_path" "$target_dir")"
+      if [[ "$resolved_entry" == "$source_root_path" ]]; then
+        match_count=$((match_count + 1))
+        match_index=$idx
+      fi
+    fi
+    idx=$((idx + 1))
+  done < <(jq -r '(.entries // [])[] | if type == "object" and (.path | type == "string") then .path else "" end' "$target_path")
+
+  if ((match_count > 1)); then
+    printf 'Malformed\n'
+    return
+  fi
+
+  if ((match_count == 1)); then
+    if jq -e \
+      --argjson idx "$match_index" \
+      --arg path "$source_root_path" \
+      --argjson include_only "$include_json" \
+      '.entries[$idx] == {path: $path, include_only: $include_only}' \
+      "$target_path" >/dev/null 2>&1; then
+      printf 'Current\n'
+      return
+    fi
+    jq \
+      --argjson idx "$match_index" \
+      --arg path "$source_root_path" \
+      --argjson include_only "$include_json" \
+      '.entries[$idx] = {path: $path, include_only: $include_only}' \
+      "$target_path" >"$output_path"
+  else
+    jq \
+      --arg path "$source_root_path" \
+      --argjson include_only "$include_json" \
+      '.entries = ((.entries // []) + [{path: $path, include_only: $include_only}])' \
+      "$target_path" >"$output_path"
+  fi
+  printf 'Stale\n'
+}
+
 source_root_value="$(jq -r '.source_root // "."' "$manifest_path")"
 source_root="$(expand_path "$source_root_value" "$repo_root")"
 machine_id_raw="$(
@@ -469,14 +538,19 @@ declare -a op_roots=()
 declare -a op_names=()
 declare -a op_sources=()
 declare -a op_targets=()
+declare -a manifest_op_clients=()
+declare -a manifest_op_targets=()
+declare -a manifest_op_includes=()
 
 if $manage_skills; then
 for client in "${selected_clients[@]}"; do
-  [[ "$(jq -r --arg client "$client" '.clients[$client].unix_link_type' "$manifest_path")" == "symlink" ]] ||
-    die "client does not declare unix_link_type=symlink: $client"
+  unix_link_type="$(jq -r --arg client "$client" '.clients[$client].unix_link_type' "$manifest_path")"
+  [[ "$unix_link_type" == "symlink" || "$unix_link_type" == "antigravity_skills_json" ]] ||
+    die "client declares unsupported unix_link_type: $client -> $unix_link_type"
 done
 
 declare -a entry_names=()
+declare -a entry_rel_sources=()
 declare -a entry_sources=()
 declare -a entry_targets=()
 declare -a entry_kinds=()
@@ -525,6 +599,7 @@ while IFS=$'\t' read -r name source targets platforms kind override_key; do
   [[ "$enabled" == "true" ]] || continue
 
   entry_names+=("$name")
+  entry_rel_sources+=("$source")
   entry_sources+=("$source_path")
   entry_targets+=("$targets")
   entry_kinds+=("$kind")
@@ -572,6 +647,37 @@ for client in "${selected_clients[@]}"; do
   )"
   client_root="$(expand_path "$root_value" "$repo_root")"
   assert_safe_client_root "$client_root" "$source_root"
+  unix_link_type="$(jq -r --arg client "$client" '.clients[$client].unix_link_type' "$manifest_path")"
+
+  if [[ "$unix_link_type" == "antigravity_skills_json" ]]; then
+    declare -a client_rel_paths=()
+    for index in "${!entry_names[@]}"; do
+      IFS=',' read -r -a targets <<<"${entry_targets[$index]}"
+      selected=false
+      for target_client in "${targets[@]}"; do
+        if [[ "$target_client" == "$client" ]]; then
+          selected=true
+          break
+        fi
+      done
+      $selected || continue
+      rel="${entry_rel_sources[$index]}"
+      already=false
+      for existing_rel in "${client_rel_paths[@]}"; do
+        [[ "$existing_rel" == "$rel" ]] && already=true && break
+      done
+      $already || client_rel_paths+=("$rel")
+    done
+    if ((${#client_rel_paths[@]})); then
+      include_json="$(printf '%s\n' "${client_rel_paths[@]}" | jq -R . | jq -s .)"
+    else
+      include_json="[]"
+    fi
+    manifest_op_clients+=("$client")
+    manifest_op_targets+=("$client_root")
+    manifest_op_includes+=("$include_json")
+    continue
+  fi
 
   for index in "${!entry_names[@]}"; do
     IFS=',' read -r -a targets <<<"${entry_targets[$index]}"
@@ -602,8 +708,16 @@ declare -a rule_legacy=()
 declare -a rule_states=()
 declare -A seen_rule_targets=()
 
+declare -a rule_temp_files=()
+cleanup_temp_files() {
+  for tmp_file in "${rule_temp_files[@]}"; do
+    rm -f -- "$tmp_file"
+  done
+}
+trap cleanup_temp_files EXIT
+
 if $manage_rules; then
-  while IFS=$'\t' read -r rule_name rule_source rule_platforms target_client target_value rule_mode legacy_exact; do
+  while IFS=$'\t' read -r rule_name rule_source rule_platforms target_client target_value rule_mode legacy_exact include_line; do
     [[ -n "$rule_name" ]] || continue
     [[ "$rule_name" =~ ^[a-z0-9][a-z0-9-]{0,63}$ ]] ||
       die "invalid managed rule name: $rule_name"
@@ -627,13 +741,22 @@ if $manage_rules; then
     done
     $platform_selected || continue
 
-    [[ "$rule_mode" == "managed_block" || "$rule_mode" == "cursor_mdc" ]] ||
+    [[ "$rule_mode" == "managed_block" || "$rule_mode" == "managed_include" || "$rule_mode" == "cursor_mdc" ]] ||
       die "unsupported managed rule mode: $rule_name -> $rule_mode"
     rule_source_path="$(expand_path "$rule_source" "$source_root")"
     [[ "$rule_source_path" == "$source_root/"* ]] ||
       die "managed rule source escapes repository: $rule_name -> $rule_source_path"
     [[ -f "$rule_source_path" ]] ||
       die "managed rule source not found: $rule_name -> $rule_source_path"
+
+    effective_source_path="$rule_source_path"
+    if [[ "$rule_mode" == "managed_include" ]]; then
+      [[ -n "$include_line" ]] || die "managed_include target must declare include_line: $rule_name -> $target_client"
+      include_tmp="$(mktemp)"
+      rule_temp_files+=("$include_tmp")
+      printf '%s\n' "$include_line" >"$include_tmp"
+      effective_source_path="$include_tmp"
+    fi
 
     rule_target_path="$(expand_path "$target_value" "$repo_root")"
     [[ "$rule_target_path" != "$source_root" && "$rule_target_path" != "$source_root/"* ]] ||
@@ -642,12 +765,12 @@ if $manage_rules; then
       die "duplicate managed rule target path: $rule_target_path"
     seen_rule_targets["$rule_target_path"]=1
     rule_state="$(inspect_managed_rule "$rule_name" "$rule_mode" "$rule_target_path" \
-      "$rule_source_path" "$legacy_exact")"
+      "$effective_source_path" "$legacy_exact")"
 
     rule_names+=("$rule_name")
     rule_clients+=("$target_client")
     rule_modes+=("$rule_mode")
-    rule_sources+=("$rule_source_path")
+    rule_sources+=("$effective_source_path")
     rule_targets+=("$rule_target_path")
     rule_legacy+=("$legacy_exact")
     rule_states+=("$rule_state")
@@ -662,7 +785,8 @@ if $manage_rules; then
         .client,
         .path,
         .mode,
-        (.legacy_exact_content // "")
+        (.legacy_exact_content // ""),
+        (.include_line // "")
       ] |
       @tsv
     ' "$manifest_path"
@@ -808,6 +932,46 @@ for index in "${!op_names[@]}"; do
 
   echo "$prefix CONFLICT: target is a regular file or real directory; it will not be overwritten" >&2
   conflicts=$((conflicts + 1))
+done
+
+for index in "${!manifest_op_clients[@]}"; do
+  number=$((index + 1))
+  prefix="[$number/${#manifest_op_clients[@]}] [${manifest_op_clients[$index]}] skills.json"
+  target_path="${manifest_op_targets[$index]}"
+  include_json="${manifest_op_includes[$index]}"
+  staged_json="$(mktemp)"
+  rule_temp_files+=("$staged_json")
+  manifest_state="$(inspect_and_render_antigravity_skills_json "$target_path" "$source_root" "$include_json" "$staged_json")"
+  case "$manifest_state" in
+    Current)
+      echo "$prefix OK -> $target_path"
+      ok=$((ok + 1))
+      ;;
+    MissingFile|Stale)
+      if [[ "$command_name" == "doctor" ]]; then
+        echo "$prefix ${manifest_state^^} -> $target_path"
+        missing=$((missing + 1))
+      elif $dry_run; then
+        echo "$prefix would create/update -> $target_path"
+        created=$((created + 1))
+      else
+        target_parent="$(dirname -- "$target_path")"
+        mkdir -p -- "$target_parent"
+        temp_path="$(mktemp "$target_parent/.skills-manifest.XXXXXX")"
+        cp -- "$staged_json" "$temp_path"
+        if [[ -f "$target_path" ]]; then
+          chmod --reference="$target_path" "$temp_path"
+        fi
+        mv -f -- "$temp_path" "$target_path"
+        echo "$prefix created/updated -> $target_path"
+        created=$((created + 1))
+      fi
+      ;;
+    *)
+      echo "$prefix CONFLICT: $manifest_state -> $target_path" >&2
+      conflicts=$((conflicts + 1))
+      ;;
+  esac
 done
 
 echo "---"

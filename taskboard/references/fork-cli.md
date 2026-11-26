@@ -9,7 +9,7 @@ taskctl help statuses          分区判据表
 ```
 
 help 从 taskctl 的解析表与 todo_hub `dashi-taskboard/shared/` 的语义模块现生成，快层用例钉住
-两边一致，所以本文件不再手抄任何命令或参数。下面只留 help 打印不了的几句：
+两边一致。本文件补充使用背景与服务端的结算规则。
 
 - **与 [cli.md](cli.md) 冲突时以 help 为准。** cli.md 是 dashi 上游原文，保持不动只为对照上游
   diff，不随本 fork 更新（例：它说挂关系会改写卡的 `threadId`，本 fork 不会）。help 打印不了
@@ -27,3 +27,20 @@ help 从 taskctl 的解析表与 todo_hub `dashi-taskboard/shared/` 的语义模
 - **派发器实现细节不在 help 里**：定时写法的变体（`T` 分隔、带秒、只写日期）与 `scheduled` hold
   在派发器闸门里的顺序，事实源是 todo_hub `dashi-taskboard/shared/task-schedule.mjs` 与
   `docs/agent/dispatch.md`「卡级定时」。help 只描述 CLI 收什么，不描述派发器怎么排。
+
+## 子卡交付 ACK
+
+ACK 是父卡会话对本次交付的验收回执。收到【看板子卡交付】后，先核对子卡验收标准、评论和验证证据，
+按本次投递指令用父卡号和原样的 delivery id 提交 `dispatch family ack`。参数见
+`taskctl help dispatch family`。子卡交付须选 `--decision`，复查和收口按各自的投递指令办理。
+
+- **`accept` 收下**：生产子卡须有发布凭据（`publishedAt`），父卡收下后由看板记为「完成」，
+  属于归档。存量开发子卡收下后等 Sarah 确认父卡再放行。最后一张收下时，先核对家族是否达到父卡
+  的验收标准，按投递指令在同一条 ACK 写好汇总。
+- **`return` 退回**：在正文写明子卡可据此执行的修改，看板把理由写回子卡并退回「等待认领」。
+  每张子卡最多退回三次。满三次应上交，看板也会把第四次退回转为上交。
+- **`escalate` 上交 Sarah**：写清待她处理的事，由看板把父卡交到「等你确认」。先沿用已有拍板。
+  需要她接手的包括父卡自身的目的地、整包上线、执行 agent 或推进方式，子卡对接人，改需求范围或
+  验收标准，花钱或改额度开关，删数据或动生产实例，对外发消息，以及子卡已退回三次仍需处理。
+
+状态由 ACK 结算。长期规则见 todo_hub `docs/agent/saga.md`「家族」，实际执行以本轮投递指令为准。

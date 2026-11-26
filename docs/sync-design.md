@@ -74,6 +74,11 @@ Codex adapter 按 rollout 文件名精确匹配 UUID；以 `session_meta.payload
 Antigravity 用已知 UUID 精确定位 transcript，首末实质用户输入决定开始与活跃时间。路径、
 数据根覆盖和缺失记录的处理见 [session-log 的时间解析步骤](../session-log/SKILL.md#31-时间--session_timespy)。
 
+`taskboard/SKILL.md` 与同目录的 references 是任务面板技能的共享正文。Claude Code 从源仓直接读，
+Cursor、Codex 和 Antigravity 按 manifest 在 Windows / Linux 上引用同一目录。跨仓家族的运行规则随
+todo_hub 的派发和投递指令更新，技能正文提供[建卡入口](../taskboard/SKILL.md#建卡)和
+[子卡交付 ACK 参考](../taskboard/references/fork-cli.md#子卡交付-ack)。
+
 ## 3. Windows 使用方法
 
 需要覆盖 manifest 默认值的 Windows 机器，才创建不入 Git 的 override：

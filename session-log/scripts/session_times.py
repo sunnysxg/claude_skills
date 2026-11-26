@@ -27,6 +27,7 @@ UUID_RE = re.compile(
     re.IGNORECASE,
 )
 LOCAL_TZ = timezone(timedelta(hours=8))
+ANTIGRAVITY_TRANSCRIPT = Path(".system_generated/logs/transcript.jsonl")
 
 META_SKILL_MARKERS = ("session-log", "/session-log", "/handoff", "handoff")
 CLAUDE_SYNTHETIC_PREFIXES = (
@@ -58,7 +59,7 @@ def parse_cursor_timestamp(raw: str) -> datetime:
     )
 
 
-def parse_claude_timestamp(raw: str) -> datetime:
+def parse_iso_timestamp(raw: str) -> datetime:
     return datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
 
 
@@ -216,7 +217,7 @@ def extract_claude_user_timestamps(transcript_path: Path) -> list[datetime]:
             if not isinstance(raw, str):
                 continue
             try:
-                timestamps.append(parse_claude_timestamp(raw))
+                timestamps.append(parse_iso_timestamp(raw))
             except ValueError:
                 continue
     return timestamps
@@ -294,7 +295,7 @@ def extract_codex_user_timestamps(transcript_path: Path) -> list[datetime]:
             if not isinstance(raw, str):
                 continue
             try:
-                timestamps.append(parse_claude_timestamp(raw))
+                timestamps.append(parse_iso_timestamp(raw))
             except ValueError:
                 continue
     return timestamps
@@ -305,12 +306,51 @@ def extract_codex_started_at(transcript_path: Path) -> datetime | None:
     if not isinstance(raw, str):
         return None
     try:
-        return parse_claude_timestamp(raw)
+        return parse_iso_timestamp(raw)
     except ValueError:
         return None
 
 
+def antigravity_uuid_from_path(transcript_path: Path) -> str:
+    parts = transcript_path.parts
+    if len(parts) >= 4 and Path(*parts[-3:]) == ANTIGRAVITY_TRANSCRIPT:
+        session_uuid = parts[-4]
+        if UUID_RE.fullmatch(session_uuid):
+            return session_uuid.lower()
+    return ""
+
+
+def extract_antigravity_user_timestamps(transcript_path: Path) -> list[datetime]:
+    timestamps: list[datetime] = []
+    with transcript_path.open(encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(row, dict) or row.get("type") != "USER_INPUT":
+                continue
+            if row.get("source") != "USER_EXPLICIT":
+                continue
+            content = row.get("content")
+            raw = row.get("created_at")
+            if not isinstance(content, str) or not isinstance(raw, str):
+                continue
+            text = content.strip().lower()
+            if not text or text in META_SKILL_MARKERS:
+                continue
+            try:
+                timestamp = parse_iso_timestamp(raw)
+            except ValueError:
+                continue
+            if timestamp.tzinfo is not None:
+                timestamps.append(timestamp)
+    return timestamps
+
+
 def detect_source(transcript_path: Path) -> str:
+    if antigravity_uuid_from_path(transcript_path):
+        return "antigravity"
     with transcript_path.open(encoding="utf-8", errors="replace") as handle:
         for line in handle:
             try:
@@ -319,6 +359,11 @@ def detect_source(transcript_path: Path) -> str:
                 continue
             if not isinstance(payload, dict):
                 continue
+            if payload.get("type") == "USER_INPUT" and payload.get("source") in (
+                "USER_EXPLICIT",
+                "SYSTEM_SDK",
+            ):
+                return "antigravity"
             if payload.get("type") == "session_meta" and isinstance(
                 payload.get("payload"), dict
             ):
@@ -327,19 +372,24 @@ def detect_source(transcript_path: Path) -> str:
                 payload.get("payload"), dict
             ):
                 response = payload["payload"]
-                if response.get("type") == "message" and response.get("role") in {
+                if response.get("type") == "message" and response.get("role") in (
                     "user",
                     "assistant",
-                }:
+                ):
                     return "codex"
             if payload.get("sessionId") or (
-                payload.get("type") in {"user", "assistant", "system"}
+                payload.get("type") in ("user", "assistant", "system")
                 and payload.get("timestamp")
             ):
                 return "claude"
-            if payload.get("role") in {"user", "assistant"} or TS_RE.search(line):
+            if payload.get("role") in ("user", "assistant") or TS_RE.search(line):
                 return "cursor"
-    return "cursor"
+    if (
+        transcript_path.parent.parent.name == "agent-transcripts"
+        and transcript_path.parent.name == transcript_path.stem
+    ):
+        return "cursor"
+    return "unknown"
 
 
 def find_meta_json(session_uuid: str) -> Path | None:
@@ -374,14 +424,33 @@ def find_codex_transcript(
     return matches[-1] if matches else None
 
 
+def find_antigravity_transcript(session_uuid: str) -> Path | None:
+    if not UUID_RE.fullmatch(session_uuid):
+        return None
+    configured = os.environ.get("ANTIGRAVITY_APP_DATA_DIR")
+    data_dir = (
+        Path(configured).expanduser()
+        if configured
+        else Path.home() / ".gemini" / "antigravity-cli"
+    )
+    transcript = data_dir / "brain" / session_uuid.lower() / ANTIGRAVITY_TRANSCRIPT
+    return transcript if transcript.is_file() else None
+
+
 def find_transcript(session_uuid: str, explicit: Path | None) -> Path | None:
     if explicit is not None:
         return explicit if explicit.is_file() else None
+    if not session_uuid:
+        return None
 
     codex_match = find_codex_transcript(session_uuid)
     current_codex_id = os.environ.get("CODEX_THREAD_ID", "")
     if codex_match and current_codex_id.lower() == session_uuid.lower():
         return codex_match
+
+    current_antigravity_id = os.environ.get("ANTIGRAVITY_CONVERSATION_ID", "")
+    if current_antigravity_id.lower() == session_uuid.lower():
+        return find_antigravity_transcript(session_uuid)
 
     cursor_root = Path.home() / ".cursor" / "projects"
     if cursor_root.is_dir():
@@ -398,7 +467,7 @@ def find_transcript(session_uuid: str, explicit: Path | None) -> Path | None:
         matches = sorted(claude_root.glob(f"**/{session_uuid}.jsonl"))
         if matches:
             return matches[-1]
-    return codex_match
+    return codex_match or find_antigravity_transcript(session_uuid)
 
 
 def infer_claude_uuid(transcript_path: Path) -> str:
@@ -429,6 +498,8 @@ def infer_uuid(transcript_path: Path, source: str) -> str:
         return infer_claude_uuid(transcript_path)
     if source == "codex":
         return infer_codex_uuid(transcript_path)
+    if source == "antigravity":
+        return antigravity_uuid_from_path(transcript_path)
     return transcript_path.parent.name
 
 
@@ -458,8 +529,12 @@ def compute_times(
         user_ts = extract_claude_user_timestamps(transcript_path)
     elif source == "codex":
         user_ts = extract_codex_user_timestamps(transcript_path)
-    else:
+    elif source == "antigravity":
+        user_ts = extract_antigravity_user_timestamps(transcript_path)
+    elif source == "cursor":
         user_ts = extract_cursor_user_timestamps(transcript_path)
+    else:
+        user_ts = []
 
     started = (
         extract_codex_started_at(transcript_path)
@@ -503,6 +578,11 @@ def save_temp_times_json(result: dict) -> str:
     return path
 
 
+def report_error(error: str, message: str) -> int:
+    print(json.dumps({"error": error, "message": message}), file=sys.stderr)
+    return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -512,7 +592,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--uuid",
-        help="Session UUID; locates a Cursor, Claude, or Codex transcript",
+        help="Session UUID; locates a Cursor, Claude, Codex, or Antigravity transcript",
     )
     parser.add_argument(
         "--meta",
@@ -526,24 +606,37 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    transcript = find_transcript(args.uuid, args.transcript) if args.uuid else args.transcript
-    if transcript is None or not transcript.is_file():
-        print(
-            json.dumps(
-                {
-                    "error": "transcript_not_found",
-                    "message": "Pass --transcript or --uuid",
-                },
-                ensure_ascii=False,
-            ),
-            file=sys.stderr,
+    transcript = find_transcript(args.uuid or "", args.transcript)
+    if transcript is None:
+        return report_error(
+            "transcript_not_found", "Pass an existing --transcript or a known --uuid"
         )
-        return 1
 
     source = detect_source(transcript)
     session_uuid = args.uuid or infer_uuid(transcript, source)
-    meta = args.meta or (find_meta_json(session_uuid) if source == "cursor" else None)
+    meta = args.meta
+    if source in {"cursor", "unknown"}:
+        meta = meta or find_meta_json(session_uuid)
+    if source == "unknown":
+        if not (meta and meta.is_file()):
+            return report_error("transcript_unrecognized", "Unrecognized transcript format")
+        source = "cursor"
+    if source == "antigravity":
+        path_uuid = antigravity_uuid_from_path(transcript)
+        if not UUID_RE.fullmatch(session_uuid):
+            return report_error(
+                "session_uuid_required", "Pass --uuid for a copied Antigravity transcript"
+            )
+        session_uuid = session_uuid.lower()
+        if path_uuid and path_uuid != session_uuid:
+            return report_error(
+                "transcript_uuid_mismatch", "Antigravity transcript path and --uuid disagree"
+            )
     result = compute_times(transcript, meta, source=source)
+    if source == "antigravity" and result["fallback"]:
+        return report_error(
+            "antigravity_no_user_timestamps", "No timestamped substantive Antigravity user input"
+        )
     result["session_id"] = session_uuid
     if args.save_temp:
         result["times_json_path"] = save_temp_times_json(result)

@@ -3,11 +3,11 @@
 写入 `~/_sxg/llm_session_log/{target_file}.md` 时使用（create 时 `{target_file}` 由
 `session_resolve.py` 给出；update 时沿用已有文件名）。
 
-## 时间字段（Cursor / Claude Code / Codex）
+## 时间字段
 
 | 字段 | 含义 | 来源 |
 |------|------|------|
-| `date` | session **开始**日期 | `session_times.py` 自动识别 Cursor / Claude / Codex → `date`；**update 时不变** |
+| `date` | session **开始**日期 | `session_times.py` → `date`；**update 时不变** |
 | `time` | **最后一条实质用户消息** | `session_times.py` → `time`；纯收尾/meta 命令与 synthetic context 不计入，update 时刷新 |
 | `filename_ts` | 文件名前缀 12 位（仅 create） | 开始 `YYYYMMDD` + 最后活跃 `HHMM` |
 

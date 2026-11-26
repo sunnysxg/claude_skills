@@ -15,8 +15,8 @@ chat 侧边栏只能按标题/时间浏览，这个归档 + 索引是**刻意为
 `suggested_chat_title`。
 
 > **平台**：时间解析（`session_times.py`）与 upsert（`session_resolve.py`）支持 Cursor、
-> Claude Code 和 Codex；脚本会自动识别 transcript 格式。存量回填（`session_backfill.py`）
-> 仍仅支持 Cursor。
+> Claude Code、Codex 和 Antigravity CLI（`agy`）；脚本会自动识别 transcript 格式。
+> 存量回填（`session_backfill.py`）仍仅支持 Cursor。
 
 ## 0. 执行边界与效率
 
@@ -82,15 +82,24 @@ PATH 没有 Python 时，用 workspace dependencies 返回的 bundled Python 绝
 transcript 路径（按优先级）：
 
 1. system 注入的当前 transcript 绝对路径
-2. `--uuid {uuid}`（Codex 优先用已设置的 `CODEX_THREAD_ID`）自动查找 Cursor `agent-transcripts/`、Claude
-   `~/.claude/projects/**/*.jsonl` 或 Codex `$CODEX_HOME/sessions/**/rollout-*-{uuid}.jsonl`
+2. `--uuid {uuid}` 自动查找当前客户端的记录。Codex 会话用 `CODEX_THREAD_ID`，
+   Antigravity 会话用 `ANTIGRAVITY_CONVERSATION_ID`（非交互起会话也可从 `init.conversation_id` 取）。
+   继承多个客户端变量时，只把当前客户端的 UUID 传给脚本。Cursor 查 `agent-transcripts/`，
+   Claude Code 查 `~/.claude/projects/**/*.jsonl`，Codex 查
+   `$CODEX_HOME/sessions/**/rollout-*-{uuid}.jsonl`。
 
 Codex 查找必须按 rollout **文件名**精确匹配 UUID，禁止全文 grep；subagent transcript
 即使正文带 root UUID 也不能冒充 root session。
 
+Antigravity 用同一个 `--uuid` 精确读取数据根下的 `brain/<UUID>/.system_generated/logs/transcript.jsonl`。
+数据根取 `ANTIGRAVITY_APP_DATA_DIR`，未设时用 `~/.gemini/antigravity-cli`。显式传原始路径可从
+目录提取 UUID，传复制到其它路径的 transcript 时同时附上原会话的 `--uuid`。开始与最后活跃时间
+取首末带时区的实质用户输入（`USER_INPUT` / `USER_EXPLICIT`），跳过系统代发和纯收尾指令。
+脚本报路径不存在、格式无法识别或没有有效用户时间时，核对原始路径与 UUID 后重试。
+
 保留输出 JSON（含 `session_id`、`date`、`time`、`filename_ts`、`started_at`、
 `last_active_at`、`logged_at`）。`--save-temp` 让脚本自己把同一份 JSON 写进操作系统临时
-目录（Python `tempfile`，三平台通用），路径在输出的 `times_json_path` 字段，记为
+目录（Python `tempfile`），路径在输出的 `times_json_path` 字段，记为
 `{TIMES_JSON_PATH}`。
 
 **`{TIMES_JSON_PATH}` 只能在操作系统临时目录或 `~/_sxg/llm_session_log/`，绝不能写进项目树
@@ -107,7 +116,7 @@ Codex 查找必须按 rollout **文件名**精确匹配 UUID，禁止全文 grep
 | `time` | frontmatter `time`（**最后活跃**；update 刷新） |
 | `last_active_at` / `logged_at` | frontmatter |
 | `filename_ts` | 仅 **create** 时用于文件名前缀 |
-| `fallback: true` | 找不到 transcript；允许用当前时间并在回复说明 |
+| `fallback: true` | Cursor、Claude Code 或 Codex 缺少可用时间；允许人工核对并在回复说明 |
 
 ### 3.2 命名（先定 slug，再 resolve）
 
@@ -137,8 +146,8 @@ Codex 查找必须按 rollout **文件名**精确匹配 UUID，禁止全文 grep
 `session_resolve.py` 读完 `--times-json` 立即删掉该文件（第一次运行即消费，重跑 resolve 要
 先重跑 `session_times.py --save-temp`）；后续步骤用的时间字段取自 3.1 已保留的输出。
 
-`session_times.py` 会按 transcript 自动区分 Cursor / Claude / Codex；
-`session_resolve.py` 的 UUID upsert 逻辑三端共用。若 `fallback: true`，才允许人工核对并填写时间。
+`session_resolve.py` 的 UUID upsert 逻辑四端共用。收到时间脚本的错误时先核对来源；
+仅在 `fallback: true` 时才允许人工核对并填写时间。
 
 ## 4. 写文件
 
@@ -217,8 +226,7 @@ Desktop `--ccd-pending` 补历史遗留标题（见第 7 步）的数据来源�
      `auto_rename_on_stop.py`，会经 tmux `send-keys` 自动执行；Codex CLI/TUI 可由用户执行。
    - Codex Desktop 的工具缺失、失败或结果含糊时，不回滚已成功归档，不输出它不支持的
      `/rename`；明确说未完成重命名，并给出标题供用户在 UI 手动修改。
-   - 未知客户端只给标题建议，不假定它支持 slash command；**直接标题工具不可见并不能证明
-     `/rename` 可用**。不得声称已改好。
+   - Antigravity 或未知客户端没有直接标题工具时只给标题建议。
 
 不要继续写无关代码，除非用户接着提新任务。
 

@@ -1,0 +1,11 @@
+{"step_index":0,"type":"SYSTEM_MESSAGE","source":"SYSTEM","status":"DONE","created_at":"2026-08-13T15:54:00Z","content":"Synthetic session instructions"}
+{"step_index":1,"type":"USER_INPUT","source":"SYSTEM_SDK","status":"DONE","created_at":"2026-08-13T15:55:00Z","content":"Synthetic context"}
+{"step_index":2,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":"2026-08-13T15:58:00Z","content":"Start the example task"}
+{"step_index":3,"type":"PLANNER_RESPONSE","source":"MODEL","status":"DONE","created_at":"2026-08-13T16:00:00Z","content":"Example response"}
+{"step_index":4,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":"2026-08-14T00:10:12.345+08:00","content":"Complete the example task, then use session-log"}
+{"step_index":5,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":"2026-08-13T16:11:00Z","content":"   "}
+{"step_index":6,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":"2026-08-13T16:12:00Z","content":"/session-log"}
+{"step_index":7,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":"2026-08-13T16:13:00Z","content":"/handoff"}
+{"step_index":8,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":"invalid","content":"Missing valid time"}
+{"step_index":9,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":"2026-08-13T16:14:00","content":"Missing timezone"}
+{"step_index":10,

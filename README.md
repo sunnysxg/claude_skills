@@ -28,7 +28,7 @@
 | `playground` | 在 `playground/` 下新建实验项目 |
 | `neat-freak` | 会话收尾时整理文档与记忆，与代码对齐 |
 | `mmd-explain` | 用 Mermaid 图示解释（`.mmd` + PNG，默认输出到项目 `_sxg/diagram/`）；Windows/Linux 分别使用 PowerShell/Bash renderer |
-| `session-log` | 在 Cursor / Claude Code / Codex 归档并按 UUID upsert 同一 chat；Codex Desktop / Claude Code Desktop 在宿主工具可用时直接改当前 chat 标题（CCD 传 `"self"`，并顺手补历史遗留），Claude/Cursor CLI 可选 Stop hook 执行标题建议 |
+| `session-log` | 在 Cursor / Claude Code / Codex / Antigravity CLI [归档会话](session-log/SKILL.md)，同一 UUID 重复归档时更新原条目；Codex Desktop / Claude Code Desktop 在宿主工具可用时直接改当前 chat 标题（CCD 传 `"self"`，并顺手补历史遗留），Claude/Cursor CLI 可选 Stop hook 执行标题建议 |
 | `session-search` | 按关键词、项目、时间检索已归档的 session 摘要 |
 | `steelman` | 双向钢人压力测试：复述用户立场（Rapoport 法则，不阻塞）→ 正反最强论证 → 关键变量 → 只问一题（等回答）→ 给判断；立场不清先转 grilling；反谄媚机制 |
 | `taskboard` | 操作中央待办看板（dashi taskboard/todo_hub）：读卡、认领、改状态、评论，全部走 `taskctl` CLI；默认等待认领、拿不准也排队、待立项须命中例外及 agent 补齐验收，见 [建卡规则](taskboard/SKILL.md#建卡)；Antigravity 写入与终端续聊见 [会话归属与写入方标识](taskboard/SKILL.md#会话归属与写入方标识)；SKILL.md 保留通用规矩与按 prompt 原文判轮次的路由，普通调研材料的目录、网页入口和提交边界见「材料交付」；人手交付、交付评论、讨论卡交回、完成收尾、原理留档页各在 `references/`，成果入口的单入口与必要重复同名示例见 [交付评论模板](taskboard/references/delivery-comment.md)；自动派发与预调研轮以派发须知为准 |

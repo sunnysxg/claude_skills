@@ -37,7 +37,7 @@ Windows Computer Use 使用活动桌面，任务执行期间要保持机器解�
   Windows `agy 1.5.16` 扫描 `~/.gemini/config/skills/` 时不跟随目录联接（junction），因此
   同步器改为在 `~/.gemini/config/skills.json` 中维护指向本仓的单个 `include_only` 条目，
   保留同文件内用户自定义条目及 `~/.gemini/config/skills/` 下的真实目录，Windows 与 Linux
-  使用同一清单机制；当前不含 `session-log`（尚无 Antigravity transcript adapter）。
+  使用同一清单机制。
 
 这里不是把整个 `~/.codex` 改名为 `~/.agents`：Codex 配置、全局 `AGENTS.md` 和运行状态仍
 属于 `$CODEX_HOME`（默认 `~/.codex`），只有用户级/项目级 skill 的官方发现根迁到
@@ -64,13 +64,15 @@ alias 的机器需各自确认并删除旧链接；不能删除 canonical 源目
 
 链接建立成功不等于客户端一定能加载。`git-workflow` 已改为标准 Agent Skill，并安装到
 Cursor 与 Codex；它在 Git 写操作前触发，项目规范以项目指令文件里的 Git 规则为准。
-`session-log` 的 frontmatter 已标准化，时间解析支持 Cursor、Claude Code 与 Codex，三端
-共用 `session_resolve.py` 的 UUID upsert，并由 manifest 安装到 Cursor 与 Codex。
+`session-log` 的 frontmatter 已标准化，时间解析支持 Cursor、Claude Code、Codex 与 Antigravity CLI，
+四端共用 `session_resolve.py` 的 UUID upsert，并由 manifest 安装到 Cursor、Codex 与 Antigravity。
 Codex adapter 按 rollout 文件名精确匹配 UUID；以 `session_meta.payload.timestamp` 为开始时间，
 以最后一条实质 root user message 为最后活跃时间。它窄过滤已知 synthetic context、subagent
 注入与纯 `/session-log`、`/rename`、`/handoff` 命令，同时保留 `<codex_delegation>` 的真实任务。
 归档成功后，Codex Desktop 通过宿主 thread-title 工具直接修改当前任务名，不把 CLI 的
 `/rename` 命令交给桌面端用户执行；没有直接工具的客户端才走自身支持的标题命令或建议。
+Antigravity 用已知 UUID 精确定位 transcript，首末实质用户输入决定开始与活跃时间。路径、
+数据根覆盖和缺失记录的处理见 [session-log 的时间解析步骤](../session-log/SKILL.md#31-时间--session_timespy)。
 
 ## 3. Windows 使用方法
 
@@ -269,7 +271,7 @@ commit/merge 协调。Handoff 可以在 Local、worktree 和匹配的 SSH host �
 | Linux 冲突与修复 | 保留真实目录；错误 symlink 仅显式 repair | 已实现并在 Linux host 隔离验收 |
 | Windows `mmd-explain` | doctor 探测浏览器/字体；真实 renderer 生成中文与 emoji 正常的 PNG | 已在当前 Windows host 用 bundled pnpm/Node 实机验收；第二台待执行 |
 | Linux `mmd-explain` | doctor 通过；真实 conda renderer 生成中文与 emoji 正常的 PNG | 已在 Linux host `/tmp` 验收 |
-| `session-log` 解析与 upsert | Windows/Linux fixture 覆盖三类 transcript、synthetic/meta 过滤、delegation、UUID 文件名查找与 create→update 去重 | 2026-08-13 双平台通过；Windows 另以真实 Codex rollout 在临时 log-dir 通过 |
+| `session-log` 解析与 upsert | Cursor、Claude Code、Codex 与 Antigravity transcript，synthetic/meta 过滤、精确 UUID 查找与 create→update 去重 | 2026-08-13 前三端 Windows/Linux 夹具通过，Windows 另验真实 Codex rollout；2026-11-26 Antigravity Windows 夹具及真实 `agy 1.5.17` transcript 只读验证通过，Linux 待实机验证 |
 | Codex `session-log` 安装 | 标准 `agents/openai.yaml`；manifest 声明 Codex target；两端 DryRun → Sync → Doctor | 2026-08-13 Windows 与 cpu005 全项通过，新 Codex agent 可发现该 skill |
 | Codex Desktop 任务改名 | 归档成功后调用宿主 thread-title 工具；省略 `threadId` 定位当前任务；成功分支不输出 `/rename`；失败不回滚归档、不误报，并给 UI 手动标题 | 2026-08-13 在当前 Windows Codex Desktop 实测，工具返回当前 thread ID，任务列表读回新标题；独立无工具 forward-test 确认不会猜测 `/rename` |
 | Remote Control | 每个控制端与每个 host 单独配对；同账号不视为已配对 | 人工验收 |
@@ -280,7 +282,7 @@ commit/merge 协调。Handoff 可以在 Local、worktree 和匹配的 SSH host �
 | COMMON → Cursor user file rule | 生成专用 alwaysApply `.mdc`，不接管其他规则 | Windows 27 项隔离断言与 vmcc Doctor 通过；新 Cursor task 待行为验收 |
 | COMMON → Codex managed block | 更新公共区块且保留机器私有区块 | Windows 27 项隔离断言、vmcc Doctor 与重复 Sync 通过 |
 | COMMON → Antigravity managed_include | 在 `~/.gemini/AGENTS.md` 维护单行 `@[...](~/.claude/skills/global/COMMON.md)`，块外保留本机规则，运行时实时内联 | 2026-11-25 Windows 隔离回归、本机 Sync/Doctor 与 `agy 1.5.16` 实机内联验收通过；Linux 待实机复验 |
-| Antigravity skills.json 清单 | 维护 `~/.gemini/config/skills.json` 本仓 `include_only`（不含 `session-log`），保留其他条目，畸形 JSON 报冲突 | 2026-11-25 Windows 隔离回归、本机 Sync/Doctor 与 `agy 1.5.16` 实机验证通过（15 个自动发现 skill 全量加载，`hv-analysis` 正确遵循 `disable-model-invocation: true`）；Linux 待实机复验 |
+| Antigravity skills.json 清单 | 维护 `~/.gemini/config/skills.json` 本仓 `include_only`，保留其他条目，畸形 JSON 报冲突 | 2026-11-25 Windows 隔离回归、本机 Sync/Doctor 与 `agy 1.5.16` 实机验证通过（含 `hv-analysis` 禁用自动调用）；2026-11-26 新增 `session-log`，Windows 隔离 Sync/Doctor 通过，Linux 待实机复验 |
 | 同 task 跨 host session upsert | task ID 不变，记录 host history，私有传输后更新同一文件 | 需先定传输层 |
 | 两个 agent 并行 | 独立 worktree/branch，不共写 checkout | 流程约束 |
 
@@ -321,7 +323,7 @@ Hermes 自主的技能维护（curator、后台复盘）不改它，只有用户
 
 候选的首批 skill：`article-ingest`（Linux 本机抓取，gate 客户端本来就在 Lightsail）、
 `hv-analysis`、`grilling`、`steelman`、`leader`、`git-workflow`。不给的：`taskboard`、
-`pickup`（看板只在 SeraCC 本机）、`session-log`、`session-search`、`neat-freak`（依赖三家客户端
+`pickup`（看板只在 SeraCC 本机）、`session-log`、`session-search`、`neat-freak`（依赖支持客户端
 的 transcript 与归档）、`ui-options`（依赖桌面侧栏渲染）。
 
 **不做的代价与门槛。** 当下没有 Hermes 必须用的新 skill；按需把单个 skill 手动拷进

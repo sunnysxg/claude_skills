@@ -362,3 +362,15 @@ TODOHUB-776 负责看板侧状态说明与帮助，本仓只维护 taskboard 技
 
 出处：CLAUDESKILLS-69 描述与授权；Sarah 在 PROJ-36 的 2026-11-26T02:50Z 补充，已回写
 TODOHUB-776；取代 CLAUDESKILLS-68 的保守默认，看板状态说明仍由 TODOHUB-776 维护。
+
+## 2026-11-26 Antigravity 会话归档按会话 UUID 定位
+
+状态：现行
+
+在「Antigravity 会话归档缺少可靠的开始与活跃时间」的场景下，选「由明确的会话 UUID 或路径
+取得 transcript，用首末实质用户输入定时间并复用 UUID 归档。记录不可用时报错」，否「按
+brain 目录修改时间选最近会话」「用执行归档的时间补缺」，以达「重复归档仍归同一会话且
+保留原始活动时间」，接受「缺记录时需要先定位原始 transcript」。适配器补齐后，
+`session-log` 纳入现有 Antigravity 技能清单。
+
+出处：CLAUDESKILLS-71 验收标准；Windows `agy 1.5.17` transcript 实测。

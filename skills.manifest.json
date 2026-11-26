@@ -182,11 +182,11 @@
       "name": "session-log",
       "source": "session-log",
       "platforms": ["windows", "linux"],
-      "targets": ["cursor", "codex"],
+      "targets": ["cursor", "codex", "antigravity"],
       "compatibility": {
         "cursor": "tested",
         "codex": "tested",
-        "antigravity": "unsupported"
+        "antigravity": "tested"
       }
     },
     {

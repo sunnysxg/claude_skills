@@ -185,6 +185,11 @@ todo_hub 的状态语义模块，本文不抄。**判据一栏是归位的唯一
 - 看板派发／回应指令里自带这句，人手起的会话只能靠本节。事实源是 todo_hub
   `dashi-taskboard/shared/card-mention.mjs` 的 `cardMentionNote`，改措辞先改模块再照抄过来。
 
+## 正文中的 LaTeX 公式
+
+卡片描述和评论正文里可以直接写 LaTeX 公式。行内用 `$…$` 或 `\(…\)`，块级用 `$$…$$` 或 `\[…\]`。
+同一段含金额时，公式优先用反斜杠分隔符。要原样显示美元符号，可以写 `\$`。
+
 ## 回复格式
 
 下面这段与 todo_hub `dashi-taskboard/shared/advance-modes.mjs` 的 `REPLY_FORMAT_RULE` 逐字相同，
